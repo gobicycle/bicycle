@@ -1,0 +1,105 @@
+### List of possible vulnerabilities
+In the format:
+- P: problem
+- T: threat
+- S: possible solutions
+- D: decision
+
+#### Untrusted node
+- P: unreliable data from the node lite server
+- T: the node operator can control the behavior of the service
+- S: use your trusted node or use a web3 library with proof checking (like tolibgo)
+- D: add a recommendation for launching your node in the readme
+
+#### Time out of sync
+- P: time out of sync between a node and service
+- T: incorrect expiration check and double withdrawals
+- S: use your trusted node and check time diff between node and service
+- D: add a recommendation for launching your node in the readme and service stops if time diff too big
+
+#### Blockchain out of sync
+- P: out of sync between a blockchain and service (by blocks)
+- T: the service may mark some transactions that have not yet been found as expired and make double withdrawals
+- S: check time diff between last processed block and actual time (time of last block)
+- D: service checks time diff between last the processed block and the actual time and does not make any withdrawals until service is synchronized
+
+#### Repeated withdrawal of TONs from the deposit
+- P: when a message is sent to wallet with 128+32 mode, the wallet contract is deleted, but the message itself remains in the node's mempool for some time. 
+If TONs arrive at the wallet address at this time, the message will be applied again (because seqno is being reset).
+- T: repeated withdrawal of TONs from the deposit to the hot wallet ignoring the cutoff for the minimum withdrawal and growth of internal fees
+- S: reducing the valid_until time for message
+- D: small valid_until time for message
+
+#### Bruteforce API Token through Time Attack
+- P: the api token can be bruteforced by the difference in the token verification time
+- T: an attacker can control the service through the API
+- S: isolation of the payment processor from the external network and use constant time function to check token 
+- D: isolation recommendation in readme file and service uses constant time function to check token
+
+#### Forgery of messages with internal service data
+- P: an attacker can copy service messages with their data (like memo)
+- T: incorrect operation of the service or external behavior control from the blockchain
+- S: checking the addresses of the sender and recipient of the message and checking hash for some messages
+- D: checking the addresses of the sender and recipient of the message and checking hash for some messages
+
+#### Unexpected tonutils package functionality
+- P: the behavior of some functions may differ from what is expected
+- T: incorrect operation of the service or malicious behavior of the library
+- S: open source code review or trust the tonutils library
+- D: trust the tonutils library
+
+#### Modified wallet code in the tonutils package
+- P: the library may contain a modified wallet code with additional functionality
+- T: unexpected behavior of the wallet in the blockchain and control of the wallet from the outside of service
+- S: compare the wallet code with a trusted source and fix the library version or trust the tonutils library
+- D: trust the tonutils library
+
+#### Untrusted binary libs in tongo package
+- P: the behavior of some functions (TVM emulation) may differ from what is expected
+- T: incorrect operation of the service or malicious behavior of the tongo library
+- S: build binary libraries from the official TON repository or trust the tongo library
+- D: trust the tongo library
+
+#### Jetton wallets with unexpected behavior
+- P: custom tokens may have unusual behavior on blockchain
+- T: incorrect calculation of Jettons balances or large internal commissions of the service
+- S: use Jettons with known behavior and conforming to the standard
+- D: add a recommendations for valid Jettons to readme file
+
+#### A lot of expensive withdrawals
+- P: the service is trying to make a lot of expensive withdrawals (more than wallet balance) as a result, they displace other withdrawals from the message batch of 255 messages
+- T: the service stops processing external withdrawals
+- S: increasing the number of withdrawals requests from the database
+- D: the number of requested withdrawals requests is configured during operation
+
+#### Service withdrawals changes incoming Jetton balance
+- P: service withdrawal may be detected as negative incoming (and interprets as unknown tx)
+- T: incorrect calculation of Jettons balances
+- S: check dest address and not set "unknown tx" flag 
+- D: check dest address and not set "unknown tx" flag 
+
+#### DDOS and blocking requests
+- P: service can not process a lot of requests or may wait for blocked request (where mutex used)
+- T: the service stops processing new requests
+- S: all requests must be limited by the user
+- D: recommendations for requests limitations in the readme file
+
+#### SQL injections via `comment`, `user_id` and other text fields
+- P: the danger of injection through the request fields
+- T: executing an arbitrary query on the database
+- S: sanitize user input
+- D: use `go pgx` with sanitize
+
+#### Withdrawals to internal address
+- P: it is possible to make a withdrawal to an address and then generate the same address as the deposit address, 
+     thereby making a withdrawal to the internal address
+- T: this can break the uniqueness of the addresses in the wallet message batch and break the checking 
+     of the correspondence of incoming and outgoing messages
+- S: it is rare case, warning in technical notes, uniqueness check in withdrawal processor
+- D: warning in technical notes, uniqueness check in withdrawal processor
+
+#### Duplicate randomly generated UUIDs
+- P: DB error for not unique UUID in internal or service withdrawals
+- T: service crashes with fatal error
+- S: the probability to find a duplicate within 103 trillion version-4 UUIDs is one in a billion
+- D: the probability of error is too small, no action is required

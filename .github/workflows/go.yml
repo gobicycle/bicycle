@@ -1,0 +1,77 @@
+name: Go
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: TESTS
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
+          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+
+      - name: Build
+        run: go build -v ./...
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-2go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-2go-
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install git zlib1g-dev libssl-dev
+
+      - name: Install libs
+        run: |
+          git clone https://github.com/startfellows/tongo /tmp/tongo
+          sudo cp /tmp/tongo/lib/linux/libvm-exec-lib.so /lib
+
+      - name: Run Test
+        env:
+          SEED: ${{ secrets.SEED }}
+          SERVER: ${{ secrets.SERVER }}
+          KEY: ${{ secrets.KEY }}
+        run: |
+          go test -v $(go list ./...)
+#          go test -v $(go list ./...)  -covermode=count -coverprofile=coverage.out
+#          go tool cover -func=coverage.out -o=coverage.out
+
+#      - name: Go Coverage Badge  # Pass the `coverage.out` output to this action
+#        uses: tj-actions/coverage-badge-go@v1.2
+#        with:
+#          filename: coverage.out
+#
+#      - name: Verify Changed files
+#        uses: tj-actions/verify-changed-files@v9.1
+#        id: verify-changed-files
+#        with:
+#          files: README.md
+#
+#      - name: Commit changes
+#        if: steps.verify-changed-files.outputs.files_changed == 'true' && github.ref != 'refs/heads/main'
+#        run: |
+#          git add README.md
+#          git config --global user.email "coverage@ton-payment-processor.com"
+#          git config --global user.name "Coverage"
+#          git commit -m "Updated coverage badge"
+#      - name: Push changes
+#        if: steps.verify-changed-files.outputs.files_changed == 'true' && github.ref != 'refs/heads/main'
+#        uses: ad-m/github-push-action@master
+#        with:
+#          github_token: ${{ github.token }}
+#          branch: ${{ github.head_ref }}

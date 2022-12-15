@@ -1,0 +1,56 @@
+###
+POST {{url}}/v1/address/new
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"user_id": "123", "currency": "TON"}
+
+###
+POST {{url}}/v1/address/new
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"user_id": "123", "currency": "TGR"}
+
+###
+GET {{url}}/v1/address/all?user_id=TestClient
+Authorization: Bearer {{token}}
+
+###
+GET {{url}}/v1/balance?user_id=TestClient
+Authorization: Bearer {{token}}
+
+###
+POST {{url}}/v1/withdrawal/send
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"user_id": "123", "query_id": "127", "currency": "TON", "amount":  200000000, "destination": "EQA8BB-qeC8gSUqu0cTA6nOzhk8ha5TLgQMbtRT47pDPJP3T", "comment":  "hello"}
+
+###
+POST {{url}}/v1/withdrawal/send
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"user_id": "123", "query_id": "124", "currency": "TGR", "amount":  1000, "destination": "kQB7HQd6w8j4vPdaTQYBDFXYci0YeHZVJWiVcpw__o97IKYd", "comment":  "hello"}
+
+###
+POST {{url}}/v1/withdrawal/service
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"from": "0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP", "jetton_master": "kQCKt2WPGX-fh0cIAz38Ljd_OKQjoZE_cqk7QrYGsNP6wfP0", "ton_amount": 1000, "jetton_amount":  1000}
+
+###
+POST {{url}}/v1/withdrawal/service
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"from": "0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP"}
+
+###
+GET {{url}}/v1/withdrawal/status?id=1
+Authorization: Bearer {{token}}
+
+###
+GET {{url}}/v1/system/sync
