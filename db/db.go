@@ -179,6 +179,9 @@ func (c *Connection) GetTonWalletsAddresses(
 	[]core.Address,
 	error,
 ) {
+	if types == nil {
+		types = make([]core.WalletType, 0)
+	}
 	rows, err := c.client.Query(ctx, `
 		SELECT address
 		FROM payments.ton_wallets
@@ -208,6 +211,9 @@ func (c *Connection) GetJettonOwnersAddresses(
 	[]core.OwnerWallet,
 	error,
 ) {
+	if types == nil {
+		types = make([]core.WalletType, 0)
+	}
 	rows, err := c.client.Query(ctx, `
 		SELECT tw.address, jw.currency
 		FROM payments.jetton_wallets jw
@@ -323,15 +329,13 @@ func (c *Connection) saveInternalIncome(ctx context.Context, tx pgx.Tx, inc core
 		lt,
 		utime,
 		deposit_address,
-		hot_wallet_address,
 		amount,
 		memo)
-		VALUES ($1, $2, $3, $4, $5, $6)                                               
+		VALUES ($1, $2, $3, $4, $5)                                               
 	`,
 		inc.Lt,
 		time.Unix(int64(inc.Utime), 0),
 		from,
-		inc.To,
 		inc.Amount,
 		memo,
 	)
@@ -372,17 +376,13 @@ func (c *Connection) SaveServiceWithdrawalRequest(ctx context.Context, w core.Se
 ) {
 	var memo uuid.UUID
 	err := c.client.QueryRow(ctx, `
-		INSERT INTO payments.service_withdrawal_requests (		
-		ton_amount,
-		jetton_amount,
+		INSERT INTO payments.service_withdrawal_requests (
 		from_address,
 		jetton_master		
 	)
-		VALUES ($1, $2, $3, $4)
+		VALUES ($1, $2)
 		RETURNING memo
 	`,
-		w.TonAmount,
-		w.JettonAmount,
 		w.From,
 		w.JettonMaster,
 	).Scan(&memo)
@@ -392,15 +392,20 @@ func (c *Connection) SaveServiceWithdrawalRequest(ctx context.Context, w core.Se
 func (c *Connection) UpdateServiceWithdrawalRequest(
 	ctx context.Context,
 	t core.ServiceWithdrawalTask,
+	tonAmount core.Coins,
 	expiredAt time.Time,
+	filled bool,
 ) error {
 	_, err := c.client.Exec(ctx, `
 			UPDATE payments.service_withdrawal_requests
 			SET
-		    	processed = true,
-		    	expired_at = $1
-			WHERE  memo = $2
-		`, expiredAt, t.Memo)
+			    ton_amount = $1,
+			    jetton_amount = $2,
+		    	processed = not $4,
+		    	expired_at = $3,
+		    	filled = $4
+			WHERE  memo = $5
+		`, tonAmount, t.JettonAmount, expiredAt, filled, t.Memo)
 	return err
 }
 
@@ -452,29 +457,57 @@ func (c *Connection) GetExternalWithdrawalTasks(ctx context.Context, limit int) 
 	return res, nil
 }
 
-func (c *Connection) GetServiceWithdrawalTasks(ctx context.Context, limit int) ([]core.ServiceWithdrawalTask, error) {
+// GetServiceHotWithdrawalTasks return tasks for Hot wallet withdrawals
+func (c *Connection) GetServiceHotWithdrawalTasks(ctx context.Context, limit int) ([]core.ServiceWithdrawalTask, error) {
 	var tasks []core.ServiceWithdrawalTask
-
 	rows, err := c.client.Query(ctx, `
 		SELECT DISTINCT ON (from_address) swr.from_address,
 		                                  swr.memo,
-		                                  swr.ton_amount,
-		                                  swr.jetton_amount,
 		                                  swr.jetton_master,
 		                                  tw.subwallet_id
 		FROM   payments.service_withdrawal_requests swr
 		LEFT JOIN payments.ton_wallets tw ON swr.from_address = tw.address
-		WHERE  processed = false
+		WHERE  processed = false and type = ANY($1) and filled = false
         ORDER BY from_address
-		LIMIT  $1
-	`, limit)
+		LIMIT  $2
+	`, []core.WalletType{core.JettonOwner, core.TonDepositWallet}, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var w core.ServiceWithdrawalTask
 	for rows.Next() {
-		err = rows.Scan(&w.From, &w.Memo, &w.TonAmount, &w.JettonAmount, &w.JettonMaster, &w.SubwalletID)
+		err = rows.Scan(&w.From, &w.Memo, &w.JettonMaster, &w.SubwalletID)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, w)
+	}
+	return tasks, nil
+}
+
+// GetServiceDepositWithdrawalTasks return tasks for TON deposit wallets
+func (c *Connection) GetServiceDepositWithdrawalTasks(ctx context.Context, limit int) ([]core.ServiceWithdrawalTask, error) {
+	var tasks []core.ServiceWithdrawalTask
+	rows, err := c.client.Query(ctx, `
+		SELECT DISTINCT ON (from_address) swr.from_address,
+		                                  swr.memo,
+		                                  swr.jetton_master,
+		                                  swr.jetton_amount,
+		                                  tw.subwallet_id
+		FROM   payments.service_withdrawal_requests swr
+		LEFT JOIN payments.ton_wallets tw ON swr.from_address = tw.address
+		WHERE  processed = false AND filled = true AND type = $1
+        ORDER BY from_address
+		LIMIT $2
+	`, core.TonDepositWallet, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var w core.ServiceWithdrawalTask
+	for rows.Next() {
+		err = rows.Scan(&w.From, &w.Memo, &w.JettonMaster, &w.JettonAmount, &w.SubwalletID)
 		if err != nil {
 			return nil, err
 		}
@@ -644,6 +677,10 @@ func (c *Connection) GetJettonInternalWithdrawalTasks(
 		tasks []core.InternalWithdrawalTask
 		task  core.InternalWithdrawalTask
 	)
+	excludedAddr := make([][]byte, 0) // it is important for 'deposit_address = ANY($2)' sql constraint
+	for _, a := range forbiddenAddresses {
+		excludedAddr = append(excludedAddr, a[:]) // array of core.Address not supported by driver
+	}
 	rows, err := c.client.Query(ctx, `
 		SELECT deposit_address, MAX(lt) AS last_lt, jw.subwallet_id, jw.currency
 		FROM payments.external_incomes di
@@ -657,16 +694,16 @@ func (c *Connection) GetJettonInternalWithdrawalTasks(
 			)
 		) as iw3 ON from_address = deposit_address
 		JOIN payments.jetton_wallets jw ON di.deposit_address = jw.address
+		LEFT JOIN payments.ton_wallets tw ON jw.subwallet_id = tw.subwallet_id
 		WHERE (since_lt IS NOT NULL AND lt > since_lt AND finish_lt IS NOT NULL)
-		   OR (since_lt IS NULL) AND type = $1 AND deposit_address != ANY($2)
+		   OR (since_lt IS NULL) AND jw.type = $1 AND NOT tw.address = ANY($2)
 		GROUP BY deposit_address, jw.subwallet_id, jw.currency
 		LIMIT $3
-	`, core.JettonDepositWallet, forbiddenAddresses, limit)
+	`, core.JettonDepositWallet, excludedAddr, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
 	for rows.Next() {
 		err = rows.Scan(&task.From, &task.Lt, &task.SubwalletID, &task.Currency)
 		if err != nil {
@@ -951,27 +988,28 @@ func (c *Connection) GetDepositBalances(
 	var sqlStatement string
 	if isDepositSide {
 		sqlStatement = `
-			SELECT COALESCE(jw.address,tw.address) as deposit, COALESCE(SUM(i.amount),0) as balance
+			SELECT COALESCE(jw.address,tw.address) as deposit, COALESCE(SUM(i.amount),0) as balance, COALESCE(jw.currency,$1) as currency
 			FROM payments.ton_wallets tw
          		LEFT JOIN payments.jetton_wallets jw ON jw.subwallet_id = tw.subwallet_id
          		LEFT JOIN payments.external_incomes i ON i.deposit_address = COALESCE(jw.address,tw.address)
-			WHERE tw.user_id = $1 AND tw.type = ANY($2)
-			GROUP BY deposit, tw.address
+			WHERE tw.user_id = $2 AND tw.type = ANY($3)
+			GROUP BY deposit, tw.address, jw.currency
 		`
 	} else {
 		sqlStatement = `
-			SELECT COALESCE(jw.address,tw.address) as deposit, COALESCE(SUM(i.amount),0) as balance
+			SELECT COALESCE(jw.address,tw.address) as deposit, COALESCE(SUM(i.amount),0) as balance, COALESCE(jw.currency,$1) as currency
 			FROM payments.ton_wallets tw
          		LEFT JOIN payments.jetton_wallets jw ON jw.subwallet_id = tw.subwallet_id
          		LEFT JOIN payments.internal_incomes i ON i.deposit_address = COALESCE(jw.address,tw.address)
-			WHERE tw.user_id = $1 AND tw.type = ANY($2)
-			GROUP BY deposit, tw.address
+			WHERE tw.user_id = $2 AND tw.type = ANY($3)
+			GROUP BY deposit, tw.address, jw.currency
 		`
 	}
 
 	rows, err := c.client.Query(
 		ctx,
 		sqlStatement,
+		core.TonSymbol,
 		userID,
 		[]core.WalletType{core.TonDepositWallet, core.JettonOwner},
 	)
@@ -983,7 +1021,7 @@ func (c *Connection) GetDepositBalances(
 	res := make([]core.Balance, 0)
 	for rows.Next() {
 		var deposit core.Balance
-		err = rows.Scan(&deposit.Deposit, &deposit.Balance)
+		err = rows.Scan(&deposit.Deposit, &deposit.Balance, &deposit.Currency)
 		if err != nil {
 			return nil, err
 		}

@@ -34,11 +34,13 @@ type WithdrawalRequest struct {
 	Comment     string     `json:"comment"`
 }
 
-type ServiceWithdrawalRequest struct {
-	From         string     `json:"from"`
-	TonAmount    core.Coins `json:"ton_amount"`
-	JettonAmount core.Coins `json:"jetton_amount"`
-	JettonMaster string     `json:"jetton_master"`
+type ServiceTonWithdrawalRequest struct {
+	From string `json:"from"`
+}
+
+type ServiceJettonWithdrawalRequest struct {
+	Owner        string `json:"owner"`
+	JettonMaster string `json:"jetton_master"`
 }
 
 type WalletAddress struct {
@@ -63,8 +65,9 @@ type GetBalanceResponse struct {
 }
 
 type balance struct {
-	Address string `json:"address"`
-	Balance string `json:"balance"`
+	Address  string `json:"address"`
+	Balance  string `json:"balance"`
+	Currency string `json:"currency"`
 }
 
 func NewHandler(s storage, b blockchain, token string, shard byte, hotWalletAddress address.Address) *Handler {
@@ -228,15 +231,13 @@ func (h *Handler) getBalance(resp http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handler) serviceTonWithdrawal(resp http.ResponseWriter, req *http.Request) {
-	// TODO: refactor to new API methods
-	var body ServiceWithdrawalRequest
-	// TODO: body.close?
+	var body ServiceTonWithdrawalRequest
 	err := json.NewDecoder(req.Body).Decode(&body)
 	if err != nil {
 		writeHttpError(resp, http.StatusBadRequest, fmt.Sprintf("decode payload err: %v", err))
 		return
 	}
-	w, err := convertServiceWithdrawal(h.storage, body)
+	w, err := convertTonServiceWithdrawal(h.storage, body)
 	if err != nil {
 		writeHttpError(resp, http.StatusBadRequest, fmt.Sprintf("convert service withdrawal err: %v", err))
 		return
@@ -258,7 +259,31 @@ func (h *Handler) serviceTonWithdrawal(resp http.ResponseWriter, req *http.Reque
 }
 
 func (h *Handler) serviceJettonWithdrawal(resp http.ResponseWriter, req *http.Request) {
-	// TODO: implement
+	var body ServiceJettonWithdrawalRequest
+	err := json.NewDecoder(req.Body).Decode(&body)
+	if err != nil {
+		writeHttpError(resp, http.StatusBadRequest, fmt.Sprintf("decode payload err: %v", err))
+		return
+	}
+	w, err := convertJettonServiceWithdrawal(h.storage, body)
+	if err != nil {
+		writeHttpError(resp, http.StatusBadRequest, fmt.Sprintf("convert service withdrawal err: %v", err))
+		return
+	}
+	memo, err := h.storage.SaveServiceWithdrawalRequest(req.Context(), w)
+	if err != nil {
+		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("save service withdrawal request err: %v", err))
+		return
+	}
+	var response = struct {
+		Memo uuid.UUID `json:"memo"`
+	}{
+		Memo: memo,
+	}
+	err = json.NewEncoder(resp).Encode(response)
+	if err != nil {
+		log.Errorf("json encode error: %v", err)
+	}
 }
 
 func RegisterHandlers(mux *http.ServeMux, h *Handler) {
@@ -397,7 +422,7 @@ func convertWithdrawal(w WithdrawalRequest) (core.WithdrawalRequest, error) {
 	}, nil
 }
 
-func convertServiceWithdrawal(s storage, w ServiceWithdrawalRequest) (core.ServiceWithdrawalRequest, error) {
+func convertTonServiceWithdrawal(s storage, w ServiceTonWithdrawalRequest) (core.ServiceWithdrawalRequest, error) {
 	from, _, err := validateAddress(w.From)
 	if err != nil {
 		return core.ServiceWithdrawalRequest{}, fmt.Errorf("invalid from address: %v", err)
@@ -407,23 +432,33 @@ func convertServiceWithdrawal(s storage, w ServiceWithdrawalRequest) (core.Servi
 		return core.ServiceWithdrawalRequest{}, fmt.Errorf("unknown deposit address")
 	}
 	if t != core.JettonOwner {
-		return core.ServiceWithdrawalRequest{}, fmt.Errorf("service withdrawal allowed only for Jetton owner")
+		return core.ServiceWithdrawalRequest{},
+			fmt.Errorf("service withdrawal allowed only for Jetton deposit owner")
 	}
-	if w.JettonMaster == "" {
-		return core.ServiceWithdrawalRequest{
-			From: from,
-		}, nil
+	return core.ServiceWithdrawalRequest{
+		From: from,
+	}, nil
+}
+
+func convertJettonServiceWithdrawal(s storage, w ServiceJettonWithdrawalRequest) (core.ServiceWithdrawalRequest, error) {
+	from, _, err := validateAddress(w.Owner)
+	if err != nil {
+		return core.ServiceWithdrawalRequest{}, fmt.Errorf("invalid from address: %v", err)
+	}
+	t, ok := s.GetWalletType(from)
+	if !ok {
+		return core.ServiceWithdrawalRequest{}, fmt.Errorf("unknown deposit address")
+	}
+	if t != core.JettonOwner && t != core.TonDepositWallet {
+		return core.ServiceWithdrawalRequest{},
+			fmt.Errorf("service withdrawal allowed only for Jetton deposit owner or TON deposit")
 	}
 	jetton, _, err := validateAddress(w.JettonMaster)
 	if err != nil {
 		return core.ServiceWithdrawalRequest{}, fmt.Errorf("invalid jetton master address: %v", err)
 	}
-	if !(w.TonAmount.Cmp(decimal.New(0, 0)) == 1) && !(w.JettonAmount.Cmp(decimal.New(0, 0)) == 1) {
-		return core.ServiceWithdrawalRequest{}, fmt.Errorf("jetton or TON amount must be > 0")
-	}
+	// currency type checks by withdrawal processor
 	return core.ServiceWithdrawalRequest{
-		TonAmount:    w.TonAmount,
-		JettonAmount: w.JettonAmount,
 		From:         from,
 		JettonMaster: &jetton,
 	}, nil
@@ -433,14 +468,18 @@ func convertBalances(balances []core.Balance) GetBalanceResponse {
 	var res GetBalanceResponse
 	for _, b := range balances {
 		res.Balances = append(res.Balances, balance{
-			Address: b.Deposit.ToUserFormat(),
-			Balance: b.Balance.String(),
+			Address:  b.Deposit.ToUserFormat(),
+			Balance:  b.Balance.String(),
+			Currency: b.Currency,
 		})
 	}
 	return res
 }
 
 func validateAddress(addr string) (core.Address, bool, error) {
+	if addr == "" {
+		return core.Address{}, false, fmt.Errorf("empty address")
+	}
 	a, err := address.ParseAddr(addr)
 	if err != nil {
 		return core.Address{}, false, fmt.Errorf("invalid address: %v", err)

@@ -81,13 +81,13 @@ func initTonHotWallet(
 	addr := AddressMustFromTonutilsAddress(tonHotWallet.Address())
 	alreadySaved := false
 	addrFromDb, err := db.GetTonHotWalletAddress(ctx)
-	if err == nil {
-		alreadySaved = true
-	} else if !errors.Is(err, ErrNotFound) && err != nil {
-		return nil, 0, 0, err
-	} else if err == nil && addr != addrFromDb {
+	if err == nil && addr != addrFromDb {
 		return nil, 0, 0,
 			fmt.Errorf("saved hot wallet not equal generated hot wallet. Maybe seed was being changed")
+	} else if !errors.Is(err, ErrNotFound) && err != nil {
+		return nil, 0, 0, err
+	} else if err == nil {
+		alreadySaved = true
 	}
 
 	log.Infof("Shard: %v\n", shard)
@@ -214,6 +214,37 @@ func WithdrawTONs(ctx context.Context, from, to *wallet.Wallet, comment string) 
 	}, false)
 }
 
+func WithdrawJettons(
+	ctx context.Context,
+	from, to *wallet.Wallet,
+	jettonWallet *address.Address,
+	forwardAmount tlb.Coins,
+	amount Coins,
+	comment string,
+) error {
+	if from == nil || to == nil || to.Address() == nil {
+		return fmt.Errorf("nil wallet")
+	}
+	body := MakeJettonTransferMessage(
+		to.Address(),
+		to.Address(),
+		amount.BigInt(),
+		forwardAmount,
+		rand.Int63(),
+		comment,
+	)
+	return from.Send(ctx, &wallet.Message{
+		Mode: 128 + 32, // 128 + 32 send all and destroy
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      true,
+			DstAddr:     jettonWallet, // jetton wallet address
+			Amount:      tlb.FromNanoTONU(0),
+			Body:        body,
+		},
+	}, false)
+}
+
 func MakeJettonTransferMessage(
 	destination, responseDest *address.Address,
 	amount *big.Int,
@@ -285,8 +316,8 @@ func BuildJettonWithdrawalMessage(
 func BuildJettonProxyWithdrawalMessage(
 	proxy JettonProxy,
 	jettonWallet, tonWallet *address.Address,
-	amount *big.Int,
 	forwardAmount tlb.Coins,
+	amount *big.Int,
 	comment string,
 ) *wallet.Message {
 	jettonTransferPayload := MakeJettonTransferMessage(
@@ -334,6 +365,23 @@ func buildJettonProxyServiceTonWithdrawalMessage(
 			Amount:      config.JettonTransferTonAmount,
 			Body:        body,
 			StateInit:   proxy.StateInit(),
+		},
+	}
+}
+
+func buildTonFillMessage(
+	to *address.Address,
+	amount tlb.Coins,
+	memo uuid.UUID,
+) *wallet.Message {
+	return &wallet.Message{
+		Mode: 3,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      false,
+			DstAddr:     to,
+			Amount:      amount,
+			Body:        buildComment(memo.String()),
 		},
 	}
 }

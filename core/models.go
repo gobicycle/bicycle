@@ -20,6 +20,14 @@ const (
 	DefaultWorkchain = 0 // use only 0 workchain
 )
 
+type EventName = string
+
+const (
+	ServiceWithdrawalEvent  EventName = "service withdrawal"
+	InternalWithdrawalEvent EventName = "internal withdrawal"
+	ExternalWithdrawalEvent EventName = "external withdrawal"
+)
+
 type WalletType string
 
 const (
@@ -78,6 +86,12 @@ func (a Address) ToUserFormat() string {
 
 func (a Address) ToBytes() []byte {
 	return a[:]
+}
+
+func TonutilsAddressToUserFormat(addr *address.Address) string {
+	addr.SetTestnetOnly(config.Config.Testnet)
+	addr.SetBounce(false)
+	return addr.String()
 }
 
 func AddressFromBytes(data []byte) (Address, error) {
@@ -142,16 +156,15 @@ type WithdrawalRequest struct {
 }
 
 type ServiceWithdrawalRequest struct {
-	TonAmount    Coins
-	JettonAmount Coins
 	From         Address
 	JettonMaster *Address
 }
 
 type ServiceWithdrawalTask struct {
 	ServiceWithdrawalRequest
-	Memo        uuid.UUID
-	SubwalletID uint32
+	JettonAmount Coins
+	Memo         uuid.UUID
+	SubwalletID  uint32
 }
 
 type ExternalWithdrawalTask struct {
@@ -235,8 +248,9 @@ type InternalWithdrawalTask struct {
 }
 
 type Balance struct {
-	Deposit Address
-	Balance Coins
+	Deposit  Address
+	Balance  Coins
+	Currency string
 }
 
 type Coins = decimal.Decimal
@@ -277,8 +291,10 @@ type storage interface {
 	IsActualBlockData(ctx context.Context) (bool, error)
 	SaveWithdrawalRequest(ctx context.Context, w WithdrawalRequest) (int64, error)
 	IsInProgressInternalWithdrawalRequest(ctx context.Context, dest Address, currency string) (bool, error)
-	GetServiceWithdrawalTasks(ctx context.Context, limit int) ([]ServiceWithdrawalTask, error)
-	UpdateServiceWithdrawalRequest(ctx context.Context, t ServiceWithdrawalTask, expiredAt time.Time) error
+	GetServiceHotWithdrawalTasks(ctx context.Context, limit int) ([]ServiceWithdrawalTask, error)
+	UpdateServiceWithdrawalRequest(ctx context.Context, t ServiceWithdrawalTask, tonAmount Coins,
+		expiredAt time.Time, filled bool) error
+	GetServiceDepositWithdrawalTasks(ctx context.Context, limit int) ([]ServiceWithdrawalTask, error)
 }
 
 type blockchain interface {

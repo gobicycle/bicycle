@@ -5,7 +5,7 @@ This API describes endpoints of payment processor.
 
 ## New address [POST /v1/address/new]
 
-Generates new deposit address.
+Generates new deposit address
 
 + Request (application/json)
 
@@ -24,14 +24,32 @@ Generates new deposit address.
               "address": "0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR"
             }
 
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401          
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }            
+
 
 ## Get all addresses [GET /v1/address/all{?user_id}]
 
-Get all created addresses by user_id.
+Get all created addresses by `user_id`
 
 + Parameters
 
-    + user_id (string) - An unique identifier of the user.
+    + user_id (string) - an unique identifier of the user
 
 + Request
 
@@ -56,13 +74,31 @@ Get all created addresses by user_id.
               ]
             }
 
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            } 
+
 ## Get balances [GET /v1/balance{?user_id}]
 
-Get balances for deposits by user_id.
+Get balances for deposits by `user_id`
 
 + Parameters
 
-    + user_id (string) - An unique identifier of the user.
+    + user_id (string) - an unique identifier of the user
 
 + Request
 
@@ -78,18 +114,38 @@ Get balances for deposits by user_id.
               "balances": [
                 {
                   "address": "0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR",
-                  "balance": "1000000"
+                  "balance": "1000000",
+                  "currency": "TON"
                 },
                 {
                   "address": "0QCdyiS-fIV9UVfI9Phswo4l2MA-hm8YseHynZ_YiH9Y1oSe",
-                  "balance": "1023000"
+                  "balance": "1023000",
+                  "currency": "TGR"
                 }
               ]
             }
 
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            } 
+
 ## Send withdrawal [POST /v1/withdrawal/send]
 
-Send withdrawal request. *Amount must be in base units without decimal point! (NanoTONs for TONs)*
+Send withdrawal request. **Amount must be in base units without decimal point (NanoTONs for TONs)**
 
 + Request (application/json)
 
@@ -115,9 +171,28 @@ Send withdrawal request. *Amount must be in base units without decimal point! (N
               "ID": 1
             }
 
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            } 
+
 ## Send service withdrawal [POST /v1/withdrawal/service/ton]
 
-Send service withdrawal request. Withdraw all TONs from "from" address to hot wallet
+Send service withdrawal request. Withdraw all TONs from `from` address to hot wallet.
+Returns `memo` as comment for transfer message.
 
 + Request (application/json)
 
@@ -135,12 +210,31 @@ Send service withdrawal request. Withdraw all TONs from "from" address to hot wa
     + Body
 
             {
-              "memo": "123"
+              "memo": "123e4567-e89b-12d3-a456-426655440000"
             }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            } 
 
 ## Send service withdrawal [POST /v1/withdrawal/service/jetton]
 
 Send service withdrawal request. Withdraw all Jettons from Jetton wallet. Address calculated through owner and Jetton master.
+Returns `memo` as comment for transfer message.
 
 + Request (application/json)
 
@@ -159,12 +253,30 @@ Send service withdrawal request. Withdraw all Jettons from Jetton wallet. Addres
     + Body
 
             {
-              "memo": "123"
+              "memo": "123e4567-e89b-12d3-a456-426655440000"
             }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            } 
 
 ## Get withdrawal status [GET /v1/withdrawal/status{?id}]
 
-Get withdrawal status.
+Get withdrawal status. Returns `pending`, `processing`, `processed`
 
 + Parameters
 
@@ -184,6 +296,24 @@ Get withdrawal status.
               "status": "pending"
             }
 
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401            
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            } 
+
 ## Get sync flag [GET /v1/system/sync]
 
 Get blockchain sync flag. Returns `true` if the service has up-to-date data from the blockchain.
@@ -196,3 +326,11 @@ As long as the flag is equal to `false`, no withdrawals are made.
             {
               "is_synced": false
             }
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }             

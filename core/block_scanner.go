@@ -80,14 +80,14 @@ func NewBlockScanner(
 
 func (s *BlockScanner) Start() {
 	defer s.wg.Done()
-	log.Printf("BlockScanner started")
+	log.Printf("Block scanner started")
 	for {
 		block, exit, err := s.tracker.NextBlock()
 		if err != nil {
 			log.Fatalf("get block error: %v", err)
 		}
 		if exit {
-			log.Printf("BlockScanner stopped")
+			log.Printf("Block scanner stopped")
 			break
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)

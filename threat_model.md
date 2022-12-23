@@ -103,3 +103,20 @@ If TONs arrive at the wallet address at this time, the message will be applied a
 - T: service crashes with fatal error
 - S: the probability to find a duplicate within 103 trillion version-4 UUIDs is one in a billion
 - D: the probability of error is too small, no action is required
+
+#### Freezing and deleting unused account
+- P: if account do not used by long time and its balance under 0 by storage fee, this account 
+     freezes and then deletes by node
+- T: if Jetton wallet do not used by a long time it may be dropped by node, data with Jetton balance is cleaning
+- S: all Jettons (> cutoff) withdraws from deposits when service works normally. 
+     It is dangerous for Jetton cold/hot wallets, that do not use for a long time.
+     Needs to check and fill balances periodically. 
+- D: recommendation in technical_notes file to periodically check and fill TON balances on hot and cold wallets.
+     Recommendation to use software to do it automatically.
+
+#### Deposit side vs hot side balance shifting when service withdrawals
+- P: service withdrawal of Jettons from the TON deposit occurs through the Jetton wallet and is not detected by the 
+     block scanner as an internal TON withdrawal
+- T: TON balance shift between deposit side and hot wallet side
+- S: use service withdrawal of Jettons from TON deposit wallet only with zero or near-zero TON balance
+- D: warning about this behavior in technical_notes file for method description

@@ -9,9 +9,9 @@ import (
 type Severity string
 
 const (
-	Error   Severity = "Error"
-	Warning Severity = "Warn"
-	Info    Severity = "Info"
+	Error   Severity = "ERROR"
+	Warning Severity = "WARNING"
+	Info    Severity = "INFO"
 )
 
 type message struct {
@@ -22,24 +22,24 @@ type message struct {
 func pushLog(m message) {
 	switch m.Severity {
 	case Error:
-		log.Printf("AUDIT:%v:%v %s", m.Severity, time.Now(), m.Text)
+		log.Printf("AUDIT|%v|%v|%s", m.Severity, time.Now().Format(time.RFC822), m.Text)
 	case Warning:
-		log.Printf("AUDIT:%v:%v %s", m.Severity, time.Now(), m.Text)
+		log.Printf("AUDIT|%v|%v|%s", m.Severity, time.Now().Format(time.RFC822), m.Text)
 	case Info:
-		log.Printf("AUDIT:%v:%v %s", m.Severity, time.Now(), m.Text)
+		log.Printf("AUDIT|%v|%v|%s", m.Severity, time.Now().Format(time.RFC822), m.Text)
 	}
 }
 
 func LogTX(severity Severity, location string, hash []byte, text string) {
 	pushLog(message{
 		Severity: severity,
-		Text:     fmt.Sprintf("%s:TX:%x:%s", location, hash, text),
+		Text:     fmt.Sprintf("%s|TX:%x|%s", location, hash, text),
 	})
 }
 
-func Log(severity Severity, location string, text string) {
+func Log(severity Severity, location, event, text string) {
 	pushLog(message{
 		Severity: severity,
-		Text:     fmt.Sprintf("%s:%s", location, text),
+		Text:     fmt.Sprintf("%s|%s|%s", location, event, text),
 	})
 }

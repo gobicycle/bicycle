@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"errors"
+	"github.com/gobicycle/bicycle/core"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -108,7 +109,7 @@ func Test_GetJettonInternalWithdrawalTasks(t *testing.T) {
 	defer migrateDown(t)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
-	res, err := c.GetJettonInternalWithdrawalTasks(ctx, 250)
+	res, err := c.GetJettonInternalWithdrawalTasks(ctx, []core.Address{}, 250)
 	if err != nil {
 		t.Fatal("get tasks err: ", err)
 	}

@@ -80,7 +80,10 @@ The service provides the following functionality:
 | `QUEUE_URI`            | URI for queue client connection                                                                                                                                                                                                                                                                                       |
 | `QUEUE_NAME`           | name of queue                                                                                                                                                                                                                                                                                                         |
 
+**! Be careful with `IS_TESTNET` variable.** This does not guarantee that a testnet node is being used. It is only for address checking purposes.
+
 There are also internal service settings (fees and timeouts) that are specified in the source code in the [Config](/config/config.go) package.
+Calibration parameters recommendations in [Technical notes](/technical_notes.md).
 
 ### Service deploy
 

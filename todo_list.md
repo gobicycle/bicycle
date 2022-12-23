@@ -33,8 +33,9 @@
 - [x] Deploy scripts
 - [x] Unit tests
 - [x] Validate wallets code for tonutils v1.4.1
-- [ ] Manual testing plan
-- [ ] Service methods for API (cancellation of incorrect payments)
+- [x] Manual testing plan
+- [x] Service methods for API (cancellation of incorrect payments)
+- [ ] Manual testing
 - [ ] Hot wallets metrics
 - [ ] Integration tests
 - [ ] TVM build

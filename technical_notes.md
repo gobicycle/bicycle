@@ -190,8 +190,40 @@ Use `/v1/withdrawal/service/ton` if the TONs are still at proxy contract. It mak
 proxy contract to hot wallet.
 #### 2. Mistaken transfer of Jettons to the address of TON deposit
 Use `/v1/withdrawal/service/jetton`. It makes withdrawal of all Jettons from Jetton wallet (not deposit) to hot wallet.
+**! Be careful with this method.** This method withdraw all TONs from deposit to hot wallet, but balance replenish at 
+hot wallet side not detect. Use this method with zero or near zero deposit TON balance.
 #### 3. Mistaken transfer of unexpected Jetton type to the address of the proxy contract
 Use `/v1/withdrawal/service/jetton`. It makes withdrawal of all Jettons from Jetton wallet (not deposit) to hot wallet.
 
 ## Calibration parameters
 TODO: List of recommended fee presets for Mainnet and Testnet
+### TESTNET
+Single highload message Jetton transfer to not deployed Jetton wallet (SCALE Jetton): 
+- transfer message value - 0.1 TON
+- forward TON amount - 0.02 TON (for notification message)
+- excess - 0.033 TON
+- total loss = 0.1 - 0.033 = 0.067 TON
+
+Single highload message Jetton transfer to already deployed Jetton wallet (SCALE Jetton):
+- transfer message value - 0.1 TON
+- forward TON amount - 0.02 TON (for notification message)
+- excess - 0.042 TON
+- total loss = 0.1 - 0.042 = 0.058 TON
+
+## Freezing and deleting unused account
+If account do not used by a long time, and its balance under 0 by storage fee, this account freezes (by the next transaction) 
+and then deletes by node (by the next transaction if balance still < 0).
+It is dangerous for Jetton wallets (hot and cold) and when account data drops Jetton balance drops too.
+Recommended to check hot and Jetton wallet balances periodically and fill it (or use special software).
+
+## Highload message deduplication
+In order to check the success of sending separate messages in a batch, we need to identify them.
+Adding a memo to a message to make it unique distorts the user's comment.
+Use control of the uniqueness of the destination address in the batch instead of adding memo.
+Destination address is a message dest address for TON transfers, and it is a destination from ton transfer message payload 
+for Jetton transfer (to avoid deduplication by the Jetton hot wallet address).
+Because the wrapped payload is sent to the proxy contract, then the destination address is the address of the proxy
+contract (for service and internal Jetton withdrawals).
+
+## Audit log
+// TODO: describe audit logging
