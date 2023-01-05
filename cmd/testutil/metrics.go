@@ -6,24 +6,31 @@ import (
 )
 
 var (
-	payerWalletBalance = promauto.NewGaugeVec(
+	hotWalletABalance = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "payer_wallet_balance",
-			Help: "Payer wallet balance",
+			Name: "hot_wallet_a_balance",
+			Help: "Hot wallet A balance",
 		},
 		[]string{"currency"},
 	)
-	hotWalletBalance = promauto.NewGaugeVec(
+	hotWalletBBalance = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "hot_wallet_balance",
-			Help: "Hot wallet balance",
+			Name: "hot_wallet_b_balance",
+			Help: "Hot wallet B balance",
 		},
 		[]string{"currency"},
 	)
-	depositWalletBalance = promauto.NewGaugeVec(
+	depositWalletABalance = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "deposit_wallet_balance",
-			Help: "Deposit wallet balance",
+			Name: "deposit_wallet_a_balance",
+			Help: "Deposit wallet A balance",
+		},
+		[]string{"currency", "address"},
+	)
+	depositWalletBBalance = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "deposit_wallet_b_balance",
+			Help: "Deposit wallet B balance",
 		},
 		[]string{"currency", "address"},
 	)
@@ -38,6 +45,19 @@ var (
 		prometheus.GaugeOpts{
 			Name: "total_losses",
 			Help: "Total losses",
+		},
+		[]string{"currency"},
+	)
+	predictedTonLoss = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "predicted_ton_loss",
+			Help: "Predicted TON loss",
+		},
+	)
+	totalProcessedAmount = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "total_processed_amount",
+			Help: "Total processed amount",
 		},
 		[]string{"currency"},
 	)

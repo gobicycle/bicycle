@@ -47,51 +47,15 @@ services:
     ports:
       - '3001:3000'
     volumes:
-      - ./deploy/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
-      - ./deploy/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
-      - ./deploy/grafana/dashboards:/etc/dashboards
+      - ./deploy/grafana/main/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./deploy/grafana/main/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./deploy/grafana/main/dashboards:/etc/dashboards
     env_file:
       - .env
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    networks:
-      - p-network
-
-  payment-prometheus:
-    image: prom/prometheus:latest
-    container_name: payment_prometheus
-    restart: always
-    ports:
-      - '9090:9090'
-    volumes:
-      - ./deploy/prometheus:/etc/prometheus
-    user: "$UID:$GID"
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--web.external-url=http://localhost:9090'
-    networks:
-      - p-network
-
-  payment-test:
-    image: payment-test
-    container_name: payment_test
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      DB_URI: "postgres://pp_user:${POSTGRES_PASSWORD}@payment_processor_db:5432/payment_processor"
-      API_TOKEN: ${API_TOKEN}
-      COLD_WALLET: ${COLD_WALLET}
-      JETTONS: ${JETTONS}
-      LITESERVER: ${LITESERVER}
-      LITESERVER_KEY: ${LITESERVER_KEY}
-      SEED: ${SEED}
-      PAYER_SEED: ${PAYER_SEED}
-      TON_CUTOFFS: ${TON_CUTOFFS}
-      IS_TESTNET: ${IS_TESTNET}
-      CIRCULATION: ${CIRCULATION}
     networks:
       - p-network
 

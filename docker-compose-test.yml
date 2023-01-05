@@ -1,0 +1,141 @@
+version: '3'
+
+services:
+
+  payment-postgres-a:
+    image: postgres:14
+    container_name: payment_processor_db_a
+    volumes:
+    - ./deploy/db/01_init.up.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: "payment_processor"
+      POSTGRES_USER: "pp_user"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    networks:
+      - p-network
+
+  payment-postgres-b:
+    image: postgres:14
+    container_name: payment_processor_db_b
+    volumes:
+      - ./deploy/db/01_init.up.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5434:5432"
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: "payment_processor"
+      POSTGRES_USER: "pp_user"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    networks:
+      - p-network
+
+  payment-processor-a:
+    image: payment-processor
+    container_name: payment_processor_a
+    ports:
+      - "8082:8081"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_URI: "postgres://pp_user:${POSTGRES_PASSWORD}@payment_processor_db_a:5432/payment_processor"
+      API_TOKEN: ${API_TOKEN}
+      COLD_WALLET: ${COLD_WALLET}
+      JETTONS: ${JETTONS}
+      LITESERVER: ${LITESERVER}
+      LITESERVER_KEY: ${LITESERVER_KEY}
+      SEED: ${SEED}
+      TON_CUTOFFS: ${TON_CUTOFFS}
+      IS_TESTNET: ${IS_TESTNET}
+    networks:
+      - p-network
+
+  payment-processor-b:
+    image: payment-processor
+    container_name: payment_processor_b
+    ports:
+      - "8083:8081"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_URI: "postgres://pp_user:${POSTGRES_PASSWORD}@payment_processor_db_b:5432/payment_processor"
+      API_TOKEN: ${API_TOKEN}
+      COLD_WALLET: ${COLD_WALLET}
+      JETTONS: ${JETTONS}
+      LITESERVER: ${LITESERVER}
+      LITESERVER_KEY: ${LITESERVER_KEY}
+      SEED: ${SEED}
+      TON_CUTOFFS: ${TON_CUTOFFS}
+      IS_TESTNET: ${IS_TESTNET}
+    networks:
+      - p-network
+
+  payment-grafana:
+    image: grafana/grafana:latest
+    container_name: payment_grafana
+    restart: always
+    ports:
+      - '3001:3000'
+    volumes:
+      - ./deploy/grafana/test/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./deploy/grafana/test/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./deploy/grafana/test/dashboards:/etc/dashboards
+    env_file:
+      - .env
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    networks:
+      - p-network
+
+  payment-prometheus:
+    image: prom/prometheus:latest
+    container_name: payment_prometheus
+    restart: always
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./deploy/prometheus:/etc/prometheus
+    user: "$UID:$GID"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.external-url=http://localhost:9090'
+    networks:
+      - p-network
+
+  payment-test:
+    image: payment-test
+    container_name: payment_test
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_URI: "postgres://pp_user:${POSTGRES_PASSWORD}@payment_processor_db:5432/payment_processor"
+      API_TOKEN: ${API_TOKEN}
+      COLD_WALLET: ${COLD_WALLET}
+      JETTONS: ${JETTONS}
+      LITESERVER: ${LITESERVER}
+      LITESERVER_KEY: ${LITESERVER_KEY}
+      SEED: ${SEED}
+      TON_CUTOFFS: ${TON_CUTOFFS}
+      IS_TESTNET: ${IS_TESTNET}
+      CIRCULATION: ${CIRCULATION}
+      HOST_A: ${HOST_A}
+      HOST_B: ${HOST_B}
+      HOT_WALLET_A: ${HOT_WALLET_A}
+      HOT_WALLET_B: ${HOT_WALLET_B}
+    networks:
+      - p-network
+
+networks:
+  p-network:
+    driver: bridge

@@ -175,6 +175,15 @@ In order for the Jetton wallet to have a suitable address for the shard, the pro
 5. Decode TXs and messages and save to DB
 6. Goto 1.
 
+### Nuances of detecting Jetton transactions
+Since the contract code of Jetton wallets can be different, and the standard describes only the format of the transfer 
+message (the internal transfer is not standardized), and there may be no excess and notification messages, that is, 
+the nuances of detecting Jetton transactions. Transactions are tracked on the deposit Jetton wallet. 
+If there is a transfer notification message in the transaction, then it is decoded and the decoded data is stored 
+in the database. But since there may be events that change the balance of the wallet (depending on the wallet code), 
+the balance is additionally checked for the previous block and the current one, the known value is subtracted and the 
+result is written to the database in the form of replenishment with an unknown sender.
+
 ## Restart policy
 The service must be resistant to restart and long downtime. 
 All operations before being sent to the blockchain must be saved in the database with the status and expiration time.
@@ -196,7 +205,6 @@ hot wallet side not detect. Use this method with zero or near zero deposit TON b
 Use `/v1/withdrawal/service/jetton`. It makes withdrawal of all Jettons from Jetton wallet (not deposit) to hot wallet.
 
 ## Calibration parameters
-TODO: List of recommended fee presets for Mainnet and Testnet
 ### TESTNET
 Single highload message Jetton transfer to not deployed Jetton wallet (SCALE Jetton): 
 - transfer message value - 0.1 TON
@@ -226,4 +234,70 @@ Because the wrapped payload is sent to the proxy contract, then the destination 
 contract (for service and internal Jetton withdrawals).
 
 ## Audit log
-// TODO: describe audit logging
+There is an audit log to detect anomalous service behavior and unusual events in the blockchain. Service errors of a 
+technical nature fall into the ordinary log. The audit log message contains the location where the event was detected, 
+the transaction hash (if this event was detected by the block scanner) and the text of the message.
+
+There are three levels of warnings:
+* INFO - the event is not dangerous, but unusual
+* WARNING - the event may be potentially hazardous and should be attended to
+* ERROR - the event can pose a critical threat to the operation of the service
+
+## Running the test util for payment processor
+**It is strictly recommended to run the test utility with the processor configured for the testnet.**
+
+Optionally you can start test environment for payment-processor. This utility generates deposits via API, 
+sends TONs and Jettons from `payment-processor A` to deposits of `payment-processor B` and vice versa. 
+Thus, the utility circulates TONs and Jettons in a closed loop between 
+`payment-processor A`->`payment-processor B`->`payment-processor A`. 
+The utility also allows to evaluate the loss of TONs for the circulation of funds, check the completeness of 
+the withdrawals and the presence of double withdrawals of funds.
+
+### Configurable parameters
+| ENV variable           | Description                                                                                            |
+|------------------------|--------------------------------------------------------------------------------------------------------|
+| `LITESERVER`           | same as for payment-processor A and B (must be the same for A and B)                                   |
+| `LITESERVER_KEY`       | same as for payment-processor A and B (must be the same for A and B)                                   |
+| `DB_URI`               | same as for payment-processor A                                                                        |
+| `HOST_A`               | host of payment-processor A, example `payment_processor_a:8081`                                        |
+| `HOST_B`               | host of payment-processor B, example `payment_processor_b:8081`                                        |
+| `API_TOKEN`            | same as for payment-processor A and B (must be the same for A and B)                                   |
+| `IS_TESTNET`           | same as for payment-processor A and B (must be the same for A and B)                                   |
+| `JETTONS`              | same as for payment-processor A and B (must be the same for A and B)                                   |
+| `TON_CUTOFFS`          | same as for payment-processor A and B (must be the same for A and B)                                   |
+| `HOT_WALLET_A`         | hot-wallet address for payment-processor A, example `kQCdyiS-fIV9UVfI9Phswo4l2MA-hm8YseH3XZ_YiH9Y1ufw` |
+| `HOT_WALLET_B`         | hot-wallet address for payment-processor B, example `kQCdyiS-fIV9UVfI9Phswo4l2MA-hm8YseH3XZ_YiH9Y1ufw` |
+| `CIRCULATION`          | `true` for funds circulation in closed loop. Default: `false`.                                         |
+
+To turn on TON and Jetton circulation set `CIRCULATION=true` ENV variable.
+If you need only balance monitoring without TON and Jetton circulation set `CIRCULATION=false` ENV variable.
+
+1. The test util image of the utility is built from the same makefile as the payment processor
+```console
+make -f Makefile
+```
+2. Prepare `.env` file for `payment-postgres` A and B services or fill environment variables in `docker-compose-test.yml` file.
+   Database scheme automatically init.
+```console
+docker-compose -f docker-compose-test.yml up -d payment-postgres-a
+docker-compose -f docker-compose-test.yml up -d payment-postgres-b
+```
+3. Prepare `.env` file for `payment-processor` A and B services or fill environment variables in `docker-compose-test.yml` file.
+Seeds for A and B must be different.
+```console
+docker-compose -f docker-compose-test.yml up -d payment-processor-a
+docker-compose -f docker-compose-test.yml up -d payment-processor-b
+```
+4. Optionally you can start Grafana for services monitoring. Prepare `.env` file for `payment-grafana` service or
+   fill environment variables in `docker-compose-test.yml` file.
+```console
+docker-compose -f docker-compose-test.yml up -d payment-grafana
+```
+5. Start `payment-prometheus` container
+```console
+docker-compose -f docker-compose-test.yml up -d payment-prometheus
+```
+6. Prepare `.env` file for `payment-test` service or fill environment variables in `docker-compose-test.yml` file.
+```console
+docker-compose -f docker-compose-test.yml up -d payment-test
+```

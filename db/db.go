@@ -239,8 +239,8 @@ func (c *Connection) GetJettonOwnersAddresses(
 func (c *Connection) LoadAddressBook(ctx context.Context) error {
 	res := make(map[core.Address]core.AddressInfo)
 	var (
-		addr, owner core.Address
-		t           core.WalletType
+		addr core.Address
+		t    core.WalletType
 	)
 
 	rows, err := c.client.Query(ctx, `
@@ -269,6 +269,7 @@ func (c *Connection) LoadAddressBook(ctx context.Context) error {
 	}
 	defer rows.Close()
 	for rows.Next() {
+		var owner core.Address
 		err = rows.Scan(&addr, &t, &owner)
 		if err != nil {
 			return err
@@ -446,8 +447,8 @@ func (c *Connection) GetExternalWithdrawalTasks(ctx context.Context, limit int) 
 		return nil, err
 	}
 	defer rows.Close()
-	var w core.ExternalWithdrawalTask
 	for rows.Next() {
+		var w core.ExternalWithdrawalTask
 		err = rows.Scan(&w.Destination, &w.QueryID, &w.Currency, &w.Bounceable, &w.Comment, &w.Amount)
 		if err != nil {
 			return nil, err
@@ -475,8 +476,8 @@ func (c *Connection) GetServiceHotWithdrawalTasks(ctx context.Context, limit int
 		return nil, err
 	}
 	defer rows.Close()
-	var w core.ServiceWithdrawalTask
 	for rows.Next() {
+		var w core.ServiceWithdrawalTask
 		err = rows.Scan(&w.From, &w.Memo, &w.JettonMaster, &w.SubwalletID)
 		if err != nil {
 			return nil, err
@@ -505,8 +506,8 @@ func (c *Connection) GetServiceDepositWithdrawalTasks(ctx context.Context, limit
 		return nil, err
 	}
 	defer rows.Close()
-	var w core.ServiceWithdrawalTask
 	for rows.Next() {
+		var w core.ServiceWithdrawalTask
 		err = rows.Scan(&w.From, &w.Memo, &w.JettonMaster, &w.JettonAmount, &w.SubwalletID)
 		if err != nil {
 			return nil, err
@@ -628,10 +629,7 @@ func (c *Connection) SaveParsedBlockData(ctx context.Context, events core.BlockE
 }
 
 func (c *Connection) GetTonInternalWithdrawalTasks(ctx context.Context, limit int) ([]core.InternalWithdrawalTask, error) {
-	var (
-		tasks []core.InternalWithdrawalTask
-		task  core.InternalWithdrawalTask
-	)
+	var tasks []core.InternalWithdrawalTask
 	rows, err := c.client.Query(ctx, `
 		SELECT deposit_address, MAX(lt) AS last_lt, tw.subwallet_id
 		FROM payments.external_incomes di
@@ -656,6 +654,7 @@ func (c *Connection) GetTonInternalWithdrawalTasks(ctx context.Context, limit in
 	defer rows.Close()
 
 	for rows.Next() {
+		var task core.InternalWithdrawalTask
 		err = rows.Scan(&task.From, &task.Lt, &task.SubwalletID)
 		if err != nil {
 			return nil, err
@@ -673,10 +672,7 @@ func (c *Connection) GetJettonInternalWithdrawalTasks(
 ) (
 	[]core.InternalWithdrawalTask, error,
 ) {
-	var (
-		tasks []core.InternalWithdrawalTask
-		task  core.InternalWithdrawalTask
-	)
+	var tasks []core.InternalWithdrawalTask
 	excludedAddr := make([][]byte, 0) // it is important for 'deposit_address = ANY($2)' sql constraint
 	for _, a := range forbiddenAddresses {
 		excludedAddr = append(excludedAddr, a[:]) // array of core.Address not supported by driver
@@ -695,8 +691,8 @@ func (c *Connection) GetJettonInternalWithdrawalTasks(
 		) as iw3 ON from_address = deposit_address
 		JOIN payments.jetton_wallets jw ON di.deposit_address = jw.address
 		LEFT JOIN payments.ton_wallets tw ON jw.subwallet_id = tw.subwallet_id
-		WHERE (since_lt IS NOT NULL AND lt > since_lt AND finish_lt IS NOT NULL)
-		   OR (since_lt IS NULL) AND jw.type = $1 AND NOT tw.address = ANY($2)
+		WHERE ((since_lt IS NOT NULL AND lt > since_lt AND finish_lt IS NOT NULL)
+		   OR (since_lt IS NULL)) AND jw.type = $1 AND NOT tw.address = ANY($2)
 		GROUP BY deposit_address, jw.subwallet_id, jw.currency
 		LIMIT $3
 	`, core.JettonDepositWallet, excludedAddr, limit)
@@ -705,6 +701,7 @@ func (c *Connection) GetJettonInternalWithdrawalTasks(
 	}
 	defer rows.Close()
 	for rows.Next() {
+		var task core.InternalWithdrawalTask
 		err = rows.Scan(&task.From, &task.Lt, &task.SubwalletID, &task.Currency)
 		if err != nil {
 			return nil, err

@@ -82,7 +82,6 @@ func (p *WithdrawalsProcessor) startWithdrawalsProcessor() {
 		}
 		time.Sleep(config.ExternalWithdrawalPeriod)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*15) // must be < ExternalWithdrawalPeriod
-		defer cancel()
 		err := p.makeColdWalletWithdrawals(ctx)
 		if err != nil {
 			log.Fatalf("make withdrawals to cold wallet error: %v\n", err)
@@ -92,6 +91,7 @@ func (p *WithdrawalsProcessor) startWithdrawalsProcessor() {
 			log.Fatalf("make withdrawal messages error: %v\n", err)
 		}
 		if len(w.Messages) == 0 {
+			cancel()
 			continue
 		}
 		extMsg, err := p.wallets.TonHotWallet.BuildMessageForMany(ctx, w.Messages)
@@ -122,6 +122,7 @@ func (p *WithdrawalsProcessor) startWithdrawalsProcessor() {
 		if err != nil {
 			log.Errorf("send external msg error: %v\n", err)
 		}
+		cancel()
 	}
 }
 
@@ -460,11 +461,11 @@ func (p *WithdrawalsProcessor) startExpirationProcessor() {
 			break
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3) // must be < ExpirationProcessorPeriod
-		defer cancel()
 		err := p.db.SetExpired(ctx)
 		if err != nil {
 			log.Fatalf("set expired withdrawals error: %v", err)
 		}
+		cancel()
 		time.Sleep(config.ExpirationProcessorPeriod)
 	}
 }
@@ -478,8 +479,7 @@ func (p *WithdrawalsProcessor) startInternalTonWithdrawalsProcessor() {
 			log.Infof("Internal TON withdrawal processor stopped")
 			break
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3) // must be < InternalWithdrawalPeriod
-		defer cancel()
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5) // must be < InternalWithdrawalPeriod
 		serviceTasks, err := p.db.GetServiceDepositWithdrawalTasks(ctx, 5)
 		if err != nil {
 			log.Fatalf("get service withdrawal tasks error: %v", err)
@@ -487,7 +487,7 @@ func (p *WithdrawalsProcessor) startInternalTonWithdrawalsProcessor() {
 		for _, task := range serviceTasks {
 			err = p.serviceWithdrawJettons(ctx, task)
 			if err != nil {
-				log.Fatalf("TONs internal withdrawal error: %v", err)
+				log.Fatalf("Jettons service internal withdrawal error: %v", err)
 			}
 			time.Sleep(time.Millisecond * 50)
 		}
@@ -503,6 +503,7 @@ func (p *WithdrawalsProcessor) startInternalTonWithdrawalsProcessor() {
 			}
 			time.Sleep(time.Millisecond * 50)
 		}
+		cancel()
 		time.Sleep(config.InternalWithdrawalPeriod)
 	}
 }
@@ -589,14 +590,15 @@ func (p *WithdrawalsProcessor) waitSync() {
 			break
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-		defer cancel()
 		isSynced, err := p.db.IsActualBlockData(ctx)
 		if err != nil {
 			log.Fatalf("check sync error: %v", err)
 		}
 		if isSynced {
+			cancel()
 			break
 		}
+		cancel()
 		time.Sleep(time.Second * 3)
 	}
 }

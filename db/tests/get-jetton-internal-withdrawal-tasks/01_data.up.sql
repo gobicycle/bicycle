@@ -138,4 +138,44 @@ INSERT INTO payments.jetton_wallets (
         decode('01cc00004767fbcf859609200910269446980f4d27bd8f4e3faa6e4d74792ab2', 'hex')
     );
 
+INSERT INTO payments.ton_wallets (
+    subwallet_id,
+    created_at,
+    user_id,
+    type,
+    address
+) VALUES
+      (
+          --      TON hot wallet
+          1,
+          '2021-03-10 08:00:00 UTC',
+          '',
+          'ton_hot',
+          decode('00aa00004767fbcf859609200910269446980f4d27bd8f4e3faa6e4d74792ab3', 'hex')
+      ),
+      (
+          --      Jetton deposit A owner
+          2,
+          '2021-03-10 08:00:00 UTC',
+          'test_user',
+          'owner',
+          decode('01aa00004767fbcf859609200910269446980f4d27bd8f4e3faa6e4d74792ab3', 'hex')
+      ),
+      (
+          --      Jetton deposit B owner
+          3,
+          '2021-03-10 08:00:00 UTC',
+          'test_user',
+          'owner',
+          decode('01bb00004767fbcf859609200910269446980f4d27bd8f4e3faa6e4d74792ab3', 'hex')
+      ),
+      (
+          --      Jetton deposit C owner
+          4,
+          '2021-03-10 08:00:00 UTC',
+          'test_user',
+          'owner',
+          decode('01cc00004767fbcf859609200910269446980f4d27bd8f4e3faa6e4d74792ab3', 'hex')
+      );
+
 COMMIT;

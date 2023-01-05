@@ -2,56 +2,64 @@ package db
 
 import (
 	"context"
-	"errors"
+	"encoding/hex"
 	"github.com/gobicycle/bicycle/core"
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
 
 var dbURI string
 
-func migrateUp(source string) error {
-	m, err := migrate.New("file://deploy/db", dbURI)
+func execMultiStatement(c *Connection, ctx context.Context, query string) error {
+	query = strings.TrimPrefix(query, "BEGIN;")
+	query = strings.TrimSuffix(query, "COMMIT;")
+	queries := strings.Split(query, ";")
+
+	tx, err := c.client.Begin(ctx)
 	if err != nil {
 		return err
 	}
-	err = m.Up()
-	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return err
+	defer tx.Rollback(ctx)
+	for _, q := range queries {
+		_, err := tx.Exec(ctx, q)
+		if err != nil {
+			return err
+		}
 	}
-	m, err = migrate.New("file://db/tests/"+source, dbURI)
+	err = tx.Commit(ctx)
+	return err
+}
+
+func migrateUp(c *Connection, source string) error {
+	deploy, err := os.ReadFile("../deploy/db/01_init.up.sql")
 	if err != nil {
 		return err
 	}
-	defer m.Close()
-	err = m.Force(-1)
-	err = m.Up()
-	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
+	err = execMultiStatement(c, context.Background(), string(deploy))
+	if err != nil {
+		return err
+	}
+	test, err := os.ReadFile("tests/" + source + "/01_data.up.sql")
+	if err != nil {
+		return err
+	}
+	err = execMultiStatement(c, context.Background(), string(test))
+	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func migrateDown(t *testing.T) {
-	m, err := migrate.New("file://deploy/db", dbURI)
+func migrateDown(c *Connection, t *testing.T) {
+	drop, err := os.ReadFile("../deploy/db/01_init.down.sql")
 	if err != nil {
 		t.Fatal("migrate down err: ", err)
 	}
-	err = m.Down()
+	err = execMultiStatement(c, context.Background(), string(drop))
 	if err != nil {
 		t.Fatal("migrate down err: ", err)
-	}
-	err = m.Drop()
-	if err != nil {
-		t.Fatal("migrate down err: ", err)
-	}
-	err1, err2 := m.Close()
-	if err1 != nil || err2 != nil {
-		t.Fatalf("migrate close err:\n %v\n %v\n", err1, err2)
 	}
 }
 
@@ -77,11 +85,11 @@ func Test_NewConnection(t *testing.T) {
 func Test_GetTonInternalWithdrawalTasks(t *testing.T) {
 	c := connect(t)
 	source := "get-ton-internal-withdrawal-tasks"
-	err := migrateUp(source)
+	err := migrateUp(c, source)
 	if err != nil {
 		t.Fatal("migrate up err: ", err)
 	}
-	defer migrateDown(t)
+	defer migrateDown(c, t)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
 	res, err := c.GetTonInternalWithdrawalTasks(ctx, 100)
@@ -102,11 +110,11 @@ func Test_GetTonInternalWithdrawalTasks(t *testing.T) {
 func Test_GetJettonInternalWithdrawalTasks(t *testing.T) {
 	c := connect(t)
 	source := "get-jetton-internal-withdrawal-tasks"
-	err := migrateUp(source)
+	err := migrateUp(c, source)
 	if err != nil {
 		t.Fatal("migrate up err: ", err)
 	}
-	defer migrateDown(t)
+	defer migrateDown(c, t)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
 	res, err := c.GetJettonInternalWithdrawalTasks(ctx, []core.Address{}, 250)
@@ -123,6 +131,34 @@ func Test_GetJettonInternalWithdrawalTasks(t *testing.T) {
 		t.Fatal("task must be loaded only for second payment for deposit A")
 	}
 	if res[1].Lt != 1 {
+		t.Fatal("task must be loaded only for first payment for deposit C")
+	}
+}
+
+func Test_GetJettonInternalWithdrawalTasksForbidden(t *testing.T) {
+	c := connect(t)
+	source := "get-jetton-internal-withdrawal-tasks"
+	err := migrateUp(c, source)
+	if err != nil {
+		t.Fatal("migrate up err: ", err)
+	}
+	defer migrateDown(c, t)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+	b, _ := hex.DecodeString("01aa00004767fbcf859609200910269446980f4d27bd8f4e3faa6e4d74792ab3") // owner of Jetton deposit A
+	var forbiddenAddress core.Address
+	copy(forbiddenAddress[:], b)
+	res, err := c.GetJettonInternalWithdrawalTasks(ctx, []core.Address{forbiddenAddress}, 250)
+	if err != nil {
+		t.Fatal("get tasks err: ", err)
+	}
+	if len(res) != 1 {
+		t.Fatal("one tasks must be loaded")
+	}
+	if res[0].SubwalletID != 4 {
+		t.Fatal("tasks must be loaded only for deposits C")
+	}
+	if res[0].Lt != 1 {
 		t.Fatal("task must be loaded only for first payment for deposit C")
 	}
 }
@@ -147,11 +183,11 @@ func Test_SetExpired(t *testing.T) {
 
 	c := connect(t)
 	source := "set-expired"
-	err := migrateUp(source)
+	err := migrateUp(c, source)
 	if err != nil {
 		t.Fatal("migrate up err: ", err)
 	}
-	defer migrateDown(t)
+	defer migrateDown(c, t)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
 	err = c.SetExpired(ctx)
@@ -164,7 +200,7 @@ func Test_SetExpired(t *testing.T) {
 		SELECT ew.query_id, failed, wr.processing, wr.processed
 		FROM   payments.external_withdrawals ew
 		LEFT JOIN payments.withdrawal_requests wr ON wr.query_id = ew.query_id 
-        ORDER BY ew.query_id ASC
+        ORDER BY ew.query_id
 	`)
 	if err != nil {
 		t.Fatal("get data err: ", err)
@@ -192,7 +228,7 @@ func Test_SetExpired(t *testing.T) {
 	rows, err = c.client.Query(ctx, `
 		SELECT failed
 		FROM   payments.internal_withdrawals
-        ORDER BY since_lt ASC
+        ORDER BY since_lt
 	`)
 	if err != nil {
 		t.Fatal("get data err: ", err)

@@ -1,8 +1,11 @@
 package blockchain
 
 import (
+	"bytes"
 	"context"
+	"github.com/gobicycle/bicycle/config"
 	"github.com/gobicycle/bicycle/core"
+	"github.com/startfellows/tongo/boc"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/jetton"
@@ -19,6 +22,14 @@ var (
 	activeAccount, _       = address.ParseAddr("kQCOSEttz9aEGXkjd1h_NJsQqOca3T-Pld5zSIPHcYZIxsyf")
 	notActiveAccount, _    = address.ParseAddr("kQAkRRJ1RiViVHY2UmUhWCFjdiZBeEYnhkhxI1JTJFNUNG9v")
 )
+
+func init() {
+	conf, err := boc.DeserializeBocBase64(config.TestnetConfig)
+	if err != nil {
+		panic(err)
+	}
+	config.Config.BlockchainConfig = conf[0]
+}
 
 func connect(t *testing.T) *Connection {
 	server := os.Getenv("SERVER")
@@ -110,7 +121,8 @@ func Test_GetJettonWalletAddress(t *testing.T) {
 	if err != nil {
 		t.Fatal("get jetton wallet address by tonutils method err: ", err)
 	}
-	if jettonWallet.Address().String() != jettonWalletAddr.String() {
+	if !bytes.Equal(jettonWallet.Address().Data(), jettonWalletAddr.Data()) ||
+		jettonWallet.Address().Workchain() != jettonWalletAddr.Workchain() {
 		t.Fatal("invalid jetton wallet address")
 	}
 }
@@ -125,7 +137,7 @@ func Test_GenerateJettonWalletAddressForProxy(t *testing.T) {
 		t.Fatal("gen owner wallet err: ", err)
 	}
 	master := jetton.NewJettonMasterClient(c.client, jettonMasterAddress)
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		shard := byte(rand.Intn(255))
 		startSubWalletID := rand.Uint32()
 		proxy, jettonWalletAddr, err := c.GenerateDepositJettonWalletForProxy(ctx, shard, owner.Address(), jettonMasterAddress, startSubWalletID)

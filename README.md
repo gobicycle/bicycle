@@ -15,7 +15,6 @@ Service is ADNL based and interacts directly with node and do not use any third 
 - [REST API Blueprint](/api.apib)
 - [Prerequisites](#Prerequisites)
 - [Deployment](#Deployment)
-- [Running the test util for payment processor](#Running-the-test-util-for-payment-processor)
 - [Technical notes](/technical_notes.md)
 - [Threat model](/threat_model.md)
 - [TODO list](/todo_list.md)
@@ -42,7 +41,6 @@ The service provides the following functionality:
 - `deposit` - blockchain account with `deposit-address`
 - `hot-wallet` - wallet for aggregation all incoming TONs and Jettons from deposit-addresses.
 - `cold-wallet` - wallet to which part of the funds from the hot wallet is sent for security. Cold-wallet seed phrase is not used by the service.
-- `external-test-wallet` - highload wallet used by test service to send TONs and Jettons to deposits. 
 - `user_id` - unique text value to identify deposit-addresses or withdrawal request for a specific user.
 - `query_id` - unique text value to identify withdrawal request for a specific user to prevent double spending.
 - `basic unit` - minimum indivisible unit for TON (e.g. for TON `basic unit` = nanoTONs) or Jetton.
@@ -69,7 +67,7 @@ The service provides the following functionality:
 | `LITESERVER_KEY`       | public key of lite server `5v2dHtSclsGsZVbNVwTj4hQDso5xvQjzL/yPEHJevHk=`. <br/>Be careful with base64 encoding and ENV var. Use ''                                                                                                                                                                                    |
 | `SEED`                 | seed phrase for main hot wallet. 24 words compatible with standard TON wallets                                                                                                                                                                                                                                        |
 | `DB_URI`               | URI for DB connection, example: <br/>`postgresql://db_user:db_password@localhost:5432/payment_processor`                                                                                                                                                                                                              |
-| `API_HOST`             | host for REST API, example `localhost:8081`, default `localhost:8081`                                                                                                                                                                                                                                                 |
+| `API_HOST`             | host for REST API, example `localhost:8081`, default `0.0.0.0:8081`                                                                                                                                                                                                                                                   |
 | `API_TOKEN`            | Bearer token for REST API, example `123`                                                                                                                                                                                                                                                                              |
 | `IS_TESTNET`           | `true` if service works in TESTNET, `false` - for MAINNET. Default: `true`.                                                                                                                                                                                                                                           |
 | `JETTONS`              | list of Jettons, processed by service in format: <br/>`JETTON_SYMBOL_1:MASTER_CONTRACT_ADDR_1:hot_wallet_max_balance:min_withdrawal_amount, JETTON_SYMBOL_2:MASTER_CONTRACT_ADDR_2:hot_wallet_max_balance:min_withdrawal_amount`, <br/>example: `TGR:kQCKt2WPGX-fh0cIAz38Ljd_OKQjoZE_cqk7QrYGsNP6wfP0:1000000:100000` |
@@ -77,8 +75,8 @@ The service provides the following functionality:
 | `COLD_WALLET`          | cold-wallet address, example `kQCdyiS-fIV9UVfI9Phswo4l2MA-hm8YseH3XZ_YiH9Y1ufw`                                                                                                                                                                                                                                       |
 | `DEPOSIT_SIDE_BALANCE` | `true` - service calculates user balance by deposit incoming, `false` - by hot wallet incoming. Default: `false`.                                                                                                                                                                                                     |
 | `QUEUE_ENABLED`        | `true` - service sends incoming notifications to queue, `false` - sending disabled. Default: `false`.                                                                                                                                                                                                                 |
-| `QUEUE_URI`            | URI for queue client connection                                                                                                                                                                                                                                                                                       |
-| `QUEUE_NAME`           | name of queue                                                                                                                                                                                                                                                                                                         |
+| `QUEUE_URI`            | URI for queue client connection, example `amqp://guest:guest@payment_rabbitmq:5672/`                                                                                                                                                                                                                                  |
+| `QUEUE_NAME`           | name of exchange                                                                                                                                                                                                                                                                                                      |
 
 **! Be careful with `IS_TESTNET` variable.** This does not guarantee that a testnet node is being used. It is only for address checking purposes.
 
@@ -87,55 +85,30 @@ Calibration parameters recommendations in [Technical notes](/technical_notes.md)
 
 ### Service deploy
 
-**Do not use same .env file for `payment-processor` and other services!**
+**Do not use same `.env` file for `payment-processor` and other services!**
 
 1. Build docker images from makefile 
 ```console
 make -f Makefile
 ```
-2. Prepare .env file for `payment-postgres` service or fill environment variables in docker-compose.yml file.
+2. Prepare `.env` file for `payment-postgres` service or fill environment variables in `docker-compose-main.yml` file.
 Database scheme automatically init.
 ```console
-docker-compose -f docker-compose.yml up -d payment-postgres
+docker-compose -f docker-compose-main.yml up -d payment-postgres
 ```
-3. Prepare .env file for `payment-processor` service or fill environment variables in docker-compose.yml file.
+3. Prepare `.env` file for `payment-processor` service or fill environment variables in `docker-compose-main.yml` file.
 ```console
-docker-compose -f docker-compose.yml up -d payment-processor
+docker-compose -f docker-compose-main.yml up -d payment-processor
 ```
-4. Optionally you can start Grafana for service monitoring. Prepare .env file for `payment-grafana` service or fill environment variables in docker-compose.yml file.
+4. Optionally you can start Grafana for service monitoring. Prepare `.env` file for `payment-grafana` service or 
+fill environment variables in `docker-compose-main.yml` file.
 ```console
-docker-compose -f docker-compose.yml up -d payment-grafana
+docker-compose -f docker-compose-main.yml up -d payment-grafana
 ```
-Import dashboard from `./deploy/grafana/dashboards/Payments-dashboard.json` from repo if you have some troubles with Grafana dashboard.
-
-5. Optionally you can start RabbitMQ to collect payment notifications (if `QUEUE_ENABLED` env var is true for payment-processor). Prepare .env file for `payment-rabbitmq` service or fill environment variables in docker-compose.yml file.
+5. Optionally you can start RabbitMQ to collect payment notifications (if `QUEUE_ENABLED` env var is `true` for payment-processor). 
+Prepare `.env` file for `payment-rabbitmq` service or fill environment variables in `docker-compose-main.yml` file.
 ```console
-docker-compose -f docker-compose.yml up -d payment-rabbitmq
-```
-
-## Running the test util for payment processor
-**It is strictly recommended to run the test utility with the processor configured for the testnet.**
-
-Optionally you can start test environment for payment-processor. This utility generates deposits via API, sends TONs and Jettons from `external-test-wallet` to deposits 
-and withdraw TONs and Jettons from hot wallet to `external-test-wallet`. Thus, the utility circulates TONs and Jettons in a closed loop between `external-test-wallet`->`deposits`->`hot-wallet`->`external-test-wallet`.
-Need to set `PAYER_SEED` env variable for `external-test-wallet`.
-
-To turn on TON and Jetton circulation set `CIRCULATION=true` ENV variable.
-If you need only balance monitoring without TON and Jetton circulation set `CIRCULATION=false` ENV variable.
-
-The Grafana deployed in the previous paragraph is used to monitor the balances of test wallets.
-
-1. The test util image of the utility is built from the same makefile as the payment processor
-```console
-make -f Makefile
-```
-2. Start `payment-prometheus` container
-```console
-docker-compose -f docker-compose.yml up -d payment-prometheus
-```
-3. Prepare .env file for `payment-test` service or fill environment variables in docker-compose.yml file.
-```console
-docker-compose -f docker-compose.yml up -d payment-test
+docker-compose -f docker-compose-main.yml up -d payment-rabbitmq
 ```
 
 <!-- Badges -->

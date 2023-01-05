@@ -175,7 +175,7 @@ func buildComment(comment string) *cell.Cell {
 	return root.EndCell()
 }
 
-func loadComment(cell *cell.Cell) string {
+func LoadComment(cell *cell.Cell) string {
 	if cell == nil {
 		return ""
 	}

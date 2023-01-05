@@ -198,14 +198,14 @@ Template:
 
 ### Internal logic
 
-1. -[ ] Checked
+1. -[x] Checked
 - TEST    : Replenish the deposit with TONs and Jettons so that as a result the amount on the hot wallet is greater 
             than hot_wallet_max_balance. Check withdrawals in DB
 - RESULT  : You must find new withdrawal in `withdrawal_requests` table with `is_internal=true`. And final status 
             must correlate with explorer. 
 - COMMENT :
 
-2. -[ ] Checked
+2. -[x] Checked
 - TEST    : Start the service while a workchain merges and splits. Check the integrity of the chain of blocks in the 
             table by comparing with the explorer.
 - RESULT  : There should be no missing blocks in the DB.
@@ -213,33 +213,33 @@ Template:
 
 ### Deploy
 
-1. -[ ] Checked
+1. -[x] Checked
 - TEST    : Build docker images and start `payment-postgres`, `payment-processor` services using README.md instructions
             Check availability and functionality of service.
 - RESULT  : The API must be accessible and functional
 - COMMENT :
 
-2. -[ ] Checked
+2. -[x] Checked
 - TEST    : Start optional `payment-grafana` service using README.md instructions
             Check availability and functionality of service.
 - RESULT  : The `payments` Grafana dashboard must be accessible and show DB data
 - COMMENT :
 
-3. -[ ] Checked
+3. -[x] Checked
 - TEST    : Start `payment-processor` with `QUEUE_ENABLED=true` env var and optional `payment-rabbitmq` service 
             using README.md instructions. Make some payments to deposits. Check availability and functionality of 
             service by RabbitMQ dashboard
 - RESULT  : Must be some message activity in RabbitMQ dashboard for exchange
 - COMMENT :
 
-4. -[ ] Checked
-- TEST    : Start optional `payment-prometheus`, `payment-test` services using README.md instructions 
+4. -[x] Checked
+- TEST    : Start `payment-test` service using technical_notes.md instructions 
             with `CIRCULATION=false` env variable. Check availability and functionality of service by Grafana dashboard.
 - RESULT  : Grafana must show prometheus metrics from `payment-test` service (deposit and total balances)
 - COMMENT :
 
 5. -[ ] Checked
-- TEST    : Start optional `payment-prometheus`, `payment-test` services using README.md instructions
+- TEST    : Start `payment-test` service using technical_notes.md instructions
             with `CIRCULATION=true` env variable. Check availability and functionality of service by Grafana dashboard.
 - RESULT  : Grafana must show prometheus metrics from `payment-test` service (deposit and total balances) and 
             payment activity
@@ -248,7 +248,7 @@ Template:
 ### Stability test
 
 1. -[ ] Checked
-- TEST    : Start optional `payment-prometheus`, `payment-test` services using README.md instructions
+- TEST    : Start `payment-test` service using technical_notes.md instructions
             with `CIRCULATION=true` env variable for long time (with enough amount of test TONs on wallet). 
             Periodically check availability and functionality of service by Grafana dashboard and docker logs.
 - RESULT  : There should be no abnormal behavior of service and errors in log
@@ -257,6 +257,9 @@ Template:
 ### Highload test
 
 1. -[ ] Checked
-- TEST    : Make a lot of payments and withdrawals (more than highload wallet message capacity) at the same time
+- TEST    : Start `payment-test` service using technical_notes.md instructions
+            with `CIRCULATION=true` env variable and depositsQty=100 x 3 types of deposits 
+            (with enough amount of test TONs on wallet).
+            Periodically check availability and functionality of service by Grafana dashboard and docker logs.
 - RESULT  : There should be no abnormal behavior of service and errors in log
 - COMMENT :

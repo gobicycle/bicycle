@@ -8,7 +8,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/startfellows/tongo"
 	"github.com/startfellows/tongo/boc"
-	tongoTlb "github.com/startfellows/tongo/tlb"
 	"github.com/startfellows/tongo/tvm"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/liteclient"
@@ -97,7 +96,17 @@ func (c *Connection) GetJettonWalletAddress(
 	if err != nil {
 		return nil, err
 	}
-	return getJettonWalletAddressByTVM(owner, contr)
+	emulator, err := newEmulator(contr.Code, contr.Data)
+	if err != nil {
+		return nil, err
+	}
+	addr, err := getJettonWalletAddressByTVM(owner, contr.Address, emulator)
+	if err != nil {
+		return nil, err
+	}
+	res := addr.ToTonutilsAddressStd(0)
+	res.SetTestnetOnly(config.Config.Testnet)
+	return res, nil
 }
 
 // GenerateDepositJettonWalletForProxy
@@ -116,21 +125,24 @@ func (c *Connection) GenerateDepositJettonWalletForProxy(
 	if err != nil {
 		return nil, nil, err
 	}
+	emulator, err := newEmulator(contr.Code, contr.Data)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	for id := startSubWalletID; id < math.MaxUint32; id++ {
 		proxy, err = core.NewJettonProxy(id, proxyOwner)
 		if err != nil {
 			return nil, nil, err
 		}
-		jettonWalletAddress, err := getJettonWalletAddressByTVM(proxy.Address(), contr)
+		jettonWalletAddress, err := getJettonWalletAddressByTVM(proxy.Address(), contr.Address, emulator)
 		if err != nil {
 			return nil, nil, err
 		}
-		addr, err := core.AddressFromTonutilsAddress(jettonWalletAddress)
-		if err != nil {
-			return nil, nil, err
-		}
-		if inShard(addr, shard) {
-			return proxy, jettonWalletAddress, nil
+		if inShard(jettonWalletAddress, shard) {
+			addr = jettonWalletAddress.ToTonutilsAddressStd(0)
+			addr.SetTestnetOnly(config.Config.Testnet)
+			return proxy, addr, nil
 		}
 	}
 	return nil, nil, fmt.Errorf("jetton wallet address not found")
@@ -148,7 +160,7 @@ func (c *Connection) getContract(ctx context.Context, addr *address.Address) (co
 	if account == nil || account.Code == nil || account.Data == nil {
 		return contract{}, fmt.Errorf("empty account code or data")
 	}
-	accountID, err := tongo.ParseAccountId(addr.String())
+	accountID, err := tongo.ParseAccountID(addr.String())
 	if err != nil {
 		return contract{}, err
 	}
@@ -173,51 +185,53 @@ func (c *Connection) getContract(ctx context.Context, addr *address.Address) (co
 	}, nil
 }
 
-func getJettonWalletAddressByTVM(owner *address.Address, jettonMaster contract) (*address.Address, error) {
-	ownerAccountID, err := tongo.ParseAccountId(owner.String())
+func getJettonWalletAddressByTVM(
+	owner *address.Address,
+	jettonMaster tongo.AccountID,
+	emulator *tvm.Emulator,
+) (core.Address, error) {
+	ownerAccountID, err := tongo.ParseAccountID(owner.String())
 	if err != nil {
-		return nil, err
+		return core.Address{}, err
 	}
-	c := boc.NewCell()
-	err = tongoTlb.Marshal(c, ownerAccountID)
+	slice, err := tongo.TlbStructToVmCellSlice(ownerAccountID)
 	if err != nil {
-		return nil, err
+		return core.Address{}, err
 	}
 
-	args := []tvm.StackEntry{
-		tvm.NewCellSliceStackEntry(c),
-	}
-	result, err := tvm.RunTvm(jettonMaster.Code, jettonMaster.Data, "get_wallet_address", args, &jettonMaster.Address)
+	code, result, err := emulator.RunGetMethod(context.Background(), jettonMaster, "get_wallet_address",
+		tongo.VmStack{{SumType: "VmStkSlice", VmStkSlice: slice}})
 	if err != nil {
-		return nil, err
+		return core.Address{}, err
 	}
-	if result.ExitCode != 0 || len(result.Stack) != 1 || !result.Stack[0].IsCellSlice() {
-		return nil, fmt.Errorf("tvm execution failed")
+	if code != 0 || len(result) != 1 || result[0].SumType != "VmStkSlice" {
+		return core.Address{}, fmt.Errorf("tvm execution failed")
 	}
 
 	var msgAddress tongo.MsgAddress
-	err = tongoTlb.Unmarshal(result.Stack[0].CellSlice(), &msgAddress)
+	err = result[0].VmStkSlice.UnmarshalToTlbStruct(&msgAddress)
+	if err != nil {
+		return core.Address{}, err
+	}
+	if msgAddress.SumType != "AddrStd" {
+		return core.Address{}, fmt.Errorf("not std jetton wallet address")
+	}
+	if msgAddress.AddrStd.WorkchainId != core.DefaultWorkchain {
+		return core.Address{}, fmt.Errorf("not default workchain for jetton wallet address")
+	}
+	return core.Address(msgAddress.AddrStd.Address), nil
+}
+
+func newEmulator(code, data *boc.Cell) (*tvm.Emulator, error) {
+	emulator, err := tvm.NewEmulator(code, data, config.Config.BlockchainConfig, 1_000_000_000, 0)
 	if err != nil {
 		return nil, err
 	}
-	addr, err := msgAddress.AccountId()
+	err = emulator.SetVerbosityLevel(1)
 	if err != nil {
 		return nil, err
 	}
-	if addr == nil {
-		return nil, fmt.Errorf("empty jetton wallet address")
-	}
-	if addr.Workchain != core.DefaultWorkchain {
-		return nil, fmt.Errorf("not default workchain for jetton wallet address")
-	}
-	a, err := address.ParseAddr(addr.ToHuman(true, config.Config.Testnet))
-	if err != nil {
-		return nil, err
-	}
-	if a == nil {
-		return nil, fmt.Errorf("empty jetton wallet address")
-	}
-	return a, nil
+	return emulator, nil
 }
 
 // GetJettonBalance
@@ -441,4 +455,8 @@ func (c *Connection) Client() ton.LiteClient {
 
 func (c *Connection) CurrentMasterchainInfo(ctx context.Context) (*tlb.BlockInfo, error) {
 	return c.client.CurrentMasterchainInfo(ctx)
+}
+
+func (c *Connection) GetMasterchainInfo(ctx context.Context) (*tlb.BlockInfo, error) {
+	return c.client.GetMasterchainInfo(ctx)
 }

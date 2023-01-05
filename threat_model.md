@@ -58,7 +58,7 @@ If TONs arrive at the wallet address at this time, the message will be applied a
 - P: the behavior of some functions (TVM emulation) may differ from what is expected
 - T: incorrect operation of the service or malicious behavior of the tongo library
 - S: build binary libraries from the official TON repository or trust the tongo library
-- D: trust the tongo library
+- D: build binary libraries from the official TON repository
 
 #### Jetton wallets with unexpected behavior
 - P: custom tokens may have unusual behavior on blockchain

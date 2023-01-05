@@ -5,7 +5,6 @@ datasources:
     uid: DS_PROMETHEUS
     type: prometheus
     access: proxy
-    type: prometheus
     url: http://payment_prometheus:9090
     isDefault: false
 

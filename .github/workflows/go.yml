@@ -10,6 +10,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     environment: TESTS
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_DB: payment_processor
+          POSTGRES_USER: pp_user
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - uses: actions/checkout@v3
         with:
@@ -39,39 +53,13 @@ jobs:
       - name: Install libs
         run: |
           git clone https://github.com/startfellows/tongo /tmp/tongo
-          sudo cp /tmp/tongo/lib/linux/libvm-exec-lib.so /lib
+          sudo cp /tmp/tongo/lib/linux/libemulator.so /lib
 
       - name: Run Test
         env:
           SEED: ${{ secrets.SEED }}
           SERVER: ${{ secrets.SERVER }}
           KEY: ${{ secrets.KEY }}
+          DB_URI: postgresql://pp_user:postgres@localhost:5432/payment_processor?sslmode=disable
         run: |
           go test -v $(go list ./...)
-#          go test -v $(go list ./...)  -covermode=count -coverprofile=coverage.out
-#          go tool cover -func=coverage.out -o=coverage.out
-
-#      - name: Go Coverage Badge  # Pass the `coverage.out` output to this action
-#        uses: tj-actions/coverage-badge-go@v1.2
-#        with:
-#          filename: coverage.out
-#
-#      - name: Verify Changed files
-#        uses: tj-actions/verify-changed-files@v9.1
-#        id: verify-changed-files
-#        with:
-#          files: README.md
-#
-#      - name: Commit changes
-#        if: steps.verify-changed-files.outputs.files_changed == 'true' && github.ref != 'refs/heads/main'
-#        run: |
-#          git add README.md
-#          git config --global user.email "coverage@ton-payment-processor.com"
-#          git config --global user.name "Coverage"
-#          git commit -m "Updated coverage badge"
-#      - name: Push changes
-#        if: steps.verify-changed-files.outputs.files_changed == 'true' && github.ref != 'refs/heads/main'
-#        uses: ad-m/github-push-action@master
-#        with:
-#          github_token: ${{ github.token }}
-#          branch: ${{ github.head_ref }}

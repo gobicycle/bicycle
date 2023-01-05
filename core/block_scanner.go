@@ -39,7 +39,7 @@ type jettonTransferNotificationMsg struct {
 	Comment string
 }
 
-type jettonTransferMsg struct {
+type JettonTransferMsg struct {
 	Amount      Coins
 	Destination *address.Address
 	Comment     string
@@ -91,11 +91,11 @@ func (s *BlockScanner) Start() {
 			break
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer cancel()
 		err = s.processBlock(ctx, block)
 		if err != nil {
 			log.Fatalf("block processing error: %v", err)
 		}
+		cancel()
 	}
 }
 
@@ -200,7 +200,7 @@ func checkTxForSuccess(tx *tlb.Transaction) (bool, error) {
 		return false, err
 	}
 	var fakeTx tongo.Transaction // need for check tx success via tongo
-	fakeTx.Transaction.Description.Value = desc
+	fakeTx.Description = desc
 	return fakeTx.IsSuccess(), nil
 }
 
@@ -457,17 +457,17 @@ func decodeJettonTransferNotification(msg *tlb.InternalMessage) (jettonTransferN
 	return jettonTransferNotificationMsg{
 		Sender:  notification.Sender,
 		Amount:  NewCoins(notification.Amount.NanoTON()),
-		Comment: loadComment(notification.ForwardPayload),
+		Comment: LoadComment(notification.ForwardPayload),
 	}, nil
 }
 
-func decodeJettonTransfer(msg *tlb.InternalMessage) (jettonTransferMsg, error) {
+func DecodeJettonTransfer(msg *tlb.InternalMessage) (JettonTransferMsg, error) {
 	if msg == nil {
-		return jettonTransferMsg{}, fmt.Errorf("nil msg")
+		return JettonTransferMsg{}, fmt.Errorf("nil msg")
 	}
 	payload := msg.Payload()
 	if payload == nil {
-		return jettonTransferMsg{}, fmt.Errorf("empty payload")
+		return JettonTransferMsg{}, fmt.Errorf("empty payload")
 	}
 	var transfer struct {
 		_                   tlb.Magic        `tlb:"#0f8a7ea5"`
@@ -481,12 +481,12 @@ func decodeJettonTransfer(msg *tlb.InternalMessage) (jettonTransferMsg, error) {
 	}
 	err := tlb.LoadFromCell(&transfer, payload.BeginParse())
 	if err != nil {
-		return jettonTransferMsg{}, err
+		return JettonTransferMsg{}, err
 	}
-	return jettonTransferMsg{
+	return JettonTransferMsg{
 		NewCoins(transfer.Amount.NanoTON()),
 		transfer.Destination,
-		loadComment(transfer.ForwardPayload),
+		LoadComment(transfer.ForwardPayload),
 	}, nil
 }
 
@@ -538,7 +538,7 @@ func parseExternalMessage(msg *tlb.ExternalMessage) (
 		if err != nil {
 			return uuid.UUID{}, nil, false, err
 		}
-		jettonTransfer, err := decodeJettonTransfer(&intMsg)
+		jettonTransfer, err := DecodeJettonTransfer(&intMsg)
 		if err == nil {
 			addr, err = AddressFromTonutilsAddress(jettonTransfer.Destination)
 			if err != nil {
@@ -599,7 +599,6 @@ func (s *BlockScanner) processTonHotWalletExternalInMsg(tx *tlb.Transaction) (Ev
 	var events Events
 	inMsg := tx.IO.In.AsExternalIn()
 	// withdrawal messages must be only with different recipients for identification
-	// TODO: check for service messages
 	u, addrMapIn, isValid, err := parseExternalMessage(inMsg)
 	if err != nil {
 		return Events{}, err
@@ -617,7 +616,7 @@ func (s *BlockScanner) processTonHotWalletExternalInMsg(tx *tlb.Transaction) (Ev
 		}
 		msg := m.AsInternal()
 
-		jettonTransfer, err := decodeJettonTransfer(msg)
+		jettonTransfer, err := DecodeJettonTransfer(msg)
 		if err == nil {
 			addr, err := AddressFromTonutilsAddress(jettonTransfer.Destination)
 			if err != nil {
@@ -886,7 +885,7 @@ func (s *BlockScanner) processJettonDepositInMsg(tx *tlb.Transaction) (Events, *
 		return Events{}, nil, false, err
 	}
 
-	transfer, err := decodeJettonTransfer(inMsg)
+	transfer, err := DecodeJettonTransfer(inMsg)
 	if err != nil {
 		unknownMsgFound = true
 		return events, totalWithdrawalsAmount, unknownMsgFound, nil
