@@ -177,7 +177,7 @@ func (p *WithdrawalsProcessor) buildWithdrawalMessages(ctx context.Context) (wit
 		return withdrawals{}, err
 	}
 	for _, t := range internalTasks {
-		if len(res.Messages) > 254 {
+		if len(res.Messages) > 250 {
 			break
 		}
 		if decreaseBalances(balances, TonSymbol, config.JettonTransferTonAmount.NanoTON()) {
@@ -202,7 +202,7 @@ func (p *WithdrawalsProcessor) buildWithdrawalMessages(ctx context.Context) (wit
 		return withdrawals{}, err
 	}
 	for _, w := range externalTasks {
-		if len(res.Messages) > 254 {
+		if len(res.Messages) > 250 {
 			break
 		}
 		t, ok := p.db.GetWalletType(w.Destination)

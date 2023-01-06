@@ -288,7 +288,7 @@ Seeds for A and B must be different.
 docker-compose -f docker-compose-test.yml up -d payment-processor-a
 docker-compose -f docker-compose-test.yml up -d payment-processor-b
 ```
-4. Optionally you can start Grafana for services monitoring. Prepare `.env` file for `payment-grafana` service or
+4. Start Grafana for services monitoring. Prepare `.env` file for `payment-grafana` service or
    fill environment variables in `docker-compose-test.yml` file.
 ```console
 docker-compose -f docker-compose-test.yml up -d payment-grafana
