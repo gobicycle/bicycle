@@ -630,6 +630,7 @@ func (c *Connection) SaveParsedBlockData(ctx context.Context, events core.BlockE
 
 func (c *Connection) GetTonInternalWithdrawalTasks(ctx context.Context, limit int) ([]core.InternalWithdrawalTask, error) {
 	var tasks []core.InternalWithdrawalTask
+	// lt > finish_lt condition because all TONs withdraws
 	rows, err := c.client.Query(ctx, `
 		SELECT deposit_address, MAX(lt) AS last_lt, tw.subwallet_id
 		FROM payments.external_incomes di
@@ -643,8 +644,8 @@ func (c *Connection) GetTonInternalWithdrawalTasks(ctx context.Context, limit in
 			)
 		) as iw3 ON from_address = deposit_address
 		JOIN payments.ton_wallets tw ON di.deposit_address = tw.address
-		WHERE (since_lt IS NOT NULL AND lt > since_lt AND finish_lt IS NOT NULL)
-		   OR (since_lt IS NULL) AND type = $1
+		WHERE ((since_lt IS NOT NULL AND finish_lt IS NOT NULL AND lt > finish_lt) OR (since_lt IS NULL)) 
+		  AND type = $1
 		GROUP BY deposit_address, tw.subwallet_id
 		LIMIT $2
 	`, core.TonDepositWallet, limit)
