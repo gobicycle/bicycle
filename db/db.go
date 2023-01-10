@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/gobicycle/bicycle/audit"
 	"github.com/gobicycle/bicycle/config"
 	"github.com/gobicycle/bicycle/core"
 	"github.com/gofrs/uuid"
@@ -542,6 +543,29 @@ func updateInternalWithdrawal(ctx context.Context, tx pgx.Tx, w core.InternalWit
 		return err
 	}
 
+	var (
+		sendingLt     *int64
+		alreadyFailed bool
+	)
+
+	err = tx.QueryRow(ctx, `
+		SELECT failed, sending_lt
+		FROM payments.internal_withdrawals
+		WHERE  memo = $1
+	`, memo).Scan(&alreadyFailed, &sendingLt)
+
+	if alreadyFailed {
+		audit.Log(audit.Error, "internal withdrawal message", core.InternalWithdrawalEvent,
+			fmt.Sprintf("successful withdrawal for expired internal withdrawal message. memo: %v", w.Memo))
+		return fmt.Errorf("invalid behavior of the expiration processor")
+	}
+
+	if sendingLt == nil {
+		audit.Log(audit.Error, "internal withdrawal message", core.InternalWithdrawalEvent,
+			fmt.Sprintf("successful withdrawal without sending confirmation. memo: %v", w.Memo))
+		return fmt.Errorf("invalid event order")
+	}
+
 	if w.IsFailed {
 		_, err = tx.Exec(ctx, `
 			UPDATE payments.internal_withdrawals
@@ -598,6 +622,12 @@ func (c *Connection) SaveParsedBlockData(ctx context.Context, events core.BlockE
 	}
 	for _, ii := range events.InternalIncomes {
 		err = c.saveInternalIncome(ctx, tx, ii)
+		if err != nil {
+			return err
+		}
+	}
+	for _, sc := range events.SendingConfirmations {
+		err = applySendingConfirmations(ctx, tx, sc)
 		if err != nil {
 			return err
 		}
@@ -728,6 +758,19 @@ func applyJettonWithdrawalConfirmation(
 
 func updateExternalWithdrawal(ctx context.Context, tx pgx.Tx, w core.ExternalWithdrawal) error {
 	var queryID int64
+
+	var alreadyFailed bool
+	err := tx.QueryRow(ctx, `
+		SELECT failed
+		FROM payments.external_withdrawals
+		WHERE  msg_uuid = $1 AND address = $2
+	`, w.ExtMsgUuid, w.To).Scan(&alreadyFailed)
+	if alreadyFailed {
+		audit.Log(audit.Error, "external withdrawal message", core.ExternalWithdrawalEvent,
+			fmt.Sprintf("successful withdrawal for expired external withdrawal message. msg uuid: %v", w.ExtMsgUuid.String()))
+		return fmt.Errorf("invalid behavior of the expiration processor")
+	}
+
 	if w.IsFailed {
 		err := tx.QueryRow(ctx, `
 			UPDATE payments.external_withdrawals
@@ -749,7 +792,7 @@ func updateExternalWithdrawal(ctx context.Context, tx pgx.Tx, w core.ExternalWit
 		return err
 	}
 
-	err := tx.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 			UPDATE payments.external_withdrawals
 			SET
 		    	processed_lt = $1,
@@ -767,6 +810,30 @@ func updateExternalWithdrawal(ctx context.Context, tx pgx.Tx, w core.ExternalWit
 		    	processed = true
 			WHERE  query_id = $1
 		`, queryID)
+	return err
+}
+
+func applySendingConfirmations(ctx context.Context, tx pgx.Tx, w core.SendingConfirmation) error {
+	var alreadyFailed bool
+	memo, err := uuid.FromString(w.Memo)
+	if err != nil {
+		return err
+	}
+	err = tx.QueryRow(ctx, `
+			UPDATE payments.internal_withdrawals
+			SET
+		    	sending_lt = $1
+			WHERE  memo = $2
+			RETURNING failed
+		`, w.Lt, memo).Scan(&alreadyFailed)
+	if err != nil {
+		return err
+	}
+	if alreadyFailed {
+		audit.Log(audit.Error, "internal withdrawal message", core.InternalWithdrawalEvent,
+			fmt.Sprintf("successful sending for expired internal withdrawal message. memo: %v", w.Memo))
+		return fmt.Errorf("invalid behavior of the expiration processor")
+	}
 	return err
 }
 
@@ -853,8 +920,8 @@ func (c *Connection) SetExpired(ctx context.Context) error {
 			UPDATE payments.internal_withdrawals
 			SET
 		    	failed = true		    	
-			WHERE  expired_at < $1 AND finish_lt IS NULL AND failed = false
-	`, time.Now())
+			WHERE  expired_at < $1 AND sending_lt IS NULL AND failed = false
+	`, time.Now().Add(config.AllowableBlockchainLagging))
 	if err != nil {
 		return err
 	}
@@ -871,7 +938,7 @@ func (c *Connection) SetExpired(ctx context.Context) error {
 		    	failed = true		    	
 			WHERE  expired_at < $1 AND processed_lt IS NULL AND failed = false
 			RETURNING query_id
-	`, time.Now())
+	`, time.Now().Add(config.AllowableBlockchainLagging))
 
 	if err != nil {
 		return err

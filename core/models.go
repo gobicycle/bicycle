@@ -174,7 +174,6 @@ type ExternalWithdrawalTask struct {
 	Destination Address
 	Bounceable  bool
 	Comment     string
-	//ExpiredAt   int64
 }
 
 type InternalWithdrawal struct {
@@ -184,6 +183,12 @@ type InternalWithdrawal struct {
 	Amount   Coins
 	Memo     string // uuid from comment
 	IsFailed bool
+}
+
+type SendingConfirmation struct {
+	Lt   uint64 // Lt of outgoing wallet message
+	From Address
+	Memo string // uuid from comment
 }
 
 type ExternalWithdrawal struct {
@@ -222,6 +227,7 @@ type ExternalIncome struct {
 type Events struct {
 	ExternalIncomes         []ExternalIncome
 	InternalIncomes         []InternalIncome
+	SendingConfirmations    []SendingConfirmation
 	InternalWithdrawals     []InternalWithdrawal
 	ExternalWithdrawals     []ExternalWithdrawal
 	WithdrawalConfirmations []JettonWithdrawalConfirmation
@@ -230,6 +236,7 @@ type Events struct {
 func (e *Events) Append(ae Events) {
 	e.ExternalIncomes = append(e.ExternalIncomes, ae.ExternalIncomes...)
 	e.InternalIncomes = append(e.InternalIncomes, ae.InternalIncomes...)
+	e.SendingConfirmations = append(e.SendingConfirmations, ae.SendingConfirmations...)
 	e.InternalWithdrawals = append(e.InternalWithdrawals, ae.InternalWithdrawals...)
 	e.ExternalWithdrawals = append(e.ExternalWithdrawals, ae.ExternalWithdrawals...)
 	e.WithdrawalConfirmations = append(e.WithdrawalConfirmations, ae.WithdrawalConfirmations...)

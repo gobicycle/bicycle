@@ -151,9 +151,7 @@ func (p *WithdrawalsProcessor) buildWithdrawalMessages(ctx context.Context) (wit
 		}
 		if len(msg) != 0 {
 			// block scanner determines the uniqueness of the message in the batch by the dest address
-			// (msg dest for TON transfer and destination address from transfer message for Jetton transfer)
-			// since the message to the proxy contract is not parsed as a jetton transfer message, the dest address
-			// will be the address of the proxy contract
+			// the dest address will be the address of the proxy contract
 			// TON deposit address is the dest addr for TON deposit filling message
 			// so the address `t.From` is the dest address when checking the uniqueness
 			usedAddresses = append(usedAddresses, t.From)
@@ -169,7 +167,6 @@ func (p *WithdrawalsProcessor) buildWithdrawalMessages(ctx context.Context) (wit
 	}
 
 	// `internalTask.From` address is the address of deposit Jetton wallet
-	// since the message to the proxy contract is not parsed by block scanner as a jetton transfer message,
 	// the dest address for uniqueness check is proxy contract address
 	// so the proxy contract address must be deduplicated with usedAddresses in db query
 	internalTasks, err := p.db.GetJettonInternalWithdrawalTasks(ctx, usedAddresses, 250)

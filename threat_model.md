@@ -120,3 +120,10 @@ If TONs arrive at the wallet address at this time, the message will be applied a
 - T: TON balance shift between deposit side and hot wallet side
 - S: use service withdrawal of Jettons from TON deposit wallet only with zero or near-zero TON balance
 - D: warning about this behavior in technical_notes file for method description
+
+#### Setting the value to "expired" without taking into account the allowable delay
+- P: It is impossible to absolutely precisely synchronize in time with the blockchain, so there is an 
+     allowable time delay value. If you get into this gap, the "expired" may be incorrectly set.
+- T: double spending for external withdrawals or unnecessary internal withdrawals
+- S: check expiration taking into account time delay
+- D: check expiration taking into account time delay

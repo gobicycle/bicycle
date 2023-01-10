@@ -616,9 +616,19 @@ func (s *BlockScanner) processTonHotWalletExternalInMsg(tx *tlb.Transaction) (Ev
 		}
 		msg := m.AsInternal()
 
-		jettonTransfer, err := DecodeJettonTransfer(msg)
-		if err == nil {
-			addr, err := AddressFromTonutilsAddress(jettonTransfer.Destination)
+		addr, err := AddressFromTonutilsAddress(msg.DstAddr)
+		if err != nil {
+			return Events{}, fmt.Errorf("invalid address in withdrawal message")
+		}
+		dstType, dstOk := s.db.GetWalletTypeByTonutilsAddress(msg.DstAddr)
+
+		if dstOk && dstType == JettonHotWallet { // Jetton external withdrawal
+			jettonTransfer, err := DecodeJettonTransfer(msg)
+			if err != nil {
+				audit.LogTX(audit.Error, string(TonHotWallet), tx.Hash, "invalid jetton transfer message to hot jetton wallet")
+				return Events{}, fmt.Errorf("invalid jetton transfer message to hot jetton wallet")
+			}
+			a, err := AddressFromTonutilsAddress(jettonTransfer.Destination)
 			if err != nil {
 				return Events{}, fmt.Errorf("invalid address in withdrawal message")
 			}
@@ -626,20 +636,24 @@ func (s *BlockScanner) processTonHotWalletExternalInMsg(tx *tlb.Transaction) (Ev
 				ExtMsgUuid: u,
 				Utime:      msg.CreatedAt,
 				Lt:         msg.CreatedLT,
-				To:         addr,
+				To:         a,
 				Amount:     jettonTransfer.Amount,
 				Comment:    jettonTransfer.Comment,
 				IsFailed:   false,
 			})
-			addrMapOut[addr] = struct{}{}
+			addrMapOut[a] = struct{}{}
 			continue
 		}
 
-		addr, err := AddressFromTonutilsAddress(msg.DstAddr)
-		if err != nil {
-			return Events{}, fmt.Errorf("invalid address in withdrawal message")
+		if dstOk && dstType == JettonOwner { // Jetton internal withdrawal or service withdrawal
+			e, err := s.processTonHotWalletProxyMsg(msg)
+			if err != nil {
+				return Events{}, fmt.Errorf("jetton withdrawal error: %v", err)
+			}
+			events.Append(e)
+			addrMapOut[addr] = struct{}{}
+			continue
 		}
-		_, dstOk := s.db.GetWalletTypeByTonutilsAddress(msg.DstAddr)
 
 		if !dstOk { // hot_wallet -> unknown_address. to filter internal fee payments
 			events.ExternalWithdrawals = append(events.ExternalWithdrawals, ExternalWithdrawal{
@@ -655,6 +669,40 @@ func (s *BlockScanner) processTonHotWalletExternalInMsg(tx *tlb.Transaction) (Ev
 		addrMapOut[addr] = struct{}{}
 	}
 	events.ExternalWithdrawals = append(events.ExternalWithdrawals, s.failedWithdrawals(addrMapIn, addrMapOut, u)...)
+	return events, nil
+}
+
+func (s *BlockScanner) processTonHotWalletProxyMsg(msg *tlb.InternalMessage) (Events, error) {
+	var events Events
+	body := msg.Payload()
+	internalPayload, err := body.BeginParse().LoadRef()
+	if err != nil {
+		return Events{}, fmt.Errorf("no internal payload to proxy contract: %v", err)
+	}
+	var intMsg tlb.InternalMessage
+	err = tlb.LoadFromCell(&intMsg, internalPayload)
+	if err != nil {
+		return Events{}, fmt.Errorf("can not decode payload message for proxy contract: %v", err)
+	}
+
+	destType, ok := s.db.GetWalletTypeByTonutilsAddress(intMsg.DstAddr)
+	// ok && destType == TonHotWallet - service TON withdrawal
+	// !ok - service Jetton withdrawal
+	if ok && destType == JettonDepositWallet { // Jetton internal withdrawal
+		jettonTransfer, err := DecodeJettonTransfer(&intMsg)
+		if err != nil {
+			return Events{}, fmt.Errorf("invalid jetton transfer message to deposit jetton wallet: %v", err)
+		}
+		a, err := AddressFromTonutilsAddress(jettonTransfer.Destination)
+		if err != nil {
+			return Events{}, fmt.Errorf("invalid address in withdrawal message")
+		}
+		events.SendingConfirmations = append(events.SendingConfirmations, SendingConfirmation{
+			Lt:   msg.CreatedLT,
+			From: a,
+			Memo: jettonTransfer.Comment,
+		})
+	}
 	return events, nil
 }
 
@@ -743,6 +791,11 @@ func (s *BlockScanner) processTonDepositWalletExternalInMsg(tx *tlb.Transaction)
 				msg.SrcAddr.String(), msg.DstAddr.String()))
 			continue
 		}
+		events.SendingConfirmations = append(events.SendingConfirmations, SendingConfirmation{
+			Lt:   msg.CreatedLT,
+			From: dstAddr,
+			Memo: msg.Comment(),
+		})
 		events.InternalWithdrawals = append(events.InternalWithdrawals, InternalWithdrawal{
 			Utime:    msg.CreatedAt,
 			Lt:       msg.CreatedLT,

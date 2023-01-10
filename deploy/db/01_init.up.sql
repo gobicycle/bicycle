@@ -130,8 +130,9 @@ CREATE TABLE IF NOT EXISTS payments.internal_withdrawals
 (
     failed           bool not null default false,
     since_lt         bigint not null,    -- amount for this LT
+    sending_lt       bigint,             -- on wallet side
     finish_lt        bigint,             -- on deposit side
-    finished_at      timestamptz,          -- on deposit side
+    finished_at      timestamptz,        -- on deposit side
     created_at       timestamptz not null default now(),
     expired_at       timestamptz,
     amount           numeric not null default 0,

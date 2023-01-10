@@ -124,8 +124,8 @@ Standard case. Instead of `payer_jetton_wallet_owner` there may be another smart
 5. Check balance of deposit wallet
 6. If balance > minimum value for withdrawal then save internal withdrawal task to DB with sinceLT = last external income LT, expiration time and unique memo
 7. Make withdrawal message with memo and send
-8. *Get message from blockchain (out in_msg for TON withdrawal or success transfer in_msg for Jetton) and save to DB `finish_lt` and `failed` if needed 
-9. Mark expired (and not found in blockchain) withdrawals in DB as `failed`
+8. *Get message from blockchain (out in_msg for TON withdrawal or success transfer in_msg for Jetton) and save to DB `finish_lt` and `failed` if needed
+9. ** Mark expired (and not found in blockchain) withdrawals in DB as `failed`
 10. Get internal income (success in_msg for TON or transfer_notification in_msg for Jetton) from blockchain at hot_wallet 
 11. Save internal income to DB
 
@@ -133,6 +133,11 @@ Standard case. Instead of `payer_jetton_wallet_owner` there may be another smart
 we reset its data and seqno. However, the external message may be in node mem-pool for some time (about 10 minutes). If during this time the account balance is replenished,
 then this message will apply again by creating a duplicate message with the same memo. On the hot wallet side, we scan all messages with a unique (memo+LT). For withdrawal in DB we save
 total amount and last LT for memo.
+
+**- Since the message lifetime refers to an external message to the wallet, and the success of the withdrawal of Jettons 
+is checked in the transaction on the Jetton wallet, then in order to correctly check expiration, it is necessary to save 
+the time/Lt of the intermediate transaction (on hot wallet). If the entire transaction chain ends up in one block, 
+then the order in which the intermediate and final messages are saved will also be important.
 
 ### Using a proxy contract to withdraw Jettons
 If a regular wallet (V3R2, which is stored in an empty state to avoid storage fees) is used as the jetton_wallet_owner, then the withdrawal of Jettons takes place in three stages.
