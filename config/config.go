@@ -19,7 +19,7 @@ var (
 	ExternalMessageLifetime = 50 * time.Second
 
 	ExternalWithdrawalPeriod  = 30 * time.Second
-	InternalWithdrawalPeriod  = 5 * time.Second
+	InternalWithdrawalPeriod  = 30 * time.Second
 	ExpirationProcessorPeriod = 5 * time.Second
 
 	AllowableBlockchainLagging     = 15 * time.Second

@@ -90,7 +90,7 @@ func (s *BlockScanner) Start() {
 			log.Printf("Block scanner stopped")
 			break
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 		err = s.processBlock(ctx, block)
 		if err != nil {
 			log.Fatalf("block processing error: %v", err)
