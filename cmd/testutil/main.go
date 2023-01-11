@@ -17,10 +17,10 @@ var (
 )
 
 const (
-	depositsQty          = 1
-	tonWithdrawAmount    = 100_000_000
-	jettonWithdrawAmount = 1_000_000
-	tonMinCutoff         = 1_000_000_000
+	depositsQty          = 10
+	tonWithdrawAmount    = 550_000_000
+	jettonWithdrawAmount = 550_000_000
+	tonMinCutoff         = 10_000_000_000
 )
 
 func main() {
@@ -52,12 +52,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("blockchain connection error: %v", err)
 	}
-
-	//dbClient, err := db.NewConnection(config.Config.DatabaseURI)
-	//if err != nil {
-	//	log.Fatalf("DB connection error: %v", err)
-	//}
-	//_ = dbClient
 
 	httpClient := NewClient(urlA, urlB, config.Config.APIToken, "TestClient")
 
