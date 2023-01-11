@@ -3,21 +3,21 @@ POST {{url}}/v1/address/new
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
-{"user_id": "123", "currency": "TON"}
+{"user_id": "TestUser", "currency": "TON"}
 
 ###
 POST {{url}}/v1/address/new
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
-{"user_id": "123", "currency": "TGR"}
+{"user_id": "TestUser", "currency": "TGR"}
 
 ###
-GET {{url}}/v1/address/all?user_id=TestClient
+GET {{url}}/v1/address/all?user_id=TestUser
 Authorization: Bearer {{token}}
 
 ###
-GET {{url}}/v1/balance?user_id=TestClient
+GET {{url}}/v1/balance?user_id=TestUser
 Authorization: Bearer {{token}}
 
 ###
@@ -25,31 +25,31 @@ POST {{url}}/v1/withdrawal/send
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
-{"user_id": "123", "query_id": "127", "currency": "TON", "amount":  200000000, "destination": "EQA8BB-qeC8gSUqu0cTA6nOzhk8ha5TLgQMbtRT47pDPJP3T", "comment":  "hello"}
+{"user_id": "TestUser", "query_id": "1", "currency": "TON", "amount":  200000000, "destination": "kQBFETbGASx3-6QYpPuQAKQM1s32AfSkWzbsADqt3bKDlN1A", "comment":  "test_ton_withdrawal"}
 
 ###
 POST {{url}}/v1/withdrawal/send
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
-{"user_id": "123", "query_id": "124", "currency": "TGR", "amount":  1000, "destination": "kQB7HQd6w8j4vPdaTQYBDFXYci0YeHZVJWiVcpw__o97IKYd", "comment":  "hello"}
+{"user_id": "TestUser", "query_id": "2", "currency": "TGR", "amount":  1000, "destination": "kQBFETbGASx3-6QYpPuQAKQM1s32AfSkWzbsADqt3bKDlN1A", "comment":  "test_jetton_withdrawal"}
 
 ###
-POST {{url}}/v1/withdrawal/service
+POST {{url}}/v1/withdrawal/service/jetton
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
-{"from": "0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP", "jetton_master": "kQCKt2WPGX-fh0cIAz38Ljd_OKQjoZE_cqk7QrYGsNP6wfP0", "ton_amount": 1000, "jetton_amount":  1000}
+{"owner": "0QCdsj-u39qVlfYdpPKuAY0hTe5VIsiJcpB5Rx4tOUOyBFhL", "jetton_master": "kQAbMQzuuGiCne0R7QEj9nrXsjM7gNjeVmrlBZouyC-SCALE"}
 
 ###
-POST {{url}}/v1/withdrawal/service
+POST {{url}}/v1/withdrawal/service/ton
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
-{"from": "0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP"}
+{"from": "0QAOp2OZwWdkF5HhJ0WVDspgh6HhpmHyQ3cBuBmfJ4q_AIVe"}
 
 ###
-GET {{url}}/v1/withdrawal/status?id=1
+GET {{url}}/v1/withdrawal/status?id=2
 Authorization: Bearer {{token}}
 
 ###

@@ -252,6 +252,8 @@ func (h *Handler) serviceTonWithdrawal(resp http.ResponseWriter, req *http.Reque
 	}{
 		Memo: memo,
 	}
+	resp.Header().Add("Content-Type", "application/json")
+	resp.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(resp).Encode(response)
 	if err != nil {
 		log.Errorf("json encode error: %v", err)
@@ -280,6 +282,8 @@ func (h *Handler) serviceJettonWithdrawal(resp http.ResponseWriter, req *http.Re
 	}{
 		Memo: memo,
 	}
+	resp.Header().Add("Content-Type", "application/json")
+	resp.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(resp).Encode(response)
 	if err != nil {
 		log.Errorf("json encode error: %v", err)
