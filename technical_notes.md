@@ -1,5 +1,21 @@
-## Glossary
+- [Glossary](#Glossary)
+- [Limitations](#Limitations)
+- [Sharding](#Sharding)
+- [Wallets generation](#Wallets-generation)
+- [Healthcheck](#Healthcheck)
+- [Transfers layouts](#Transfers-layouts)
+- [Withdrawal mechanism](#Withdrawal-mechanism)
+- [Shard tracker algorithm](#Shard-tracker-algorithm)
+- [Block scanner algorithm](#Block-scanner-algorithm)
+- [Restart policy](#Restart-policy)
+- [Service withdrawals](#Service-withdrawals)
+- [Calibration parameters](#Calibration-parameters)
+- [Freezing and deleting unused accounts](#Freezing-and-deleting-unused-accounts)
+- [Highload wallet message deduplication](#Highload-wallet-message-deduplication)
+- [Audit log](#Audit-log)
+- [Running the test util for payment processor](#Running-the-test-util-for-payment-processor)
 
+## Glossary
 * `sharding` - when the network needs to process a large number of account transactions, in order to distribute the load, 
 accounts begin to be grouped into separate blocks (shard blocks). The shard block contains accounts that have the same 
 bit prefix in the address.
@@ -18,12 +34,13 @@ bit prefix in the address.
 * `block scanner` - service that extracts and decodes transactions and messages from blocks
 * `shard tracker` - utility for receiving blocks from blockchain with custom shard prefix
 
-## Limitations:
+## Limitations
 * Supports up to 256 shards only
 * Supports only 0 workchain
 * For deposit addresses used only 32 byte addr_std 
 * Var address of senders saves as nil
 * Withdrawals to deposit addresses is prohibited
+* Manual withdrawals from hot wallet is prohibited **do not withdraw funds from a hot wallet bypassing the service, this will lead to a service error**
 
 ### Sub-wallets (deposit) qty limitation
 - `subwallet_id` Go type: `uint32` (postgresql bigint type)
@@ -172,7 +189,7 @@ In order for the Jetton wallet to have a suitable address for the shard, the pro
 7. Provide the following block on request by Next() method and remove from memory
 8. If there is no blocks in memory goto 1
 
-## Block-scanner algorithm
+## Block scanner algorithm
 1. Get next shard block with custom shard prefix from shard tracker
 2. Get TxIDs for block
 3. Filter TxIDs by known addresses
@@ -223,13 +240,13 @@ Single highload message Jetton transfer to already deployed Jetton wallet (SCALE
 - excess - 0.042 TON
 - total loss = 0.1 - 0.042 = 0.058 TON
 
-## Freezing and deleting unused account
+## Freezing and deleting unused accounts
 If account do not used by a long time, and its balance under 0 by storage fee, this account freezes (by the next transaction) 
 and then deletes by node (by the next transaction if balance still < 0).
 It is dangerous for Jetton wallets (hot and cold) and when account data drops Jetton balance drops too.
 Recommended to check hot and Jetton wallet balances periodically and fill it (or use special software).
 
-## Highload message deduplication
+## Highload wallet message deduplication
 In order to check the success of sending separate messages in a batch, we need to identify them.
 Adding a memo to a message to make it unique distorts the user's comment.
 Use control of the uniqueness of the destination address in the batch instead of adding memo.

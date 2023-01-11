@@ -35,11 +35,11 @@
 - [x] Validate wallets code for tonutils v1.4.1
 - [x] Manual testing plan
 - [x] Service methods for API (cancellation of incorrect payments)
-- [x] build emulator lib from sources
+- [x] Build emulator lib from sources
+- [x] Integration tests
+- [x] Hot wallets metrics
 - [ ] Manual testing
-- [ ] Hot wallets metrics
-- [ ] Integration tests
 - [ ] Use stable branch for emulator
 - [ ] Download blockchain config at start
-- [ ] Prometheus monitoring
 - [ ] Shard node deploy
+- [ ] Performance optimization

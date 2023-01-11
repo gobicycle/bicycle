@@ -11,10 +11,14 @@ Provides REST API for integration.
 Service is ADNL based and interacts directly with node and do not use any third party API.
 
 - [How it works](#How-it-works)
+  - [Features](#Features)
 - [Glossary](#Glossary)
-- [REST API Blueprint](/api.apib)
 - [Prerequisites](#Prerequisites)
+  - [Criteria for valid Jettons](#Criteria-for-valid-Jettons)
 - [Deployment](#Deployment)
+  - [Configurable parameters](#Configurable-parameters)
+  - [Service deploy](#Service-deploy)
+- [REST API Blueprint](/api.apib)
 - [Technical notes](/technical_notes.md)
 - [Threat model](/threat_model.md)
 - [TODO list](/todo_list.md)
