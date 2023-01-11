@@ -373,7 +373,7 @@ func (c *Connection) CheckTime(ctx context.Context, cutoff time.Duration) (bool,
 	nextTime := time.Now()
 	midTime := prevTime.Add(nextTime.Sub(prevTime) / 2)
 	nodeTimeShift := midTime.Sub(nodeTime)
-	log.Infof("Service-Node time diff: %v\n", nodeTimeShift)
+	log.Infof("Service-Node time diff: %v", nodeTimeShift)
 	if nodeTimeShift > cutoff || nodeTimeShift < -cutoff {
 		return false, nil
 	}

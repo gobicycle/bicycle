@@ -214,6 +214,7 @@ func (s *BlockScanner) processTXs(
 	blockEvents := BlockEvents{Block: block}
 	for _, t := range txs {
 		switch t.WalletType {
+		// TODO: check order of Lt for different accounts (it is important for intermediate tx Lt)
 		case TonHotWallet:
 			hotWalletEvents, err := s.processTonHotWalletTXs(t)
 			if err != nil {

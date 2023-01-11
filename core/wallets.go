@@ -90,8 +90,8 @@ func initTonHotWallet(
 		alreadySaved = true
 	}
 
-	log.Infof("Shard: %v\n", shard)
-	log.Infof("TON hot wallet address: %v\n", tonHotWallet.Address().String())
+	log.Infof("Shard: %v", shard)
+	log.Infof("TON hot wallet address: %v", tonHotWallet.Address().String())
 
 	balance, status, err := bc.GetAccountCurrentState(ctx, tonHotWallet.Address())
 	if err != nil {
@@ -135,7 +135,7 @@ func initJettonHotWallet(
 		return JettonWallet{}, err
 	}
 	res := JettonWallet{Address: a, Currency: currency}
-	log.Infof("%v jetton hot wallet address: %v\n", currency, a.String())
+	log.Infof("%v jetton hot wallet address: %v", currency, a.String())
 
 	ownerAddr, err := AddressFromTonutilsAddress(tonHotWallet)
 	if err != nil {
