@@ -238,7 +238,7 @@ Template:
 - RESULT  : Grafana must show prometheus metrics from `payment-test` service (deposit and total balances)
 - COMMENT :
 
-5. -[ ] Checked
+5. -[x] Checked
 - TEST    : Start `payment-test` service using technical_notes.md instructions
             with `CIRCULATION=true` env variable. Check availability and functionality of service by Grafana dashboard.
 - RESULT  : Grafana must show prometheus metrics from `payment-test` service (deposit and total balances) and 
@@ -256,7 +256,7 @@ Template:
 
 ### Highload test
 
-1. -[ ] Checked
+1. -[x] Checked
 - TEST    : Start `payment-test` service using technical_notes.md instructions
             with `CIRCULATION=true` env variable and depositsQty=100 x 3 types of deposits 
             (with enough amount of test TONs on wallet).
