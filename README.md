@@ -2,7 +2,7 @@
 
 [![Based on TON][ton-svg]][ton]
 [![Go](https://github.com/gobicycle/ton-payment-processor/actions/workflows/go.yml/badge.svg)](https://github.com/gobicycle/ton-payment-processor/actions/workflows/go.yml)
-[![Telegram](https://img.shields.io/badge/telegram-chat-blue?color=blue&logo=telegram&logoColor=blue)[telegram-chat-url]
+[![Telegram][telegram-svg]][telegram-url]
 
 Microservice for accepting payments and making withdrawals to wallets in TON blockchain.  
 Supports TON coins and Jettons (conforming certain criteria)  
@@ -119,4 +119,5 @@ docker-compose -f docker-compose-main.yml up -d payment-rabbitmq
 <!-- Badges -->
 [ton-svg]: https://img.shields.io/badge/Based%20on-TON-blue
 [ton]: https://ton.org
-[telegram-chat-url]: https://t.me/tonbicycle
+[telegram-url]: https://t.me/tonbicycle
+[telegram-svg]: https://img.shields.io/badge/telegram-chat-blue?color=blue&logo=telegram&logoColor=white
