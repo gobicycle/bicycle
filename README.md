@@ -2,6 +2,7 @@
 
 [![Based on TON][ton-svg]][ton]
 [![Go](https://github.com/gobicycle/ton-payment-processor/actions/workflows/go.yml/badge.svg)](https://github.com/gobicycle/ton-payment-processor/actions/workflows/go.yml)
+[!Telegram](https://img.shields.io/badge/telegram-chat-blue?color=blue&logo=telegram&logoColor=blue)(https://t.me/tonbicycle)
 
 Microservice for accepting payments and making withdrawals to wallets in TON blockchain.  
 Supports TON coins and Jettons (conforming certain criteria)  
@@ -9,8 +10,6 @@ Provides REST API for integration.
 Service is ADNL based and interacts directly with node and do not use any third party API.
 
 **Warning** The project is in the testing and proof-of-concepts phase. Use with caution. Suggestions are welcome.
-
-Telegram chat for communication: **[Telegram group](https://t.me/tonbicycle)**
 
 - [How it works](#How-it-works)
   - [Features](#Features)
