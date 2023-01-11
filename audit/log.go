@@ -22,11 +22,11 @@ type message struct {
 func pushLog(m message) {
 	switch m.Severity {
 	case Error:
-		log.Printf("AUDIT|%v|%v|%s", m.Severity, time.Now().Format(time.RFC822), m.Text)
+		log.Printf("AUDIT|%v|%v|%s", m.Severity, time.Now().Format(time.RFC1123), m.Text)
 	case Warning:
-		log.Printf("AUDIT|%v|%v|%s", m.Severity, time.Now().Format(time.RFC822), m.Text)
+		log.Printf("AUDIT|%v|%v|%s", m.Severity, time.Now().Format(time.RFC1123), m.Text)
 	case Info:
-		log.Printf("AUDIT|%v|%v|%s", m.Severity, time.Now().Format(time.RFC822), m.Text)
+		log.Printf("AUDIT|%v|%v|%s", m.Severity, time.Now().Format(time.RFC1123), m.Text)
 	}
 }
 
