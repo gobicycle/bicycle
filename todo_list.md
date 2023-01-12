@@ -38,8 +38,9 @@
 - [x] Build emulator lib from sources
 - [x] Integration tests
 - [x] Hot wallets metrics
-- [ ] Manual testing
+- [x] Manual testing
 - [ ] Use stable branch for emulator
 - [ ] Download blockchain config at start
+- [ ] Add reconnect to node when timeout expires
 - [ ] Shard node deploy
 - [ ] Performance optimization
