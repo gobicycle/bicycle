@@ -19,7 +19,7 @@ INSERT INTO payments.external_incomes (
     ),
     (
         --      second payment to TON deposit A
-        2,
+        3,
         '2021-03-10 08:11:00 UTC',
         decode('01aa00004767fbcf859609200910269446980f4d27bd8f4e3faa6e4d74792ab2', 'hex'),
         decode('007424ee4767fbcf859609200910269446980f4d27bd8f4e3faa6e4d74792ab5', 'hex'),
@@ -48,6 +48,7 @@ INSERT INTO payments.external_incomes (
 INSERT INTO payments.internal_withdrawals (
     failed,
     since_lt,
+    sending_lt,
     finish_lt,
     created_at,
     finished_at,
@@ -61,6 +62,7 @@ INSERT INTO payments.internal_withdrawals (
         false,
         1,
         2,
+        2,
         '2021-03-10 08:14:00 UTC',
         '2021-03-10 08:15:00 UTC',
         '2021-03-10 08:17:00 UTC',
@@ -71,6 +73,7 @@ INSERT INTO payments.internal_withdrawals (
     (
         --      failed withdrawal from TON deposit A after second payment
         true,
+        2,
         2,
         NULL,
         '2021-03-10 08:16:00 UTC',
@@ -83,6 +86,7 @@ INSERT INTO payments.internal_withdrawals (
     (
         --      not finished withdrawal from TON deposit B after payment
         false,
+        1,
         1,
         NULL,
         '2021-03-10 08:14:00 UTC',

@@ -99,6 +99,7 @@ INSERT INTO payments.external_withdrawals (
 INSERT INTO payments.internal_withdrawals (
     failed,
     since_lt,
+    sending_lt,
     finish_lt,
     created_at,
     finished_at,
@@ -112,6 +113,7 @@ INSERT INTO payments.internal_withdrawals (
         false,
         1,
         NULL,
+        NULL,
         '2020-03-10 08:00:00 UTC',
         NULL,
         '2020-03-10 08:03:00 UTC',
@@ -124,6 +126,7 @@ INSERT INTO payments.internal_withdrawals (
         true,
         2,
         NULL,
+        NULL,
         '2020-03-10 08:00:00 UTC',
         NULL,
         '2020-03-10 08:03:00 UTC',
@@ -135,6 +138,7 @@ INSERT INTO payments.internal_withdrawals (
         --      not expired
         false,
         3,
+        4,
         NULL,
         '2020-03-10 08:00:00 UTC',
         NULL,
@@ -147,6 +151,7 @@ INSERT INTO payments.internal_withdrawals (
         --      not expired but failed
         true,
         4,
+        5,
         NULL,
         '2020-03-10 08:00:00 UTC',
         NULL,
@@ -160,6 +165,7 @@ INSERT INTO payments.internal_withdrawals (
         false,
         5,
         6,
+        6,
         '2020-03-10 08:00:00 UTC',
         '2020-03-10 08:01:00 UTC',
         '3020-03-10 08:00:00 UTC',
@@ -171,6 +177,7 @@ INSERT INTO payments.internal_withdrawals (
         --      expired and already processed
         false,
         6,
+        7,
         7,
         '2020-03-10 08:00:00 UTC',
         '2020-03-10 08:01:00 UTC',

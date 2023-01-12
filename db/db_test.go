@@ -32,7 +32,8 @@ func execMultiStatement(c *Connection, ctx context.Context, query string) error 
 	return err
 }
 
-func migrateUp(c *Connection, source string) error {
+func migrateUp(c *Connection, t *testing.T, source string) error {
+	migrateDown(c, t)
 	deploy, err := os.ReadFile("../deploy/db/01_init.up.sql")
 	if err != nil {
 		return err
@@ -85,7 +86,7 @@ func Test_NewConnection(t *testing.T) {
 func Test_GetTonInternalWithdrawalTasks(t *testing.T) {
 	c := connect(t)
 	source := "get-ton-internal-withdrawal-tasks"
-	err := migrateUp(c, source)
+	err := migrateUp(c, t, source)
 	if err != nil {
 		t.Fatal("migrate up err: ", err)
 	}
@@ -102,7 +103,7 @@ func Test_GetTonInternalWithdrawalTasks(t *testing.T) {
 	if res[0].SubwalletID != 2 {
 		t.Fatal("task must be loaded only for deposit A")
 	}
-	if res[0].Lt != 2 {
+	if res[0].Lt != 3 {
 		t.Fatal("task must be loaded only for second payment")
 	}
 }
@@ -110,7 +111,7 @@ func Test_GetTonInternalWithdrawalTasks(t *testing.T) {
 func Test_GetJettonInternalWithdrawalTasks(t *testing.T) {
 	c := connect(t)
 	source := "get-jetton-internal-withdrawal-tasks"
-	err := migrateUp(c, source)
+	err := migrateUp(c, t, source)
 	if err != nil {
 		t.Fatal("migrate up err: ", err)
 	}
@@ -138,7 +139,7 @@ func Test_GetJettonInternalWithdrawalTasks(t *testing.T) {
 func Test_GetJettonInternalWithdrawalTasksForbidden(t *testing.T) {
 	c := connect(t)
 	source := "get-jetton-internal-withdrawal-tasks"
-	err := migrateUp(c, source)
+	err := migrateUp(c, t, source)
 	if err != nil {
 		t.Fatal("migrate up err: ", err)
 	}
@@ -183,7 +184,7 @@ func Test_SetExpired(t *testing.T) {
 
 	c := connect(t)
 	source := "set-expired"
-	err := migrateUp(c, source)
+	err := migrateUp(c, t, source)
 	if err != nil {
 		t.Fatal("migrate up err: ", err)
 	}
