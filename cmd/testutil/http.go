@@ -62,7 +62,7 @@ func (s *Client) InitDeposits(host string) (map[string][]string, error) {
 			deposits[cur] = append(deposits[cur], addr)
 		}
 	}
-	log.Printf("Deposits initialized for %s\n", host)
+	log.Printf("Deposits initialized for %s", host)
 	return deposits, nil
 }
 

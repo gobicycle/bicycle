@@ -189,7 +189,7 @@ func (p *PayerProcessor) Start() {
 }
 
 func (p *PayerProcessor) balanceMonitor() {
-	log.Printf("Balance monitor started\n")
+	log.Infof("Balance monitor started")
 	startTotal := make(map[string]int64)
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
@@ -298,7 +298,7 @@ func (p *PayerProcessor) startPayments(side PaymentSide) {
 		if err != nil {
 			log.Fatalf("withdraw to deposit error: %s", err)
 		}
-		log.Printf("Withdrawals sended for side %s\n", side)
+		log.Infof("Withdrawals sended for side %s", side)
 		err = p.waitWithdrawals(side, ids)
 		if err != nil {
 			log.Fatalf("wait withdrawals error: %s", err)
@@ -308,7 +308,7 @@ func (p *PayerProcessor) startPayments(side PaymentSide) {
 		if err != nil {
 			log.Fatalf("validate withdrawals error: %s", err)
 		}
-		log.Printf("Withdrawals validated for side %s\n", side)
+		log.Infof("Withdrawals validated for side %s", side)
 	}
 }
 
