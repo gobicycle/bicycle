@@ -1,3 +1,5 @@
+# Technical notes
+
 - [Glossary](#Glossary)
 - [Limitations](#Limitations)
 - [Sharding](#Sharding)
