@@ -1,5 +1,4 @@
 # TON payment processor
-
 [![Based on TON][ton-svg]][ton]
 [![Go](https://github.com/gobicycle/ton-payment-processor/actions/workflows/go.yml/badge.svg)](https://github.com/gobicycle/ton-payment-processor/actions/workflows/go.yml)
 [![Telegram][telegram-svg]][telegram-url]
@@ -23,6 +22,9 @@ Service is ADNL based and interacts directly with node and do not use any third 
 - [Technical notes](/technical_notes.md)
 - [Threat model](/threat_model.md)
 - [TODO list](/todo_list.md)
+
+![test_dashboard](https://user-images.githubusercontent.com/120649456/211955983-698b12b8-eccf-45c5-85bb-f8f6364c154e.png)
+![db_dashboard](https://user-images.githubusercontent.com/120649456/211955998-749772a6-10d2-4594-96f1-be6ab6051be5.png)
 
 ## How it works
 
