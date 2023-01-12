@@ -921,7 +921,7 @@ func (c *Connection) SetExpired(ctx context.Context) error {
 			SET
 		    	failed = true		    	
 			WHERE  expired_at < $1 AND sending_lt IS NULL AND failed = false
-	`, time.Now().Add(config.AllowableBlockchainLagging))
+	`, time.Now().Add(-config.AllowableBlockchainLagging))
 	if err != nil {
 		return err
 	}
@@ -938,7 +938,7 @@ func (c *Connection) SetExpired(ctx context.Context) error {
 		    	failed = true		    	
 			WHERE  expired_at < $1 AND processed_lt IS NULL AND failed = false
 			RETURNING query_id
-	`, time.Now().Add(config.AllowableBlockchainLagging))
+	`, time.Now().Add(-config.AllowableBlockchainLagging))
 
 	if err != nil {
 		return err
