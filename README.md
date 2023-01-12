@@ -18,7 +18,7 @@ Service is ADNL based and interacts directly with node and do not use any third 
 - [Deployment](#Deployment)
   - [Configurable parameters](#Configurable-parameters)
   - [Service deploy](#Service-deploy)
-- [REST API Blueprint](/api.apib)
+- [REST API](https://gobicycle.github.io/bicycle/)
 - [Technical notes](/technical_notes.md)
 - [Threat model](/threat_model.md)
 - [TODO list](/todo_list.md)

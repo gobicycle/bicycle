@@ -2,6 +2,7 @@
 
 - [Glossary](#Glossary)
 - [Limitations](#Limitations)
+- [API blueprint](/docs/api.apib)
 - [Sharding](#Sharding)
 - [Wallets generation](#Wallets-generation)
 - [Healthcheck](#Healthcheck)
