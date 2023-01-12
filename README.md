@@ -1,6 +1,6 @@
 # TON payment processor
 [![Based on TON][ton-svg]][ton]
-[![Go](https://github.com/gobicycle/ton-payment-processor/actions/workflows/go.yml/badge.svg)](https://github.com/gobicycle/ton-payment-processor/actions/workflows/go.yml)
+[![Go](https://github.com/gobicycle/bicycle/actions/workflows/go.yml/badge.svg)](https://github.com/gobicycle/bicycle/actions/workflows/go.yml)
 [![Telegram][telegram-svg]][telegram-url]
 
 Microservice for accepting payments and making withdrawals to wallets in TON blockchain.  
