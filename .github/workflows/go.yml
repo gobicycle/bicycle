@@ -1,0 +1,65 @@
+name: Go
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: TESTS
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_DB: payment_processor
+          POSTGRES_USER: pp_user
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
+          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+
+      - name: Build
+        run: go build -v ./...
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-2go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-2go-
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install git zlib1g-dev libssl-dev
+
+      - name: Install libs
+        run: |
+          git clone https://github.com/startfellows/tongo /tmp/tongo
+          sudo cp /tmp/tongo/lib/linux/libemulator.so /lib
+
+      - name: Run Test
+        env:
+          SEED: ${{ secrets.SEED }}
+          SERVER: ${{ secrets.SERVER }}
+          KEY: ${{ secrets.KEY }}
+          DB_URI: postgresql://pp_user:postgres@localhost:5432/payment_processor?sslmode=disable
+        run: |
+          go test -v $(go list ./...)

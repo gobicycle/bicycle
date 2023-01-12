@@ -1,0 +1,336 @@
+FORMAT: 1A
+
+# Payment processor API
+This API describes endpoints of payment processor.
+
+## New address [POST /v1/address/new]
+
+Generates new deposit address
+
++ Request (application/json)
+
+    + Headers
+
+            Authentication: Bearer
+    + Body
+
+            {"user_id": "123", "currency": "TON"}
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+              "address": "0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR"
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401          
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }            
+
+
+## Get all addresses [GET /v1/address/all{?user_id}]
+
+Get all created addresses by `user_id`
+
++ Parameters
+
+    + user_id (string) - an unique identifier of the user
+
++ Request
+
+    + Headers
+
+            Authentication: Bearer
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+              "addresses": [
+                {
+                  "address": "0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR",
+                  "currency": "TON"
+                },
+                {
+                  "address": "0QCdyiS-fIV9UVfI9Phswo4l2MA-hm8YseHynZ_YiH9Y1oSe",
+                  "currency": "TGR"
+                }
+              ]
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            } 
+
+## Get balances [GET /v1/balance{?user_id}]
+
+Get balances for deposits by `user_id`
+
++ Parameters
+
+    + user_id (string) - an unique identifier of the user
+
++ Request
+
+    + Headers
+
+            Authentication: Bearer
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+              "balances": [
+                {
+                  "address": "0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR",
+                  "balance": "1000000",
+                  "currency": "TON"
+                },
+                {
+                  "address": "0QCdyiS-fIV9UVfI9Phswo4l2MA-hm8YseHynZ_YiH9Y1oSe",
+                  "balance": "1023000",
+                  "currency": "TGR"
+                }
+              ]
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            } 
+
+## Send withdrawal [POST /v1/withdrawal/send]
+
+Send withdrawal request. **Amount must be in base units without decimal point (NanoTONs for TONs)**
+
++ Request (application/json)
+
+    + Headers
+
+            Authentication: Bearer
+    + Body
+
+            {
+              "user_id": "123",
+              "query_id": "321",
+              "currency": "TON",
+              "amount":  "100",
+              "destination": "0QCdyiS-fIV9UVfI9Phswo4l2MA-hm8YseHynZ_YiH9Y1oSe",
+              "comment":  "hello"
+            }
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+              "ID": 1
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            } 
+
+## Send service withdrawal [POST /v1/withdrawal/service/ton]
+
+Send service withdrawal request. Withdraw all TONs from `from` address to hot wallet.
+Returns `memo` as comment for transfer message.
+
++ Request (application/json)
+
+    + Headers
+
+            Authentication: Bearer
+    + Body
+
+            {
+              "from": "0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP",
+            }
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+              "memo": "123e4567-e89b-12d3-a456-426655440000"
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            } 
+
+## Send service withdrawal [POST /v1/withdrawal/service/jetton]
+
+Send service withdrawal request. Withdraw all Jettons from Jetton wallet. Address calculated through owner and Jetton master.
+Returns `memo` as comment for transfer message.
+
++ Request (application/json)
+
+    + Headers
+
+            Authentication: Bearer
+    + Body
+
+            {
+              "owner": "0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP",
+              "jetton_master": "kQCKt2WPGX-fh0cIAz38Ljd_OKQjoZE_cqk7QrYGsNP6wfP0",
+            }
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+              "memo": "123e4567-e89b-12d3-a456-426655440000"
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            } 
+
+## Get withdrawal status [GET /v1/withdrawal/status{?id}]
+
+Get withdrawal status. Returns `pending`, `processing`, `processed`
+
++ Parameters
+
+    + id (number) - An unique identifier of the withdrawal.
+
++ Request (application/json)
+
+    + Headers
+
+            Authentication: Bearer
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+              "status": "pending"
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401            
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            } 
+
+## Get sync flag [GET /v1/system/sync]
+
+Get blockchain sync flag. Returns `true` if the service has up-to-date data from the blockchain.
+As long as the flag is equal to `false`, no withdrawals are made.
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+              "is_synced": false
+            }
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }             

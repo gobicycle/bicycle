@@ -1,0 +1,74 @@
+version: '3'
+
+services:
+
+  payment-postgres:
+    image: postgres:14
+    container_name: payment_processor_db
+    volumes:
+    - ./deploy/db/01_init.up.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: "payment_processor"
+      POSTGRES_USER: "pp_user"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    networks:
+      - p-network
+
+  payment-processor:
+    image: payment-processor
+    container_name: payment_processor
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_URI: "postgres://pp_user:${POSTGRES_PASSWORD}@payment_processor_db:5432/payment_processor"
+      API_TOKEN: ${API_TOKEN}
+      COLD_WALLET: ${COLD_WALLET}
+      JETTONS: ${JETTONS}
+      LITESERVER: ${LITESERVER}
+      LITESERVER_KEY: ${LITESERVER_KEY}
+      SEED: ${SEED}
+      TON_CUTOFFS: ${TON_CUTOFFS}
+      IS_TESTNET: ${IS_TESTNET}
+    networks:
+      - p-network
+
+  payment-grafana:
+    image: grafana/grafana:latest
+    container_name: payment_grafana
+    restart: always
+    ports:
+      - '3001:3000'
+    volumes:
+      - ./deploy/grafana/main/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./deploy/grafana/main/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./deploy/grafana/main/dashboards:/etc/dashboards
+    env_file:
+      - .env
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    networks:
+      - p-network
+
+  payment-rabbitmq:
+    image: library/rabbitmq:3-management
+    container_name: payment_rabbitmq
+    restart: always
+    ports:
+      - '15672:15672'
+      - '5672:5672'
+    networks:
+      - p-network
+
+networks:
+  p-network:
+    driver: bridge
