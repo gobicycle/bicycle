@@ -243,6 +243,20 @@ Single highload message Jetton transfer to already deployed Jetton wallet (SCALE
 - excess - 0.042 TON
 - total loss = 0.1 - 0.042 = 0.058 TON
 
+### MAINNET
+
+Single highload message Jetton transfer to not deployed Jetton wallet (TGR Jetton):
+- transfer message value - 0.1 TON
+- forward TON amount - 0.02 TON (for notification message)
+- excess - 0.033 TON
+- total loss = 0.1 - 0.033 = 0.067 TON
+
+Single highload message Jetton transfer to not deployed Jetton wallet (FNZ Jetton):
+- transfer message value - 0.1 TON
+- forward TON amount - 0.02 TON (for notification message)
+- excess - 0.022 TON
+- total loss = 0.1 - 0.022 = 0.078 TON
+
 ## Freezing and deleting unused accounts
 If account do not used by a long time, and its balance under 0 by storage fee, this account freezes (by the next transaction) 
 and then deletes by node (by the next transaction if balance still < 0).

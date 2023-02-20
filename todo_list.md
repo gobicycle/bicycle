@@ -39,8 +39,12 @@
 - [x] Integration tests
 - [x] Hot wallets metrics
 - [x] Manual testing
+- [x] Jettons test list
+- [ ] Support DNS names in recipient address
+- [ ] Installation video manual
 - [ ] Use stable branch for emulator
 - [ ] Download blockchain config at start
 - [ ] Add reconnect to node when timeout expires
 - [ ] Shard node deploy
 - [ ] Performance optimization
+- [ ] Fix base64 public key format in .env file
