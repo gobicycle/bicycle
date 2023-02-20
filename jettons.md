@@ -13,9 +13,9 @@
   * description: Cross-platform DeFi ecosystem Tegro
   * image: https://tegro.io/tgr.png
 - Tested with payment processor:
-    [x] Deposit filling from external address and withdrawal to hot wallet
-    [x] Withdrawal to new external address with wallet init
-    [] Highload test
+  - [x] Deposit filling from external address and withdrawal to hot wallet
+  - [x] Withdrawal to new external address with wallet init
+  - [ ] Highload test
 - Presented in https://github.com/tonkeeper/ton-assets: yes
 - Comments: sends notification with bounce flag
 
@@ -28,9 +28,9 @@
   * description: Cross-platform payment token on the TON blockchain.
   * image: https://tegro.io/tgr.png
 - Tested with payment processor:
-  [x] Deposit filling from external address and withdrawal to hot wallet
-  [x] Withdrawal to new external address with wallet init
-  [x] Highload test
+  - [x] Deposit filling from external address and withdrawal to hot wallet
+  - [x] Withdrawal to new external address with wallet init
+  - [x] Highload test
 - Presented in https://github.com/tonkeeper/ton-assets: no
 - Comments: code not equal to actual TGR jetton in mainnet! Jetton with the equivalent code was not found in the testnet.
 
@@ -45,9 +45,9 @@
   * description: SCALE is a utility token that will be used to support all independent developers.
   * image: ipfs://QmSMiXsZYMefwrTQ3P6HnDQaCpecS4EWLpgKK5EX1G8iA8
 - Tested with payment processor:
-  [] Deposit filling from external address and withdrawal to hot wallet
-  [] Withdrawal to new external address with wallet init
-  [] Highload test
+  - [ ] Deposit filling from external address and withdrawal to hot wallet
+  - [ ] Withdrawal to new external address with wallet init
+  - [ ] Highload test
 - Presented in https://github.com/tonkeeper/ton-assets: yes
 - Comments:
 
@@ -60,9 +60,9 @@
   * description:
   * image: ipfs://QmSMiXsZYMefwrTQ3P6HnDQaCpecS4EWLpgKK5EX1G8iA8
 - Tested with payment processor:
-  [x] Deposit filling from external address and withdrawal to hot wallet
-  [x] Withdrawal to new external address with wallet init
-  [x] Highload test
+  - [x] Deposit filling from external address and withdrawal to hot wallet
+  - [x] Withdrawal to new external address with wallet init
+  - [x] Highload test
 - Presented in https://github.com/tonkeeper/ton-assets: no
 - Comments: code not equal to actual SCALE jetton in mainnet!
 
@@ -78,9 +78,9 @@
     * image: https://media.fanz.ee/images/91ee938a92934656a01131c569b377b6.png
     * decimals: 9
 - Tested with payment processor:
-  [x] Deposit filling from external address and withdrawal to hot wallet
-  [x] Withdrawal to new external address with wallet init
-  [] Highload test
+  - [x] Deposit filling from external address and withdrawal to hot wallet
+  - [x] Withdrawal to new external address with wallet init
+  - [ ] Highload test
 - Presented in https://github.com/tonkeeper/ton-assets: yes
 - Comments: sends notification with non-bounce flag
 
@@ -94,8 +94,8 @@
     * image: https://media.fanz.ee/images/91ee938a92934656a01131c569b377b6.png
     * decimals: 9
 - Tested with payment processor:
-  [] Deposit filling from external address and withdrawal to hot wallet
-  [] Withdrawal to new external address with wallet init
-  [] Highload test
+  - [ ] Deposit filling from external address and withdrawal to hot wallet
+  - [ ] Withdrawal to new external address with wallet init
+  - [ ] Highload test
 - Presented in https://github.com/tonkeeper/ton-assets: no
 - Comments: code is equal with the mainnet jetton.
