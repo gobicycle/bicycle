@@ -107,6 +107,24 @@ func (c *Connection) SaveTonWallet(ctx context.Context, walletData core.WalletDa
 	return nil
 }
 
+func (c *Connection) GetJettonWallet(ctx context.Context, address core.Address) (*core.WalletData, bool, error) {
+	d := core.WalletData{
+		Address: address,
+	}
+	err := c.client.QueryRow(ctx, `
+		SELECT subwallet_id, user_id, currency, type
+		FROM payments.jetton_wallets
+		WHERE  address = $1
+	`, address).Scan(&d.SubwalletID, &d.UserID, &d.Currency, &d.Type)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return &d, true, nil
+}
+
 func (c *Connection) SaveJettonWallet(
 	ctx context.Context,
 	ownerAddress core.Address,

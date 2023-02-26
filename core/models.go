@@ -26,6 +26,7 @@ const (
 	ServiceWithdrawalEvent  EventName = "service withdrawal"
 	InternalWithdrawalEvent EventName = "internal withdrawal"
 	ExternalWithdrawalEvent EventName = "external withdrawal"
+	InitEvent               EventName = "initialization"
 )
 
 type WalletType string
@@ -302,6 +303,7 @@ type storage interface {
 	UpdateServiceWithdrawalRequest(ctx context.Context, t ServiceWithdrawalTask, tonAmount Coins,
 		expiredAt time.Time, filled bool) error
 	GetServiceDepositWithdrawalTasks(ctx context.Context, limit int) ([]ServiceWithdrawalTask, error)
+	GetJettonWallet(ctx context.Context, address Address) (*WalletData, bool, error)
 }
 
 type blockchain interface {

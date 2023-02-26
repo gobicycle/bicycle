@@ -40,6 +40,8 @@
 - [x] Hot wallets metrics
 - [x] Manual testing
 - [x] Jettons test list
+- [x] Fix timeouts
+- [ ] Allow to start with empty Jetton env var
 - [ ] Support DNS names in recipient address
 - [ ] Installation video manual
 - [ ] Use stable branch for emulator
@@ -48,3 +50,4 @@
 - [ ] Shard node deploy
 - [ ] Performance optimization
 - [ ] Fix base64 public key format in .env file
+- [ ] Describe recovery scenarios

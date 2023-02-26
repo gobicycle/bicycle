@@ -40,6 +40,17 @@ Template:
 - RESULT  : There must be "Can not use testnet cold wallet address for mainnet" error
 - COMMENT :
 
+7. -[ ] Checked
+- TEST    : Run service with empty `JETTONS` env variable
+- RESULT  : Service must start and process TONs
+- COMMENT :
+
+8. -[x] Checked
+- TEST    : Run service with `JETTONS` env variable with different currencies and same master contract address.
+            Like `TGR:ABC...,FNZ:ABC...`.
+- RESULT  : Service must stop. Must be address duplication error message in audit log.
+- COMMENT :
+
 ### API
 
 1. -[x] Checked
