@@ -106,6 +106,9 @@ func GetConfig() {
 
 func parseJettonString(s string) map[string]Jetton {
 	res := make(map[string]Jetton)
+	if s == "" {
+		return res
+	}
 	jettons := strings.Split(s, ",")
 	for _, j := range jettons {
 		data := strings.Split(j, ":")

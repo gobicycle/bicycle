@@ -51,3 +51,5 @@
 - [ ] Performance optimization
 - [ ] Fix base64 public key format in .env file
 - [ ] Describe recovery scenarios
+- [ ] BOLT compatibility test
+- [ ] not process removed Jettons
