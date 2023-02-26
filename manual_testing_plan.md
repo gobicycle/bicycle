@@ -40,6 +40,23 @@ Template:
 - RESULT  : There must be "Can not use testnet cold wallet address for mainnet" error
 - COMMENT :
 
+7. -[ ] Checked
+- TEST    : Run service with empty `JETTONS` env variable
+- RESULT  : Service must start and process TONs
+- COMMENT :
+
+8. -[x] Checked
+- TEST    : Run service with `JETTONS` env variable with different currencies and same master contract address.
+            Like `TGR:ABC...,FNZ:ABC...`.
+- RESULT  : Service must stop. Must be address duplication error message in audit log.
+- COMMENT :
+
+9. -[x] Checked
+- TEST    : Run service with one `JETTONS` env variable, then rename currency for one of Jetton and restart.
+            Like `TGR:ABC...,FNZ:CDE...` -> `SCALE:ABC...,FNZ:CDE...`.
+- RESULT  : Service must stop. Must be address duplication error message in audit log.
+- COMMENT :
+
 ### API
 
 1. -[x] Checked
@@ -195,6 +212,19 @@ Template:
             transactions (incomes/withdrawals) in the database and no messages from hot wallet. 
             In `service_withdrawal_request` DB table must be `processed = true`
 - COMMENT :
+
+23. -[x] Checked
+- TEST    : Set some Jetton in `JETTONS` env variable. Start service to init jetton hot wallet in DB. 
+            Remove Jetton from env variable and restart. Try `/v1/address/new`, `/v1/withdrawal/send` for removed Jetton.
+- RESULT  : Must be currency error for `/v1/address/new`, `/v1/withdrawal/send`.
+- COMMENT :
+
+24. -[ ] Checked
+- TEST    : Set some Jetton in `JETTONS` env variable. Start service to init jetton hot wallet in DB.
+            Remove Jetton from env variable and restart. Try `/v1/address/all`, `/v1/balance` for user 
+            with removed Jetton deposits.
+- RESULT  : Removed Jetton should not appear in `/v1/address/all`, `/v1/balance`.
+- COMMENT : Not implemented yet
 
 ### Internal logic
 

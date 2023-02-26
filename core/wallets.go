@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/gobicycle/bicycle/audit"
 	"github.com/gobicycle/bicycle/config"
 	"github.com/gofrs/uuid"
 	log "github.com/sirupsen/logrus"
@@ -82,6 +83,9 @@ func initTonHotWallet(
 	alreadySaved := false
 	addrFromDb, err := db.GetTonHotWalletAddress(ctx)
 	if err == nil && addr != addrFromDb {
+		audit.Log(audit.Error, string(TonHotWallet), InitEvent,
+			fmt.Sprintf("Hot TON wallet address is not equal to the one stored in the database. Maybe seed was being changed. %s != %s",
+				tonHotWallet.Address().String(), addrFromDb.ToTonutilsAddressStd(0).String()))
 		return nil, 0, 0,
 			fmt.Errorf("saved hot wallet not equal generated hot wallet. Maybe seed was being changed")
 	} else if !errors.Is(err, ErrNotFound) && err != nil {
@@ -146,10 +150,20 @@ func initJettonHotWallet(
 		return JettonWallet{}, err
 	}
 
-	_, ok := db.GetWalletType(jettonWalletAddr)
-	if ok {
-		return res, nil
+	walletData, isPresented, err := db.GetJettonWallet(ctx, jettonWalletAddr)
+	if err != nil {
+		return JettonWallet{}, err
 	}
+
+	if isPresented && walletData.Currency == currency {
+		return res, nil
+	} else if isPresented && walletData.Currency != currency {
+		audit.Log(audit.Error, string(JettonHotWallet), InitEvent,
+			fmt.Sprintf("Hot Jetton wallets %s and %s have the same address %s",
+				walletData.Currency, currency, a.String()))
+		return JettonWallet{}, fmt.Errorf("jetton hot wallet address duplication")
+	}
+
 	err = db.SaveJettonWallet(
 		ctx,
 		ownerAddr,

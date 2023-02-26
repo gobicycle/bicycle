@@ -39,8 +39,17 @@
 - [x] Integration tests
 - [x] Hot wallets metrics
 - [x] Manual testing
+- [x] Jettons test list
+- [x] Fix timeouts
+- [x] Allow to start with empty Jetton env var
+- [ ] Support DNS names in recipient address
+- [ ] Installation video manual
 - [ ] Use stable branch for emulator
 - [ ] Download blockchain config at start
 - [ ] Add reconnect to node when timeout expires
 - [ ] Shard node deploy
 - [ ] Performance optimization
+- [ ] Fix base64 public key format in .env file
+- [ ] Describe recovery scenarios
+- [ ] BOLT compatibility test
+- [ ] not process removed Jettons

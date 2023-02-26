@@ -65,6 +65,8 @@ The service provides the following functionality:
 - the Jetton wallet should not spontaneously change its balance, only with transfer.
 - fee for the withdrawal of Jettons from the wallet should not be too high and meet the internal setting of the service
 
+For more information on Jettons compatibility, see [Jettons compatibility](/jettons.md)
+
 ## Deployment
 
 ### Configurable parameters
