@@ -39,7 +39,6 @@ The service provides the following functionality:
 * Sends withdrawals in batches using highload wallet
 * Aggregates part of TONs or Jettons at cold-wallet
 * Supports authorization by Bearer token
-* Generates and monitor deposits with 8-bit address prefix same as hot-wallet (in the same shard)
 * Service withdrawals (cancellation of incorrect payments)
 
 ## Glossary
