@@ -3,7 +3,6 @@
 - [Glossary](#Glossary)
 - [Limitations](#Limitations)
 - [API blueprint](/docs/api.apib)
-- [Sharding](#Sharding)
 - [Wallets generation](#Wallets-generation)
 - [Healthcheck](#Healthcheck)
 - [Transfers layouts](#Transfers-layouts)
@@ -16,6 +15,7 @@
 - [Freezing and deleting unused accounts](#Freezing-and-deleting-unused-accounts)
 - [Highload wallet message deduplication](#Highload-wallet-message-deduplication)
 - [Audit log](#Audit-log)
+- [Sharding](#Sharding)
 - [Running the test util for payment processor](#Running-the-test-util-for-payment-processor)
 
 ## Glossary
@@ -52,35 +52,6 @@ bit prefix in the address.
 - DB numeration starts from default `subwallet_id`
 - part of wallets in shard (for 1 byte shard prefix): 1/256
 - maximum qty of subwallets: `(max(uint32) - default_subwallet_id)/256 = 14_046_812`
-
-## Sharding
-### Examples of block shard_prefix from lite client
-* `0000 100000000000000000000000000000000000000000000000000000000000`
-* `0001 100000000000000000000000000000000000000000000000000000000000`
-* `0010 100000000000000000000000000000000000000000000000000000000000`
-
-### Only one shard example
-* ` 1000000000000000000000000000000000000000000000000000000000000000` OR `0x8000000000000000`
-It is equivalent of empty bitstring.
-
-### Default SHARD
-We use a fixed-size address prefix (8 bits). The first 8 bits of 256 bit std_address (not workchain) and workchain = 0.
-And all addresses will be in the same shard up to 2^8 (256) shards.
-The default `SHARD` value is taken from the hot wallet address. Hot wallet address generates from seed phrase and default subwallet_id.
-
-#### Example:
-* `hot_ton_wallet_address = 0:60573d8db98cc369b7ce4ca1dadbfcbd17e82952938857a6cf14e1f8d77c811a` (raw form)
-* `SHARD = 01100000` (0x60)
-* `address_binary_prefix = 01100000` (for all deposit-addresses)
-
-##### Suitable block shard prefixes (for these addresses):
-* ` 1000000000000000000000000000000000000000000000000000000000000000` - 1 shard
-* `0110 100000000000000000000000000000000000000000000000000000000000`  - 16 shards
-* `01100000 10000000000000000000000000000000000000000000000000000000`  - 256 shards
-
-##### Not suitable block shard prefixes (for these addresses):
-* `0010 100000000000000000000000000000000000000000000000000000000000`  - invalid prefix
-* `01100000 0 100000000000000000000000000000000000000000000000000000`  - more than 256 shards. No guarantees that the address will be in the right shard.
 
 ## Wallets generation
 1. Generates `hot_ton_wallet` (if needed) from seed phrase as Highload V2 wallet. The first byte of the address define the shard.
@@ -281,6 +252,35 @@ There are three levels of warnings:
 * INFO - the event is not dangerous, but unusual
 * WARNING - the event may be potentially hazardous and should be attended to
 * ERROR - the event can pose a critical threat to the operation of the service
+
+## Sharding
+### Examples of block shard_prefix from lite client
+* `0000 100000000000000000000000000000000000000000000000000000000000`
+* `0001 100000000000000000000000000000000000000000000000000000000000`
+* `0010 100000000000000000000000000000000000000000000000000000000000`
+
+### Only one shard example
+* ` 1000000000000000000000000000000000000000000000000000000000000000` OR `0x8000000000000000`
+  It is equivalent of empty bitstring.
+
+### Default SHARD
+We use a fixed-size address prefix (8 bits). The first 8 bits of 256 bit std_address (not workchain) and workchain = 0.
+And all addresses will be in the same shard up to 2^8 (256) shards.
+The default `SHARD` value is taken from the hot wallet address. Hot wallet address generates from seed phrase and default subwallet_id.
+
+#### Example:
+* `hot_ton_wallet_address = 0:60573d8db98cc369b7ce4ca1dadbfcbd17e82952938857a6cf14e1f8d77c811a` (raw form)
+* `SHARD = 01100000` (0x60)
+* `address_binary_prefix = 01100000` (for all deposit-addresses)
+
+##### Suitable block shard prefixes (for these addresses):
+* ` 1000000000000000000000000000000000000000000000000000000000000000` - 1 shard
+* `0110 100000000000000000000000000000000000000000000000000000000000`  - 16 shards
+* `01100000 10000000000000000000000000000000000000000000000000000000`  - 256 shards
+
+##### Not suitable block shard prefixes (for these addresses):
+* `0010 100000000000000000000000000000000000000000000000000000000000`  - invalid prefix
+* `01100000 0 100000000000000000000000000000000000000000000000000000`  - more than 256 shards. No guarantees that the address will be in the right shard.
 
 ## Running the test util for payment processor
 **It is strictly recommended to run the test utility with the processor configured for the testnet.**

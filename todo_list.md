@@ -1,6 +1,4 @@
 ## TODO
-- [x] TON wallet generation for custom shard
-- [x] Jetton wallet generation for custom shard
 - [x] Withdraw TON method
 - [x] Withdraw jetton method
 - [x] Generate new address API method
@@ -47,9 +45,9 @@
 - [ ] Use stable branch for emulator
 - [ ] Download blockchain config at start
 - [ ] Add reconnect to node when timeout expires
-- [ ] Shard node deploy
+- [ ] Node deploy
 - [ ] Performance optimization
 - [ ] Fix base64 public key format in .env file
 - [ ] Describe recovery scenarios
 - [ ] BOLT compatibility test
-- [ ] not process removed Jettons
+- [ ] Not process removed Jettons
