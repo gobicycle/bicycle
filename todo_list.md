@@ -52,3 +52,4 @@
 - [ ] BOLT compatibility test
 - [ ] Not process removed Jettons
 - [ ] Rename balance to income
+- [ ] Separate .env files for services
