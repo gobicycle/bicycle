@@ -11,7 +11,7 @@ Generates new deposit address
 
     + Headers
 
-            Authentication: Bearer
+            Authorization: Bearer
     + Body
 
             {"user_id": "123", "currency": "TON"}
@@ -55,7 +55,7 @@ Get all created addresses by `user_id`
 
     + Headers
 
-            Authentication: Bearer
+            Authorization: Bearer
 
 + Response 200 (application/json)
 
@@ -104,7 +104,7 @@ Get balances for deposits by `user_id`
 
     + Headers
 
-            Authentication: Bearer
+            Authorization: Bearer
 
 + Response 200 (application/json)
 
@@ -151,7 +151,7 @@ Send withdrawal request. **Amount must be in base units without decimal point (N
 
     + Headers
 
-            Authentication: Bearer
+            Authorization: Bearer
     + Body
 
             {
@@ -198,7 +198,7 @@ Returns `memo` as comment for transfer message.
 
     + Headers
 
-            Authentication: Bearer
+            Authorization: Bearer
     + Body
 
             {
@@ -240,7 +240,7 @@ Returns `memo` as comment for transfer message.
 
     + Headers
 
-            Authentication: Bearer
+            Authorization: Bearer
     + Body
 
             {
@@ -286,7 +286,7 @@ Get withdrawal status. Returns `pending`, `processing`, `processed`
 
     + Headers
 
-            Authentication: Bearer
+            Authorization: Bearer
 
 + Response 200 (application/json)
 
