@@ -51,3 +51,4 @@
 - [ ] Describe recovery scenarios
 - [ ] BOLT compatibility test
 - [ ] Not process removed Jettons
+- [ ] Rename balance to income
