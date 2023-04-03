@@ -45,7 +45,7 @@ var Config = struct {
 	ColdWalletString    string `env:"COLD_WALLET"`
 	JettonString        string `env:"JETTONS"`
 	TonString           string `env:"TON_CUTOFFS,required"`
-	DepositSideBalances bool   `env:"DEPOSIT_SIDE_BALANCE" envDefault:"false"`
+	DepositSideBalances bool   `env:"DEPOSIT_SIDE_BALANCE" envDefault:"true"`
 	QueueURI            string `env:"QUEUE_URI"`
 	QueueName           string `env:"QUEUE_NAME"`
 	QueueEnabled        bool   `env:"QUEUE_ENABLED" envDefault:"false"`

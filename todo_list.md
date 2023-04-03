@@ -40,6 +40,7 @@
 - [x] Jettons test list
 - [x] Fix timeouts
 - [x] Allow to start with empty Jetton env var
+- [x] Deposit side balances by default
 - [ ] Support DNS names in recipient address
 - [ ] Installation video manual
 - [ ] Use stable branch for emulator
