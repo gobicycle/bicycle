@@ -378,7 +378,9 @@ func generateAddress(
 }
 
 func getAddresses(ctx context.Context, userID string, dbConn storage) (GetAddressesResponse, error) {
-	var res GetAddressesResponse
+	var res = GetAddressesResponse{
+		Addresses: []WalletAddress{},
+	}
 	tonAddr, err := dbConn.GetTonWalletsAddresses(ctx, userID, []core.WalletType{core.TonDepositWallet})
 	if err != nil {
 		return GetAddressesResponse{}, err
@@ -469,7 +471,10 @@ func convertJettonServiceWithdrawal(s storage, w ServiceJettonWithdrawalRequest)
 }
 
 func convertBalances(balances []core.Balance) GetBalanceResponse {
-	var res GetBalanceResponse
+	// TODO: check for owner address
+	var res = GetBalanceResponse{
+		Balances: []balance{},
+	}
 	for _, b := range balances {
 		res.Balances = append(res.Balances, balance{
 			Address:  b.Deposit.ToUserFormat(),
