@@ -47,7 +47,8 @@ func (s *ShardTracker) NextBlock() (core.ShardBlockHeader, bool, error) {
 	if h != nil {
 		return *h, false, nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	// the interval between blocks can be up to 40 seconds
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	defer cancel()
 	masterBlockID, err := s.getNextMasterBlockID(ctx)
 	if err != nil {
