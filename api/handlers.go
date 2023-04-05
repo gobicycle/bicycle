@@ -64,10 +64,22 @@ type GetBalanceResponse struct {
 	Balances []balance `json:"balances"`
 }
 
+type GetHistoryResponse struct {
+	Incomes []income `json:"incomes"`
+}
+
 type balance struct {
 	Address  string `json:"address"`
 	Balance  string `json:"balance"`
 	Currency string `json:"currency"`
+}
+
+type income struct {
+	DepositAddress string `json:"deposit_address"`
+	Time           int64  `json:"time"`
+	SourceAddress  string `json:"source_address"`
+	Amount         string `json:"amount"`
+	Comment        string `json:"comment"`
 }
 
 func NewHandler(s storage, b blockchain, token string, shard byte, hotWalletAddress address.Address) *Handler {
@@ -230,6 +242,44 @@ func (h *Handler) getBalance(resp http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func (h *Handler) getHistory(resp http.ResponseWriter, req *http.Request) {
+	id := req.URL.Query().Get("user_id")
+	if id == "" {
+		writeHttpError(resp, http.StatusBadRequest, "need to provide user ID")
+		return
+	}
+	currency := req.URL.Query().Get("currency")
+	if currency == "" {
+		writeHttpError(resp, http.StatusBadRequest, "need to provide currency")
+		return
+	}
+	if !isValidCurrency(currency) {
+		writeHttpError(resp, http.StatusBadRequest, "invalid currency type")
+		return
+	}
+	limit, err := strconv.Atoi(req.URL.Query().Get("limit"))
+	if err != nil {
+		writeHttpError(resp, http.StatusBadRequest, "invalid limit parameter")
+		return
+	}
+	offset, err := strconv.Atoi(req.URL.Query().Get("offset"))
+	if err != nil {
+		writeHttpError(resp, http.StatusBadRequest, "invalid offset parameter")
+		return
+	}
+	history, err := h.storage.GetHistory(req.Context(), id, currency, limit, offset)
+	if err != nil {
+		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get history err: %v", err))
+		return
+	}
+	resp.Header().Add("Content-Type", "application/json")
+	resp.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(resp).Encode(convertHistory(h.storage, currency, history))
+	if err != nil {
+		log.Errorf("json encode error: %v", err)
+	}
+}
+
 func (h *Handler) serviceTonWithdrawal(resp http.ResponseWriter, req *http.Request) {
 	var body ServiceTonWithdrawalRequest
 	err := json.NewDecoder(req.Body).Decode(&body)
@@ -298,7 +348,8 @@ func RegisterHandlers(mux *http.ServeMux, h *Handler) {
 	mux.HandleFunc("/v1/withdrawal/service/jetton", recoverMiddleware(authMiddleware(post(h.serviceJettonWithdrawal))))
 	mux.HandleFunc("/v1/withdrawal/status", recoverMiddleware(authMiddleware(get(h.getWithdrawalStatus))))
 	mux.HandleFunc("/v1/system/sync", recoverMiddleware(get(h.getSync)))
-	mux.HandleFunc("/v1/balance", recoverMiddleware(authMiddleware(get(h.getBalance))))
+	mux.HandleFunc("/v1/balance", recoverMiddleware(authMiddleware(get(h.getBalance)))) // TODO: rename to income
+	mux.HandleFunc("/v1/deposit/history", recoverMiddleware(authMiddleware(get(h.getHistory))))
 }
 
 func generateAddress(
@@ -471,7 +522,7 @@ func convertJettonServiceWithdrawal(s storage, w ServiceJettonWithdrawalRequest)
 }
 
 func convertBalances(balances []core.Balance) GetBalanceResponse {
-	// TODO: check for owner address
+	// TODO: convert to owner address
 	var res = GetBalanceResponse{
 		Balances: []balance{},
 	}
@@ -481,6 +532,37 @@ func convertBalances(balances []core.Balance) GetBalanceResponse {
 			Balance:  b.Balance.String(),
 			Currency: b.Currency,
 		})
+	}
+	return res
+}
+
+func convertHistory(dbConn storage, currency string, incomes []core.ExternalIncome) GetHistoryResponse {
+	var res = GetHistoryResponse{
+		Incomes: []income{},
+	}
+	for _, i := range incomes {
+		inc := income{
+			Time:    int64(i.Utime),
+			Amount:  i.Amount.String(),
+			Comment: i.Comment,
+		}
+		if currency == core.TonSymbol {
+			inc.DepositAddress = i.To.ToUserFormat()
+		} else {
+			owner := dbConn.GetOwner(i.To)
+			if owner == nil {
+				// TODO: remove fatal
+				log.Fatalf("can not find owner for deposit: %s", i.To.ToUserFormat())
+			}
+			inc.DepositAddress = owner.ToUserFormat()
+		}
+		addr, err := core.AddressFromBytes(i.From) // show only std address
+		if err != nil {
+			res.Incomes = append(res.Incomes, inc)
+			continue
+		}
+		inc.SourceAddress = addr.ToUserFormat()
+		res.Incomes = append(res.Incomes, inc)
 	}
 	return res
 }
@@ -517,6 +599,8 @@ type storage interface {
 	GetWalletType(address core.Address) (core.WalletType, bool)
 	GetDepositBalances(ctx context.Context, userID string, isDepositSide bool) ([]core.Balance, error)
 	SaveServiceWithdrawalRequest(ctx context.Context, w core.ServiceWithdrawalRequest) (uuid.UUID, error)
+	GetHistory(ctx context.Context, userID string, currency string, limit int, offset int) ([]core.ExternalIncome, error)
+	GetOwner(address core.Address) *core.Address
 }
 
 type blockchain interface {

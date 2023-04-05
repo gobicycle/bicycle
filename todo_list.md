@@ -52,5 +52,7 @@
 - [ ] Describe recovery scenarios
 - [ ] BOLT compatibility test
 - [ ] Not process removed Jettons
-- [ ] Rename balance to income
+- [ ] Rename balance to income and return owner address instead of jetton wallet (for queue too)
 - [ ] Separate .env files for services
+- [ ] Process masterchain addresses for external incomes
+- [ ] Fix "outgoing message from internal incoming" for bounced TON payment 

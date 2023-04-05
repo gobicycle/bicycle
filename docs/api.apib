@@ -143,6 +143,64 @@ Get balances for deposits by `user_id`
                 "error": "error text"
             } 
 
+## Get history [GET /v1/history{?user_id,currency,limit,offset}]
+
+Get history for deposits by `user_id` and `currency`
+
++ Parameters
+
+    + user_id (string) - an unique identifier of the user
+    + currency (string) - the text identifier of the currency specified in the processor configuration. `TON` for TON coin.
+    + limit (number) - the maximum value of returned records
+    + offset (number) - offset for returned records
+
++ Request
+
+    + Headers
+
+            Authorization: Bearer
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+              "incomes": [
+                {
+                  "deposit_address": "0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR",
+                  "time": 1680604643,
+                  "source_address": "0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP",
+                  "amount": "1000000",
+                  "comment": "hello"
+                },
+                {
+                  "deposit_address": "0QCdyiS-fIV9UVfI9Phswo4l2MA-hm8YseHynZ_YiH9Y1oSe",
+                  "time": 1680604648,
+                  "source_address": "0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP",
+                  "amount": "1000000",
+                  "comment": "hello"
+                }
+              ]
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
 ## Send withdrawal [POST /v1/withdrawal/send]
 
 Send withdrawal request. **Amount must be in base units without decimal point (NanoTONs for TONs)**

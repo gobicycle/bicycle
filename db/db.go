@@ -1112,3 +1112,63 @@ func (c *Connection) GetDepositBalances(
 	}
 	return res, nil
 }
+
+func (c *Connection) GetHistory(
+	ctx context.Context,
+	userID string,
+	currency string,
+	limit int,
+	offset int,
+) (
+	[]core.ExternalIncome,
+	error,
+) {
+	var (
+		res          []core.ExternalIncome
+		sqlStatement string
+		walletType   core.WalletType
+	)
+
+	if currency == core.TonSymbol {
+		sqlStatement = `
+			SELECT utime, lt, payer_address, deposit_address, amount, comment
+			FROM payments.external_incomes i
+				LEFT JOIN payments.ton_wallets tw ON i.deposit_address = tw.address
+			WHERE tw.type = $1 AND tw.user_id = $2 AND $3 = $3
+			ORDER BY lt DESC
+			LIMIT $4
+			OFFSET $5
+		`
+		walletType = core.TonDepositWallet
+	} else {
+		sqlStatement = `
+			SELECT utime, lt, payer_address, deposit_address, amount, comment
+			FROM payments.external_incomes i
+			    LEFT JOIN payments.jetton_wallets jw ON i.deposit_address = jw.address
+			WHERE jw.type = $1 AND jw.user_id = $2 AND jw.currency = $3
+			ORDER BY lt DESC
+			LIMIT $4
+			OFFSET $5
+		`
+		walletType = core.JettonDepositWallet
+	}
+
+	rows, err := c.client.Query(ctx, sqlStatement, walletType, userID, currency, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			income core.ExternalIncome
+			t      time.Time
+		)
+		err = rows.Scan(&t, &income.Lt, &income.From, &income.To, &income.Amount, &income.Comment)
+		if err != nil {
+			return nil, err
+		}
+		income.Utime = uint32(t.Unix())
+		res = append(res, income)
+	}
+	return res, nil
+}
