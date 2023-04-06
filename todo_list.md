@@ -41,6 +41,9 @@
 - [x] Fix timeouts
 - [x] Allow to start with empty Jetton env var
 - [x] Deposit side balances by default
+- [x] Fix "outgoing message from internal incoming" for bounced TON payment 
+- [x] Add history method
+- [ ] Rename balance to income and return owner address instead of jetton wallet (for queue too)
 - [ ] Support DNS names in recipient address
 - [ ] Installation video manual
 - [ ] Use stable branch for emulator
@@ -52,7 +55,7 @@
 - [ ] Describe recovery scenarios
 - [ ] BOLT compatibility test
 - [ ] Not process removed Jettons
-- [ ] Rename balance to income and return owner address instead of jetton wallet (for queue too)
 - [ ] Separate .env files for services
 - [ ] Process masterchain addresses for external incomes
-- [ ] Fix "outgoing message from internal incoming" for bounced TON payment 
+- [ ] Add filling deposit with bounce to test plan
+- [ ] Add history method to test plan
