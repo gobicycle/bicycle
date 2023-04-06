@@ -52,7 +52,7 @@ jobs:
 
       - name: Install libs
         run: |
-          git clone https://github.com/startfellows/tongo /tmp/tongo
+          git clone https://github.com/tonkeeper/tongo /tmp/tongo
           sudo cp /tmp/tongo/lib/linux/libemulator.so /lib
 
       - name: Run Test

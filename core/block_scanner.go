@@ -7,9 +7,9 @@ import (
 	"github.com/gobicycle/bicycle/config"
 	"github.com/gofrs/uuid"
 	log "github.com/sirupsen/logrus"
-	"github.com/startfellows/tongo"
-	"github.com/startfellows/tongo/boc"
-	tongoTlb "github.com/startfellows/tongo/tlb"
+	"github.com/tonkeeper/tongo"
+	"github.com/tonkeeper/tongo/boc"
+	tongoTlb "github.com/tonkeeper/tongo/tlb"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -194,7 +194,7 @@ func checkTxForSuccess(tx *tlb.Transaction) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	var desc tongo.TransactionDescr
+	var desc tongoTlb.TransactionDescr
 	err = tongoTlb.Unmarshal(c[0], &desc)
 	if err != nil {
 		return false, err

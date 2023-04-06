@@ -3,7 +3,7 @@ package config
 import (
 	"github.com/caarlos0/env/v6"
 	"github.com/shopspring/decimal"
-	"github.com/startfellows/tongo/boc"
+	"github.com/tonkeeper/tongo/boc"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"log"

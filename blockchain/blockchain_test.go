@@ -5,7 +5,7 @@ import (
 	"context"
 	"github.com/gobicycle/bicycle/config"
 	"github.com/gobicycle/bicycle/core"
-	"github.com/startfellows/tongo/boc"
+	"github.com/tonkeeper/tongo/boc"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/jetton"

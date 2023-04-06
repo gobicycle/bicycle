@@ -6,9 +6,10 @@ import (
 	"github.com/gobicycle/bicycle/config"
 	"github.com/gobicycle/bicycle/core"
 	log "github.com/sirupsen/logrus"
-	"github.com/startfellows/tongo"
-	"github.com/startfellows/tongo/boc"
-	"github.com/startfellows/tongo/tvm"
+	"github.com/tonkeeper/tongo"
+	"github.com/tonkeeper/tongo/boc"
+	tongoTlb "github.com/tonkeeper/tongo/tlb"
+	"github.com/tonkeeper/tongo/tvm"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -179,7 +180,7 @@ func (c *Connection) getContract(ctx context.Context, addr *address.Address) (co
 		return contract{}, fmt.Errorf("BOC must have only one root")
 	}
 	return contract{
-		Address: *accountID,
+		Address: accountID,
 		Code:    codeCell[0],
 		Data:    dataCell[0],
 	}, nil
@@ -194,13 +195,13 @@ func getJettonWalletAddressByTVM(
 	if err != nil {
 		return core.Address{}, err
 	}
-	slice, err := tongo.TlbStructToVmCellSlice(ownerAccountID)
+	slice, err := tongoTlb.TlbStructToVmCellSlice(ownerAccountID)
 	if err != nil {
 		return core.Address{}, err
 	}
 
-	code, result, err := emulator.RunGetMethod(context.Background(), jettonMaster, "get_wallet_address",
-		tongo.VmStack{{SumType: "VmStkSlice", VmStkSlice: slice}})
+	code, result, err := emulator.RunSmcMethod(context.Background(), jettonMaster, "get_wallet_address",
+		tongoTlb.VmStack{slice})
 	if err != nil {
 		return core.Address{}, err
 	}
@@ -208,7 +209,7 @@ func getJettonWalletAddressByTVM(
 		return core.Address{}, fmt.Errorf("tvm execution failed")
 	}
 
-	var msgAddress tongo.MsgAddress
+	var msgAddress tongoTlb.MsgAddress
 	err = result[0].VmStkSlice.UnmarshalToTlbStruct(&msgAddress)
 	if err != nil {
 		return core.Address{}, err
@@ -223,10 +224,11 @@ func getJettonWalletAddressByTVM(
 }
 
 func newEmulator(code, data *boc.Cell) (*tvm.Emulator, error) {
-	emulator, err := tvm.NewEmulator(code, data, config.Config.BlockchainConfig, 1_000_000_000, 0)
+	emulator, err := tvm.NewEmulator(code, data, config.Config.BlockchainConfig, tvm.WithBalance(1_000_000_000))
 	if err != nil {
 		return nil, err
 	}
+	// TODO: try tvm.WithLazyC7Optimization()
 	err = emulator.SetVerbosityLevel(1)
 	if err != nil {
 		return nil, err
