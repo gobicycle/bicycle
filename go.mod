@@ -10,7 +10,7 @@ require (
 	github.com/shopspring/decimal v1.2.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/streadway/amqp v1.0.0
-	github.com/tonkeeper/tongo v1.0.8
+	github.com/tonkeeper/tongo v1.0.9
 	github.com/xssnick/tonutils-go v1.4.1
 )
 
