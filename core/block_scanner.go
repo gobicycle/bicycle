@@ -127,7 +127,7 @@ func (s *BlockScanner) pushNotifications(e BlockEvents) error {
 	if !config.Config.QueueEnabled {
 		return nil
 	}
-	if config.Config.DepositSideBalances {
+	if config.Config.IsDepositSideCalculation {
 		for _, ei := range e.ExternalIncomes {
 			err := s.pushNotification(ei.To, ei.Amount, ei.Utime)
 			if err != nil {

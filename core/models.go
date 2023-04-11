@@ -20,6 +20,13 @@ const (
 	DefaultWorkchain = 0 // use only 0 workchain
 )
 
+type IncomeSide = string
+
+const (
+	SideHotWallet IncomeSide = "hot_wallet"
+	SideDeposit   IncomeSide = "deposit"
+)
+
 type EventName = string
 
 const (
@@ -255,9 +262,9 @@ type InternalWithdrawalTask struct {
 	Currency    string
 }
 
-type Balance struct {
+type TotalIncome struct {
 	Deposit  Address
-	Balance  Coins
+	Amount   Coins
 	Currency string
 }
 

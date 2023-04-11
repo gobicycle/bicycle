@@ -92,9 +92,12 @@ Get all created addresses by `user_id`
                 "error": "error text"
             } 
 
-## Get balances [GET /v1/balance{?user_id}]
+## Get income [GET /v1/income{?user_id}]
 
-Get balances for deposits by `user_id`
+Get income for deposits by `user_id`. The total amount of funds that came to the deposit for the entire time.
+Funds sent from the deposit to the hot wallet or all funds received to the deposit are taken into account,
+depending on the service settings.
+Counting side field options: "hot_wallet", "deposit".
 
 + Parameters
 
@@ -111,15 +114,16 @@ Get balances for deposits by `user_id`
     + Body
 
             {
-              "balances": [
+              "counting_side": "deposit",
+              "total_income": [
                 {
-                  "address": "0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR",
-                  "balance": "1000000",
+                  "deposit_address": "0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR",
+                  "amount": "1000000",
                   "currency": "TON"
                 },
                 {
-                  "address": "0QCdyiS-fIV9UVfI9Phswo4l2MA-hm8YseHynZ_YiH9Y1oSe",
-                  "balance": "1023000",
+                  "deposit_address": "0QCdyiS-fIV9UVfI9Phswo4l2MA-hm8YseHynZ_YiH9Y1oSe",
+                  "amount": "1023000",
                   "currency": "TGR"
                 }
               ]
@@ -145,7 +149,8 @@ Get balances for deposits by `user_id`
 
 ## Get history [GET /v1/history{?user_id,currency,limit,offset}]
 
-Get history for deposits by `user_id` and `currency`
+Get history for deposits by `user_id` and `currency`. Returns the history of all deposits replenishments with the
+sender's address as `source_address` (if it could be determined).
 
 + Parameters
 

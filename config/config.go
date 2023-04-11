@@ -35,24 +35,24 @@ const (
 )
 
 var Config = struct {
-	LiteServer          string `env:"LITESERVER,required"`
-	LiteServerKey       string `env:"LITESERVER_KEY,required"`
-	Seed                string `env:"SEED,required"`
-	DatabaseURI         string `env:"DB_URI,required"`
-	APIHost             string `env:"API_HOST" envDefault:"0.0.0.0:8081"`
-	APIToken            string `env:"API_TOKEN,required"`
-	Testnet             bool   `env:"IS_TESTNET" envDefault:"true"`
-	ColdWalletString    string `env:"COLD_WALLET"`
-	JettonString        string `env:"JETTONS"`
-	TonString           string `env:"TON_CUTOFFS,required"`
-	DepositSideBalances bool   `env:"DEPOSIT_SIDE_BALANCE" envDefault:"true"`
-	QueueURI            string `env:"QUEUE_URI"`
-	QueueName           string `env:"QUEUE_NAME"`
-	QueueEnabled        bool   `env:"QUEUE_ENABLED" envDefault:"false"`
-	Jettons             map[string]Jetton
-	Ton                 Cutoffs
-	ColdWallet          *address.Address
-	BlockchainConfig    *boc.Cell
+	LiteServer               string `env:"LITESERVER,required"`
+	LiteServerKey            string `env:"LITESERVER_KEY,required"`
+	Seed                     string `env:"SEED,required"`
+	DatabaseURI              string `env:"DB_URI,required"`
+	APIHost                  string `env:"API_HOST" envDefault:"0.0.0.0:8081"`
+	APIToken                 string `env:"API_TOKEN,required"`
+	Testnet                  bool   `env:"IS_TESTNET" envDefault:"true"`
+	ColdWalletString         string `env:"COLD_WALLET"`
+	JettonString             string `env:"JETTONS"`
+	TonString                string `env:"TON_CUTOFFS,required"`
+	IsDepositSideCalculation bool   `env:"DEPOSIT_SIDE_BALANCE" envDefault:"true"` // TODO: rename to DEPOSIT_SIDE_CALCULATION
+	QueueURI                 string `env:"QUEUE_URI"`
+	QueueName                string `env:"QUEUE_NAME"`
+	QueueEnabled             bool   `env:"QUEUE_ENABLED" envDefault:"false"`
+	Jettons                  map[string]Jetton
+	Ton                      Cutoffs
+	ColdWallet               *address.Address
+	BlockchainConfig         *boc.Cell
 }{}
 
 type Jetton struct {

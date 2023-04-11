@@ -17,7 +17,7 @@ GET {{url}}/v1/address/all?user_id=TestUser
 Authorization: Bearer {{token}}
 
 ###
-GET {{url}}/v1/balance?user_id=TestUser
+GET {{url}}/v1/income?user_id=TestUser
 Authorization: Bearer {{token}}
 
 ###

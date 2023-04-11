@@ -933,6 +933,7 @@ func (c *Connection) GetLastSavedBlockID(ctx context.Context) (*tlb.BlockInfo, e
 	return &blockID, nil
 }
 
+// SetExpired TODO: maybe add block related expiration
 func (c *Connection) SetExpired(ctx context.Context) error {
 	_, err := c.client.Exec(ctx, `
 			UPDATE payments.internal_withdrawals
@@ -1060,12 +1061,13 @@ func (c *Connection) GetExternalWithdrawalStatus(ctx context.Context, id int64) 
 	return "", fmt.Errorf("bad status")
 }
 
-func (c *Connection) GetDepositBalances(
+// GetIncome returns list of incomes by user_id
+func (c *Connection) GetIncome(
 	ctx context.Context,
 	userID string,
 	isDepositSide bool,
 ) (
-	[]core.Balance,
+	[]core.TotalIncome,
 	error,
 ) {
 	var sqlStatement string
@@ -1101,10 +1103,10 @@ func (c *Connection) GetDepositBalances(
 	}
 	defer rows.Close()
 
-	res := make([]core.Balance, 0)
+	res := make([]core.TotalIncome, 0)
 	for rows.Next() {
-		var deposit core.Balance
-		err = rows.Scan(&deposit.Deposit, &deposit.Balance, &deposit.Currency)
+		var deposit core.TotalIncome
+		err = rows.Scan(&deposit.Deposit, &deposit.Amount, &deposit.Currency)
 		if err != nil {
 			return nil, err
 		}
@@ -1113,7 +1115,8 @@ func (c *Connection) GetDepositBalances(
 	return res, nil
 }
 
-func (c *Connection) GetHistory(
+// GetIncomeHistory returns list of external incomes for deposit side by user_id and currency
+func (c *Connection) GetIncomeHistory(
 	ctx context.Context,
 	userID string,
 	currency string,
