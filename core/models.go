@@ -10,6 +10,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"math/big"
 	"time"
@@ -281,12 +282,12 @@ func ZeroCoins() Coins {
 // ShardBlockHeader
 // Block header for a specific shard mask attribute. Has only one parent.
 type ShardBlockHeader struct {
-	*tlb.BlockInfo
+	*ton.BlockIDExt
 	NotMaster bool
 	GenUtime  uint32
 	StartLt   uint64
 	EndLt     uint64
-	Parent    *tlb.BlockInfo
+	Parent    *ton.BlockIDExt
 }
 
 type storage interface {
@@ -315,10 +316,10 @@ type storage interface {
 
 type blockchain interface {
 	GetJettonWalletAddress(ctx context.Context, ownerWallet *address.Address, jettonMaster *address.Address) (*address.Address, error)
-	GetTransactionIDsFromBlock(ctx context.Context, blockID *tlb.BlockInfo) ([]*tlb.TransactionID, error)
-	GetTransactionFromBlock(ctx context.Context, blockID *tlb.BlockInfo, txID *tlb.TransactionID) (*tlb.Transaction, error)
+	GetTransactionIDsFromBlock(ctx context.Context, blockID *ton.BlockIDExt) ([]ton.TransactionShortInfo, error)
+	GetTransactionFromBlock(ctx context.Context, blockID *ton.BlockIDExt, txID ton.TransactionShortInfo) (*tlb.Transaction, error)
 	GenerateDefaultWallet(seed string, isHighload bool) (*wallet.Wallet, byte, uint32, error)
-	GetJettonBalance(ctx context.Context, address Address, blockID *tlb.BlockInfo) (*big.Int, error)
+	GetJettonBalance(ctx context.Context, address Address, blockID *ton.BlockIDExt) (*big.Int, error)
 	SendExternalMessage(ctx context.Context, msg *tlb.ExternalMessage) error
 	GetAccountCurrentState(ctx context.Context, address *address.Address) (*big.Int, tlb.AccountStatus, error)
 	GetLastJettonBalance(ctx context.Context, address *address.Address) (*big.Int, error)

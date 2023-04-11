@@ -239,7 +239,7 @@ func newEmulator(code, data *boc.Cell) (*tvm.Emulator, error) {
 // GetJettonBalance
 // Get method get_wallet_data() returns (int balance, slice owner, slice jetton, cell jetton_wallet_code)
 // Returns jetton balance for custom block in basic units
-func (c *Connection) GetJettonBalance(ctx context.Context, address core.Address, blockID *tlb.BlockInfo) (*big.Int, error) {
+func (c *Connection) GetJettonBalance(ctx context.Context, address core.Address, blockID *ton.BlockIDExt) (*big.Int, error) {
 	jettonWallet := address.ToTonutilsAddressStd(0)
 	stack, err := c.RunGetMethod(ctx, blockID, jettonWallet, "get_wallet_data")
 	if err != nil {
@@ -314,14 +314,14 @@ func (c *Connection) DeployTonWallet(ctx context.Context, wallet *wallet.Wallet)
 
 // GetTransactionIDsFromBlock
 // Gets all transactions IDs from custom block
-func (c *Connection) GetTransactionIDsFromBlock(ctx context.Context, blockID *tlb.BlockInfo) ([]*tlb.TransactionID, error) {
+func (c *Connection) GetTransactionIDsFromBlock(ctx context.Context, blockID *ton.BlockIDExt) ([]ton.TransactionShortInfo, error) {
 	var (
-		txIDList []*tlb.TransactionID
-		after    *tlb.TransactionID
+		txIDList []ton.TransactionShortInfo
+		after    *ton.TransactionID3
 		next     = true
 	)
 	for next {
-		fetchedIDs, more, err := c.client.GetBlockTransactions(ctx, blockID, 256, after)
+		fetchedIDs, more, err := c.client.GetBlockTransactionsV2(ctx, blockID, 256, after)
 		if err != nil {
 			return nil, err
 		}
@@ -329,7 +329,7 @@ func (c *Connection) GetTransactionIDsFromBlock(ctx context.Context, blockID *tl
 		next = more
 		if more {
 			// set load offset for next query (pagination)
-			after = fetchedIDs[len(fetchedIDs)-1]
+			after = fetchedIDs[len(fetchedIDs)-1].ID3()
 		}
 	}
 	// sort by LT
@@ -341,8 +341,8 @@ func (c *Connection) GetTransactionIDsFromBlock(ctx context.Context, blockID *tl
 
 // GetTransactionFromBlock
 // Gets transaction from block
-func (c *Connection) GetTransactionFromBlock(ctx context.Context, blockID *tlb.BlockInfo, txID *tlb.TransactionID) (*tlb.Transaction, error) {
-	tx, err := c.client.GetTransaction(ctx, blockID, address.NewAddress(0, byte(blockID.Workchain), txID.AccountID), txID.LT)
+func (c *Connection) GetTransactionFromBlock(ctx context.Context, blockID *ton.BlockIDExt, txID ton.TransactionShortInfo) (*tlb.Transaction, error) {
+	tx, err := c.client.GetTransaction(ctx, blockID, address.NewAddress(0, byte(blockID.Workchain), txID.Account), txID.LT)
 	if err != nil {
 		return nil, err
 	}
@@ -408,7 +408,7 @@ func (c *Connection) WaitStatus(ctx context.Context, addr *address.Address, stat
 // GetAccount
 // The method is being redefined for more stable operation.
 // Gets account from prev block if impossible to get it from current block. Be careful with diff calculation between blocks.
-func (c *Connection) GetAccount(ctx context.Context, block *tlb.BlockInfo, addr *address.Address) (*tlb.Account, error) {
+func (c *Connection) GetAccount(ctx context.Context, block *ton.BlockIDExt, addr *address.Address) (*tlb.Account, error) {
 	res, err := c.client.GetAccount(ctx, block, addr)
 	if err != nil && strings.Contains(err.Error(), ErrBlockNotApplied) {
 		prevBlock, err := c.client.LookupBlock(ctx, block.Workchain, block.Shard, block.SeqNo-1)
@@ -427,7 +427,7 @@ func (c *Connection) SendExternalMessage(ctx context.Context, msg *tlb.ExternalM
 // RunGetMethod
 // The method is being redefined for more stable operation
 // Wait until BlockIsApplied. Use context with  timeout.
-func (c *Connection) RunGetMethod(ctx context.Context, block *tlb.BlockInfo, addr *address.Address, method string, params ...any) (*ton.ExecutionResult, error) {
+func (c *Connection) RunGetMethod(ctx context.Context, block *ton.BlockIDExt, addr *address.Address, method string, params ...any) (*ton.ExecutionResult, error) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -447,7 +447,7 @@ func (c *Connection) ListTransactions(ctx context.Context, addr *address.Address
 	return c.client.ListTransactions(ctx, addr, num, lt, txHash)
 }
 
-func (c *Connection) WaitNextMasterBlock(ctx context.Context, master *tlb.BlockInfo) (*tlb.BlockInfo, error) {
+func (c *Connection) WaitNextMasterBlock(ctx context.Context, master *ton.BlockIDExt) (*ton.BlockIDExt, error) {
 	return c.client.WaitNextMasterBlock(ctx, master)
 }
 
@@ -455,10 +455,10 @@ func (c *Connection) Client() ton.LiteClient {
 	return c.client.Client()
 }
 
-func (c *Connection) CurrentMasterchainInfo(ctx context.Context) (*tlb.BlockInfo, error) {
+func (c *Connection) CurrentMasterchainInfo(ctx context.Context) (*ton.BlockIDExt, error) {
 	return c.client.CurrentMasterchainInfo(ctx)
 }
 
-func (c *Connection) GetMasterchainInfo(ctx context.Context) (*tlb.BlockInfo, error) {
+func (c *Connection) GetMasterchainInfo(ctx context.Context) (*ton.BlockIDExt, error) {
 	return c.client.GetMasterchainInfo(ctx)
 }

@@ -46,7 +46,7 @@
 - [x] Rename balance to income and return owner address instead of jetton wallet (for queue too)
 - [x] Add history method to test plan
 - [x] Add filling deposit with bounce to test plan
-- [ ] Update to tonutils-go 1.6.2
+- [x] Update to tonutils-go 1.6.2
 - [ ] Support DNS names in recipient address
 - [ ] Installation video manual
 - [ ] Use stable branch for emulator
