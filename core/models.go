@@ -330,6 +330,6 @@ type blocksTracker interface {
 	Stop()
 }
 
-type queue interface {
+type Notificator interface {
 	Publish(payload any) error
 }

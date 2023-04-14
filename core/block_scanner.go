@@ -19,12 +19,12 @@ import (
 )
 
 type BlockScanner struct {
-	db         storage
-	blockchain blockchain
-	shard      byte
-	tracker    blocksTracker
-	wg         *sync.WaitGroup
-	queue      queue
+	db           storage
+	blockchain   blockchain
+	shard        byte
+	tracker      blocksTracker
+	wg           *sync.WaitGroup
+	notificators []Notificator
 }
 
 type transactions struct {
@@ -52,9 +52,11 @@ type HighLoadWalletExtMsgInfo struct {
 }
 
 type incomeNotification struct {
-	Deposit   string `json:"deposit"`
+	Deposit   string `json:"deposit_address"`
+	Timestamp int64  `json:"time"`
 	Amount    string `json:"amount"`
-	Timestamp int64  `json:"timestamp"`
+	Source    string `json:"source_address"`
+	Comment   string `json:"comment"`
 }
 
 func NewBlockScanner(
@@ -63,15 +65,15 @@ func NewBlockScanner(
 	blockchain blockchain,
 	shard byte,
 	tracker blocksTracker,
-	queueClient queue,
+	notificators []Notificator,
 ) *BlockScanner {
 	t := &BlockScanner{
-		db:         db,
-		blockchain: blockchain,
-		shard:      shard,
-		tracker:    tracker,
-		wg:         wg,
-		queue:      queueClient,
+		db:           db,
+		blockchain:   blockchain,
+		shard:        shard,
+		tracker:      tracker,
+		wg:           wg,
+		notificators: notificators,
 	}
 	t.wg.Add(1)
 	go t.Start()
@@ -124,19 +126,20 @@ func (s *BlockScanner) processBlock(ctx context.Context, block ShardBlockHeader)
 }
 
 func (s *BlockScanner) pushNotifications(e BlockEvents) error {
-	if !config.Config.QueueEnabled {
+	if len(s.notificators) == 0 {
 		return nil
 	}
+
 	if config.Config.IsDepositSideCalculation {
 		for _, ei := range e.ExternalIncomes {
-			err := s.pushNotification(ei.To, ei.Amount, ei.Utime)
+			err := s.pushNotification(ei.To, ei.Amount, ei.Utime, ei.From, &ei.Comment)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
 		for _, ii := range e.InternalIncomes {
-			err := s.pushNotification(ii.From, ii.Amount, ii.Utime)
+			err := s.pushNotification(ii.From, ii.Amount, ii.Utime, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -145,7 +148,7 @@ func (s *BlockScanner) pushNotifications(e BlockEvents) error {
 	return nil
 }
 
-func (s *BlockScanner) pushNotification(addr Address, amount Coins, timestamp uint32) error {
+func (s *BlockScanner) pushNotification(addr Address, amount Coins, timestamp uint32, from []byte, comment *string) error {
 	owner := s.db.GetOwner(addr)
 	if owner != nil {
 		addr = *owner
@@ -155,7 +158,27 @@ func (s *BlockScanner) pushNotification(addr Address, amount Coins, timestamp ui
 		Amount:    amount.String(),
 		Timestamp: int64(timestamp),
 	}
-	return s.queue.Publish(notification)
+	if len(from) == 32 {
+		// supports only std address
+		// TODO: add masterchain address processing
+		src, err := AddressFromBytes(from)
+		if err != nil {
+			return fmt.Errorf("push notification: can not convert source address to std: %v", err)
+		}
+		notification.Source = src.ToUserFormat()
+	}
+
+	if comment != nil {
+		notification.Comment = *comment
+	}
+
+	for _, n := range s.notificators {
+		err := n.Publish(notification)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *BlockScanner) filterTXs(

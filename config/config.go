@@ -49,6 +49,8 @@ var Config = struct {
 	QueueURI                 string `env:"QUEUE_URI"`
 	QueueName                string `env:"QUEUE_NAME"`
 	QueueEnabled             bool   `env:"QUEUE_ENABLED" envDefault:"false"`
+	WebhookEndpoint          string `env:"WEBHOOK_ENDPOINT"`
+	WebhookToken             string `env:"WEBHOOK_TOKEN"`
 	Jettons                  map[string]Jetton
 	Ton                      Cutoffs
 	ColdWallet               *address.Address
