@@ -296,6 +296,15 @@ Template:
             payment activity
 - COMMENT :
 
+6. -[ ] Checked
+- TEST    : Start `payment-processor` with `WEBHOOK_ENDPOINT=http://localhost:3333/webhook` env var.
+            Start test webserver from `cmd/testwebhook/main.go`. Make some payments to deposits. Check payments data 
+            at webserver side. Add env variable `WEBHOOK_TOKEN=123` and restart `payment-processor`. Make some payments 
+            to deposits. Check payments data at webserver side.  
+- RESULT  : Must be payments log activity in webserver and warning about the absence of a token when the variable 
+            `WEBHOOK_TOKEN` is not set.
+- COMMENT :
+
 ### Stability test
 
 1. -[ ] Checked
@@ -309,7 +318,7 @@ Template:
 
 1. -[ ] Checked
 - TEST    : Start `payment-test` service using technical_notes.md instructions
-            with `CIRCULATION=true` env variable and depositsQty=100 x 3 types of deposits 
+            with `CIRCULATION=true` env variable and depositsQty = 100 x 3 types of deposits 
             (with enough amount of test TONs on wallet).
             Periodically check availability and functionality of service by Grafana dashboard and docker logs.
 - RESULT  : There should be no abnormal behavior of service and errors in log

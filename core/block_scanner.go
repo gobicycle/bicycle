@@ -52,11 +52,11 @@ type HighLoadWalletExtMsgInfo struct {
 }
 
 type incomeNotification struct {
-	Deposit   string `json:"deposit_address"`
-	Timestamp int64  `json:"time"`
-	Amount    string `json:"amount"`
-	Source    string `json:"source_address"`
-	Comment   string `json:"comment"`
+	Deposit   string  `json:"deposit_address"`
+	Timestamp int64   `json:"time"`
+	Amount    string  `json:"amount"`
+	Source    *string `json:"source_address"`
+	Comment   *string `json:"comment"`
 }
 
 func NewBlockScanner(
@@ -165,11 +165,12 @@ func (s *BlockScanner) pushNotification(addr Address, amount Coins, timestamp ui
 		if err != nil {
 			return fmt.Errorf("push notification: can not convert source address to std: %v", err)
 		}
-		notification.Source = src.ToUserFormat()
+		a := src.ToUserFormat()
+		notification.Source = &a
 	}
 
 	if comment != nil {
-		notification.Comment = *comment
+		notification.Comment = comment
 	}
 
 	for _, n := range s.notificators {
