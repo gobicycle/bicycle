@@ -53,11 +53,11 @@ type HighLoadWalletExtMsgInfo struct {
 }
 
 type incomeNotification struct {
-	Deposit   string  `json:"deposit_address"`
-	Timestamp int64   `json:"time"`
-	Amount    string  `json:"amount"`
-	Source    *string `json:"source_address"`
-	Comment   *string `json:"comment"`
+	Deposit   string `json:"deposit_address"`
+	Timestamp int64  `json:"time"`
+	Amount    string `json:"amount"`
+	Source    string `json:"source_address,omitempty"`
+	Comment   string `json:"comment,omitempty"`
 }
 
 func NewBlockScanner(
@@ -133,14 +133,14 @@ func (s *BlockScanner) pushNotifications(e BlockEvents) error {
 
 	if config.Config.IsDepositSideCalculation {
 		for _, ei := range e.ExternalIncomes {
-			err := s.pushNotification(ei.To, ei.Amount, ei.Utime, ei.From, &ei.Comment)
+			err := s.pushNotification(ei.To, ei.Amount, ei.Utime, ei.From, ei.FromWorkchain, ei.Comment)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
 		for _, ii := range e.InternalIncomes {
-			err := s.pushNotification(ii.From, ii.Amount, ii.Utime, nil, nil)
+			err := s.pushNotification(ii.From, ii.Amount, ii.Utime, nil, nil, "")
 			if err != nil {
 				return err
 			}
@@ -149,7 +149,14 @@ func (s *BlockScanner) pushNotifications(e BlockEvents) error {
 	return nil
 }
 
-func (s *BlockScanner) pushNotification(addr Address, amount Coins, timestamp uint32, from []byte, comment *string) error {
+func (s *BlockScanner) pushNotification(
+	addr Address,
+	amount Coins,
+	timestamp uint32,
+	from []byte,
+	fromWorkchain *int32,
+	comment string,
+) error {
 	owner := s.db.GetOwner(addr)
 	if owner != nil {
 		addr = *owner
@@ -158,20 +165,13 @@ func (s *BlockScanner) pushNotification(addr Address, amount Coins, timestamp ui
 		Deposit:   addr.ToUserFormat(),
 		Amount:    amount.String(),
 		Timestamp: int64(timestamp),
+		Comment:   comment,
 	}
-	if len(from) == 32 {
+	if len(from) == 32 && fromWorkchain != nil {
 		// supports only std address
-		// TODO: add masterchain address processing
-		src, err := AddressFromBytes(from)
-		if err != nil {
-			return fmt.Errorf("push notification: can not convert source address to std: %v", err)
-		}
-		a := src.ToUserFormat()
-		notification.Source = &a
-	}
-
-	if comment != nil {
-		notification.Comment = comment
+		src := address.NewAddress(0, byte(*fromWorkchain), from)
+		src.SetTestnetOnly(config.Config.Testnet)
+		notification.Source = src.String()
 	}
 
 	for _, n := range s.notificators {
@@ -427,28 +427,14 @@ func (s *BlockScanner) calculateJettonAmounts(
 
 func convertUnknownJettonTxs(txs []*tlb.Transaction, addr Address, amount *big.Int) ([]ExternalIncome, error) {
 	var incomes []ExternalIncome
-	for _, tx := range txs {
-		if tx.IO.In == nil || tx.IO.In.MsgType != tlb.MsgTypeInternal { // unknown sender. do not process MsgAddressExt
-			incomes = append(incomes, ExternalIncome{
-				Utime:  tx.Now,
-				Lt:     tx.LT,
-				To:     addr,
-				Amount: ZeroCoins(),
-			})
-		} else {
-			inMsg := tx.IO.In.AsInternal()
-			var from []byte
-			if inMsg.SrcAddr != nil && inMsg.SrcAddr.Type() == address.StdAddress {
-				from = inMsg.SrcAddr.Data()
-			}
-			incomes = append(incomes, ExternalIncome{
-				Utime:  tx.Now,
-				Lt:     tx.LT,
-				From:   from,
-				To:     addr,
-				Amount: ZeroCoins(),
-			})
-		}
+	for _, tx := range txs { // unknown sender (jetton wallet owner). do not save message sender as from.
+		incomes = append(incomes, ExternalIncome{
+			Utime:  tx.Now,
+			Lt:     tx.LT,
+			To:     addr,
+			Amount: ZeroCoins(),
+		})
+
 	}
 	if len(txs) > 0 {
 		incomes = append(incomes, ExternalIncome{
@@ -836,9 +822,10 @@ func (s *BlockScanner) processTonDepositWalletExternalInMsg(tx *tlb.Transaction)
 
 func (s *BlockScanner) processTonDepositWalletInternalInMsg(tx *tlb.Transaction) (Events, error) {
 	var (
-		events Events
-		from   Address
-		err    error
+		events        Events
+		from          Address
+		err           error
+		fromWorkchain *int32
 	)
 
 	inMsg := tx.IO.In.AsInternal()
@@ -848,21 +835,25 @@ func (s *BlockScanner) processTonDepositWalletInternalInMsg(tx *tlb.Transaction)
 	}
 
 	isKnownSender := false
+	// support only std address
 	if inMsg.SrcAddr.Type() == address.StdAddress {
 		from, err = AddressFromTonutilsAddress(inMsg.SrcAddr)
 		if err != nil {
 			return Events{}, err
 		}
 		_, isKnownSender = s.db.GetWalletType(from)
+		wc := inMsg.SrcAddr.Workchain()
+		fromWorkchain = &wc
 	}
 	if !isKnownSender { // income TONs from payer. exclude internal (hot->deposit, deposit->deposit) transfers.
 		events.ExternalIncomes = append(events.ExternalIncomes, ExternalIncome{
-			Lt:      inMsg.CreatedLT,
-			Utime:   inMsg.CreatedAt,
-			From:    from.ToBytes(),
-			To:      dstAddr,
-			Amount:  NewCoins(inMsg.Amount.NanoTON()),
-			Comment: inMsg.Comment(),
+			Lt:            inMsg.CreatedLT,
+			Utime:         inMsg.CreatedAt,
+			From:          from.ToBytes(),
+			FromWorkchain: fromWorkchain,
+			To:            dstAddr,
+			Amount:        NewCoins(inMsg.Amount.NanoTON()),
+			Comment:       inMsg.Comment(),
 		})
 	}
 	return events, nil
@@ -918,18 +909,24 @@ func (s *BlockScanner) processJettonDepositOutMsgs(tx *tlb.Transaction) (Events,
 			continue
 		}
 
-		var from []byte
+		var (
+			from          []byte
+			fromWorkchain *int32
+		)
 		if notify.Sender != nil &&
 			(notify.Sender.Type() == address.StdAddress || notify.Sender.Type() == address.VarAddress) {
 			from = notify.Sender.Data()
+			wc := notify.Sender.Workchain()
+			fromWorkchain = &wc
 		}
 		events.ExternalIncomes = append(events.ExternalIncomes, ExternalIncome{
-			Utime:   outMsg.CreatedAt,
-			Lt:      outMsg.CreatedLT,
-			From:    from,
-			To:      srcAddr,
-			Amount:  notify.Amount,
-			Comment: notify.Comment,
+			Utime:         outMsg.CreatedAt,
+			Lt:            outMsg.CreatedLT,
+			From:          from,
+			FromWorkchain: fromWorkchain,
+			To:            srcAddr,
+			Amount:        notify.Amount,
+			Comment:       notify.Comment,
 		})
 		knownIncomeAmount.Add(knownIncomeAmount, notify.Amount.BigInt())
 	}

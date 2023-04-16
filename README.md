@@ -21,6 +21,7 @@ Service is ADNL based and interacts directly with node and do not use any third 
 - [REST API](https://gobicycle.github.io/bicycle/)
 - [Technical notes](/technical_notes.md)
 - [Threat model](/threat_model.md)
+- [Manual migrations](/manual_migrations.md)
 - [TODO list](/todo_list.md)
 
 ![test_dashboard](https://user-images.githubusercontent.com/120649456/211955983-698b12b8-eccf-45c5-85bb-f8f6364c154e.png)
@@ -125,7 +126,7 @@ docker-compose -f docker-compose-main.yml up -d payment-rabbitmq
 
 The service has several mechanisms for notification of payments. These are webhooks and a AMQP (to RabbitMQ). 
 Depending on the `DEPOSIT_SIDE_BALANCE` setting, a notification is received either about the payment to the 
-deposit address, or about the withdrawal from the deposit to the hot wallet.
+deposit address, or about the withdrawal from the deposit to the hot wallet. Source address and comment returned if known.
 
 Message format when `DEPOSIT_SIDE_BALANCE` == true:
 ```json
@@ -144,9 +145,7 @@ from the deposit):
 {
 	"deposit_address":"0QCdsj-u39qVlfYdpPKuAY0hTe5VIsiJcpB5Rx4tOUOyBFhL",
 	"time": 12345678,
-	"amount":"200",
-    "source_address":null,
-    "comment":null
+	"amount":"200"
 }
 ```
 

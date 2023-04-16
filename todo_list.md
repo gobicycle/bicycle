@@ -47,6 +47,7 @@
 - [x] Add history method to test plan
 - [x] Add filling deposit with bounce to test plan
 - [x] Update to tonutils-go 1.6.2
+- [x] Process masterchain addresses for external incomes
 - [ ] Support DNS names in recipient address
 - [ ] Installation video manual
 - [ ] Use stable branch for emulator
@@ -59,4 +60,4 @@
 - [ ] BOLT compatibility test
 - [ ] Not process removed Jettons
 - [ ] Separate .env files for services
-- [ ] Process masterchain addresses for external incomes
+- [ ] Automatic migrations

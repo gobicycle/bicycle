@@ -78,9 +78,9 @@ type totalIncome struct {
 type income struct {
 	DepositAddress string `json:"deposit_address"`
 	Time           int64  `json:"time"`
-	SourceAddress  string `json:"source_address"`
+	SourceAddress  string `json:"source_address,omitempty"`
 	Amount         string `json:"amount"`
-	Comment        string `json:"comment"`
+	Comment        string `json:"comment,omitempty"`
 }
 
 func NewHandler(s storage, b blockchain, token string, shard byte, hotWalletAddress address.Address) *Handler {
@@ -573,13 +573,12 @@ func convertHistory(dbConn storage, currency string, incomes []core.ExternalInco
 			}
 			inc.DepositAddress = owner.ToUserFormat()
 		}
-		// TODO: clarify address format
-		addr, err := core.AddressFromBytes(i.From) // show only std address
-		if err != nil {
-			res.Incomes = append(res.Incomes, inc)
-			continue
+		// show only std address
+		if len(i.From) == 32 && i.FromWorkchain != nil {
+			addr := address.NewAddress(0, byte(*i.FromWorkchain), i.From)
+			addr.SetTestnetOnly(config.Config.Testnet)
+			inc.SourceAddress = addr.String()
 		}
-		inc.SourceAddress = addr.ToUserFormat()
 		res.Incomes = append(res.Incomes, inc)
 	}
 	return res

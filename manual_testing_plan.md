@@ -235,7 +235,7 @@ Template:
 - COMMENT :
 
 26. -[ ] Checked
-- TEST    : Replenish the TON and Jetton deposit from the masterchain wallet and check it by
+- TEST    : Replenish the TON deposit from the masterchain wallet and check it by
             `/v1/history{?user_id,currency,limit,offset}` method.
 - RESULT  : The sender's address must be displayed correctly in the history.
 - COMMENT :
@@ -245,6 +245,12 @@ Template:
             `/v1/history{?user_id,currency,limit,offset}` method. Also check logs.
 - RESULT  : The bounced payment should not be in the history. There should be no errors in the logs, only a warning
             about a bounced message.
+- COMMENT :
+
+28. -[ ] Checked
+- TEST    : Replenish the Jetton deposit with zero forward amount and check it by
+  `/v1/history{?user_id,currency,limit,offset}` method.
+- RESULT  : The sender's address must be null in the history.
 - COMMENT :
 
 ### Internal logic
@@ -303,6 +309,12 @@ Template:
             to deposits. Check payments data at webserver side.  
 - RESULT  : Must be payments log activity in webserver and warning about the absence of a token when the variable 
             `WEBHOOK_TOKEN` is not set.
+- COMMENT :
+
+7. -[ ] Checked
+- TEST    : Start `payment-processor` with webhooks. Make Jetton payment to deposits with zero froward amount. 
+            Check payments data at webserver side.
+- RESULT  : The sender's address must be null.
 - COMMENT :
 
 ### Stability test

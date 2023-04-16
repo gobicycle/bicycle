@@ -225,12 +225,13 @@ type InternalIncome struct {
 }
 
 type ExternalIncome struct {
-	Utime   uint32
-	Lt      uint64
-	From    []byte
-	To      Address
-	Amount  Coins
-	Comment string
+	Utime         uint32
+	Lt            uint64
+	From          []byte
+	FromWorkchain *int32
+	To            Address
+	Amount        Coins
+	Comment       string
 }
 
 type Events struct {

@@ -309,8 +309,9 @@ func saveExternalIncome(ctx context.Context, tx pgx.Tx, inc core.ExternalIncome)
 		deposit_address,
 		payer_address,
 		amount,
-		comment)
-		VALUES ($1, $2, $3, $4, $5, $6)                                               
+		comment,
+		payer_workchain)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)                                               
 	`,
 		inc.Lt,
 		time.Unix(int64(inc.Utime), 0),
@@ -318,6 +319,7 @@ func saveExternalIncome(ctx context.Context, tx pgx.Tx, inc core.ExternalIncome)
 		inc.From,
 		inc.Amount,
 		inc.Comment,
+		inc.FromWorkchain,
 	)
 	return err
 }
@@ -1134,7 +1136,7 @@ func (c *Connection) GetIncomeHistory(
 
 	if currency == core.TonSymbol {
 		sqlStatement = `
-			SELECT utime, lt, payer_address, deposit_address, amount, comment
+			SELECT utime, lt, payer_address, deposit_address, amount, comment, payer_workchain
 			FROM payments.external_incomes i
 				LEFT JOIN payments.ton_wallets tw ON i.deposit_address = tw.address
 			WHERE tw.type = $1 AND tw.user_id = $2 AND $3 = $3
@@ -1145,7 +1147,7 @@ func (c *Connection) GetIncomeHistory(
 		walletType = core.TonDepositWallet
 	} else {
 		sqlStatement = `
-			SELECT utime, lt, payer_address, deposit_address, amount, comment
+			SELECT utime, lt, payer_address, deposit_address, amount, comment, payer_workchain
 			FROM payments.external_incomes i
 			    LEFT JOIN payments.jetton_wallets jw ON i.deposit_address = jw.address
 			WHERE jw.type = $1 AND jw.user_id = $2 AND jw.currency = $3
@@ -1166,7 +1168,7 @@ func (c *Connection) GetIncomeHistory(
 			income core.ExternalIncome
 			t      time.Time
 		)
-		err = rows.Scan(&t, &income.Lt, &income.From, &income.To, &income.Amount, &income.Comment)
+		err = rows.Scan(&t, &income.Lt, &income.From, &income.To, &income.Amount, &income.Comment, &income.FromWorkchain)
 		if err != nil {
 			return nil, err
 		}
