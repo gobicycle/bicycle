@@ -48,6 +48,7 @@
 - [x] Add filling deposit with bounce to test plan
 - [x] Update to tonutils-go 1.6.2
 - [x] Process masterchain addresses for external incomes
+- [ ] Jetton threat model
 - [ ] TNX compatibility test
 - [ ] Support DNS names in recipient address
 - [ ] Installation video manual
