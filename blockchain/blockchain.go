@@ -195,7 +195,7 @@ func getJettonWalletAddressByTVM(
 	if err != nil {
 		return core.Address{}, err
 	}
-	slice, err := tongoTlb.TlbStructToVmCellSlice(ownerAccountID)
+	slice, err := tongoTlb.TlbStructToVmCellSlice(ownerAccountID.ToMsgAddress())
 	if err != nil {
 		return core.Address{}, err
 	}
