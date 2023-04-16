@@ -134,7 +134,7 @@ func (p *WithdrawalsProcessor) buildWithdrawalMessages(ctx context.Context) (wit
 
 	balances, err := p.getHotWalletBalances(ctx)
 	if err != nil {
-		return withdrawals{}, err
+		return withdrawals{}, fmt.Errorf("get hot wallet balance error: %s", err.Error())
 	}
 
 	serviceTasks, err := p.db.GetServiceHotWithdrawalTasks(ctx, 250)
