@@ -12,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	log "github.com/sirupsen/logrus"
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"sync"
 	"time"
@@ -906,8 +906,8 @@ func (c *Connection) GetTonHotWalletAddress(ctx context.Context) (core.Address, 
 	return addr, err
 }
 
-func (c *Connection) GetLastSavedBlockID(ctx context.Context) (*tlb.BlockInfo, error) {
-	var blockID tlb.BlockInfo
+func (c *Connection) GetLastSavedBlockID(ctx context.Context) (*ton.BlockIDExt, error) {
+	var blockID ton.BlockIDExt
 	err := c.client.QueryRow(ctx, `
 		SELECT 
 		    seqno, 

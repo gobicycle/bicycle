@@ -5,6 +5,7 @@ import (
 	"github.com/gobicycle/bicycle/core"
 	log "github.com/sirupsen/logrus"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"math/bits"
 	"strings"
 	"time"
@@ -15,8 +16,8 @@ const ErrBlockNotApplied = "block is not applied"
 type ShardTracker struct {
 	connection            *Connection
 	shard                 byte
-	lastKnownShardBlock   *tlb.BlockInfo
-	lastMasterBlock       *tlb.BlockInfo
+	lastKnownShardBlock   *ton.BlockIDExt
+	lastMasterBlock       *ton.BlockIDExt
 	buffer                []core.ShardBlockHeader
 	gracefulShutdown      bool
 	infoCounter, infoStep int
@@ -24,7 +25,7 @@ type ShardTracker struct {
 }
 
 // NewShardTracker creates new tracker to get blocks with specific shard attribute
-func NewShardTracker(shard byte, startBlock *tlb.BlockInfo, connection *Connection) *ShardTracker {
+func NewShardTracker(shard byte, startBlock *ton.BlockIDExt, connection *Connection) *ShardTracker {
 	t := &ShardTracker{
 		connection:          connection,
 		shard:               shard,
@@ -79,7 +80,7 @@ func (s *ShardTracker) getNext() *core.ShardBlockHeader {
 	return nil
 }
 
-func (s *ShardTracker) getNextMasterBlockID(ctx context.Context) (*tlb.BlockInfo, error) {
+func (s *ShardTracker) getNextMasterBlockID(ctx context.Context) (*ton.BlockIDExt, error) {
 	for {
 		masterBlockID, err := s.connection.client.GetMasterchainInfo(ctx)
 		if err != nil {
@@ -99,9 +100,9 @@ func (s *ShardTracker) getNextMasterBlockID(ctx context.Context) (*tlb.BlockInfo
 	}
 }
 
-func (s *ShardTracker) loadShardBlocksBatch(masterBlockID *tlb.BlockInfo) (bool, error) {
+func (s *ShardTracker) loadShardBlocksBatch(masterBlockID *ton.BlockIDExt) (bool, error) {
 	var (
-		shards []*tlb.BlockInfo
+		shards []*ton.BlockIDExt
 		err    error
 	)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
@@ -126,7 +127,7 @@ func (s *ShardTracker) loadShardBlocksBatch(masterBlockID *tlb.BlockInfo) (bool,
 		return true, nil
 	}
 	if len(batch) != 0 {
-		s.lastKnownShardBlock = batch[0].BlockInfo
+		s.lastKnownShardBlock = batch[0].BlockIDExt
 		for i := len(batch) - 1; i >= 0; i-- {
 			s.buffer = append(s.buffer, batch[i])
 		}
@@ -134,7 +135,7 @@ func (s *ShardTracker) loadShardBlocksBatch(masterBlockID *tlb.BlockInfo) (bool,
 	return false, nil
 }
 
-func (s *ShardTracker) getShardBlocksRecursively(i *tlb.BlockInfo, batch []core.ShardBlockHeader) ([]core.ShardBlockHeader, bool, error) {
+func (s *ShardTracker) getShardBlocksRecursively(i *ton.BlockIDExt, batch []core.ShardBlockHeader) ([]core.ShardBlockHeader, bool, error) {
 	if s.gracefulShutdown {
 		return nil, true, nil
 	}
@@ -183,7 +184,7 @@ func isInShard(blockShardPrefix uint64, shard byte) bool {
 	return bits.LeadingZeros64(res) >= prefixLen
 }
 
-func filterByShard(headers []*tlb.BlockInfo, shard byte) *tlb.BlockInfo {
+func filterByShard(headers []*ton.BlockIDExt, shard byte) *ton.BlockIDExt {
 	for _, h := range headers {
 		if isInShard(uint64(h.Shard), shard) {
 			return h
@@ -193,24 +194,24 @@ func filterByShard(headers []*tlb.BlockInfo, shard byte) *tlb.BlockInfo {
 	return nil
 }
 
-func convertBlockToShardHeader(block *tlb.Block, info *tlb.BlockInfo, shard byte) (core.ShardBlockHeader, error) {
+func convertBlockToShardHeader(block *tlb.Block, info *ton.BlockIDExt, shard byte) (core.ShardBlockHeader, error) {
 	parents, err := block.BlockInfo.GetParentBlocks()
 	if err != nil {
 		return core.ShardBlockHeader{}, nil
 	}
 	parent := filterByShard(parents, shard)
 	return core.ShardBlockHeader{
-		NotMaster: block.BlockInfo.NotMaster,
-		GenUtime:  block.BlockInfo.GenUtime,
-		StartLt:   block.BlockInfo.StartLt,
-		EndLt:     block.BlockInfo.EndLt,
-		Parent:    parent,
-		BlockInfo: info,
+		NotMaster:  block.BlockInfo.NotMaster,
+		GenUtime:   block.BlockInfo.GenUtime,
+		StartLt:    block.BlockInfo.StartLt,
+		EndLt:      block.BlockInfo.EndLt,
+		Parent:     parent,
+		BlockIDExt: info,
 	}, nil
 }
 
 // get shard block header for specific shard attribute with one parent
-func (c *Connection) getShardBlocksHeader(ctx context.Context, shardBlockID *tlb.BlockInfo, shard byte) (core.ShardBlockHeader, error) {
+func (c *Connection) getShardBlocksHeader(ctx context.Context, shardBlockID *ton.BlockIDExt, shard byte) (core.ShardBlockHeader, error) {
 	var (
 		err   error
 		block *tlb.Block

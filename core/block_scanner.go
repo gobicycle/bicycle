@@ -12,6 +12,7 @@ import (
 	tongoTlb "github.com/tonkeeper/tongo/tlb"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"math/big"
 	"sync"
@@ -106,11 +107,11 @@ func (s *BlockScanner) Stop() {
 }
 
 func (s *BlockScanner) processBlock(ctx context.Context, block ShardBlockHeader) error {
-	txIDs, err := s.blockchain.GetTransactionIDsFromBlock(ctx, block.BlockInfo)
+	txIDs, err := s.blockchain.GetTransactionIDsFromBlock(ctx, block.BlockIDExt)
 	if err != nil {
 		return err
 	}
-	filteredTXs, err := s.filterTXs(ctx, block.BlockInfo, txIDs)
+	filteredTXs, err := s.filterTXs(ctx, block.BlockIDExt, txIDs)
 	if err != nil {
 		return err
 	}
@@ -184,14 +185,14 @@ func (s *BlockScanner) pushNotification(addr Address, amount Coins, timestamp ui
 
 func (s *BlockScanner) filterTXs(
 	ctx context.Context,
-	blockID *tlb.BlockInfo,
-	ids []*tlb.TransactionID,
+	blockID *ton.BlockIDExt,
+	ids []ton.TransactionShortInfo,
 ) (
 	[]transactions, error,
 ) {
 	txMap := make(map[Address][]*tlb.Transaction)
 	for _, id := range ids {
-		a, err := AddressFromBytes(id.AccountID) // must be int256 for lite api
+		a, err := AddressFromBytes(id.Account) // must be int256 for lite api
 		if err != nil {
 			return nil, err
 		}
@@ -252,7 +253,7 @@ func (s *BlockScanner) processTXs(
 			}
 			blockEvents.Append(tonDepositEvents)
 		case JettonDepositWallet:
-			jettonDepositEvents, err := s.processJettonDepositWalletTXs(ctx, t, block.BlockInfo, block.Parent)
+			jettonDepositEvents, err := s.processJettonDepositWalletTXs(ctx, t, block.BlockIDExt, block.Parent)
 			if err != nil {
 				return BlockEvents{}, err
 			}
@@ -349,7 +350,7 @@ func (s *BlockScanner) processTonDepositWalletTXs(txs transactions) (Events, err
 func (s *BlockScanner) processJettonDepositWalletTXs(
 	ctx context.Context,
 	txs transactions,
-	blockID, prevBlockID *tlb.BlockInfo,
+	blockID, prevBlockID *ton.BlockIDExt,
 ) (Events, error) {
 	var (
 		unknownTransactions []*tlb.Transaction
@@ -398,7 +399,7 @@ func (s *BlockScanner) processJettonDepositWalletTXs(
 func (s *BlockScanner) calculateJettonAmounts(
 	ctx context.Context,
 	address Address,
-	prevBlockID, blockID *tlb.BlockInfo,
+	prevBlockID, blockID *ton.BlockIDExt,
 	knownIncomeAmount, totalWithdrawalsAmount *big.Int,
 ) (
 	unknownIncomeAmount *big.Int,

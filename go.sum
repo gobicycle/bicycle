@@ -290,8 +290,8 @@ github.com/stretchr/testify v1.8.0 h1:pSgiaMZlXftHpm5L7V1+rVB+AZJydKsMxsQBIJw4PK
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
 github.com/tonkeeper/tongo v1.0.9 h1:5BBsXKVHRCs3YxHH/30Qk47pO6zg5X5e59/ssLynnQM=
 github.com/tonkeeper/tongo v1.0.9/go.mod h1:Nn/5t5MGQHBUuEm56O135FIYwk9WpPgDITjWPk+fPGc=
-github.com/xssnick/tonutils-go v1.4.1 h1:I4C5YZlY9BjeTwt1hm5rISHrQMKIYBrBthnNRLbX8Zo=
-github.com/xssnick/tonutils-go v1.4.1/go.mod h1:wH8ldhLueyfXW15r3MyaIq9YzA+8bzvL6UMU2BLp08g=
+github.com/xssnick/tonutils-go v1.6.2 h1:K8Kp2pQ9n8i+73gCepcdf0GJnTK826ZxGWjQk4l0i4I=
+github.com/xssnick/tonutils-go v1.6.2/go.mod h1:wH8ldhLueyfXW15r3MyaIq9YzA+8bzvL6UMU2BLp08g=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
