@@ -25,7 +25,7 @@ func NewJettonProxy(subwalletId uint32, owner *address.Address) (*JettonProxy, e
 		return nil, fmt.Errorf("nil owner")
 	}
 	stateInit := buildJettonProxyStateInit(subwalletId, owner)
-	stateCell, err := stateInit.ToCell()
+	stateCell, err := tlb.ToCell(stateInit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get state cell: %w", err)
 	}

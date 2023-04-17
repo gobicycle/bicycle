@@ -1,4 +1,4 @@
-## Manual testing plan for v0.1.0
+## Manual testing plan for v0.2.0
 Template:
 -[x] Checked
 - TEST    : test description
@@ -40,7 +40,7 @@ Template:
 - RESULT  : There must be "Can not use testnet cold wallet address for mainnet" error
 - COMMENT :
 
-7. -[ ] Checked
+7. -[x] Checked
 - TEST    : Run service with empty `JETTONS` env variable
 - RESULT  : Service must start and process TONs
 - COMMENT :
@@ -63,23 +63,24 @@ Template:
 - TEST    : Use `/v1/address/new` method (few for TONs and few for Jettons for different users). 
             Check new addresses in DB
 - RESULT  : You must receive different addresses in user-friendly format with `bounce = false` flag and 
-            testnet flag correlated with `IS_TESTNET` env var and raw in DB
+            testnet flag correlated with `IS_TESTNET` env var and raw in DB. For Jetton deposits it must be an
+            owner address.
 - COMMENT :
 
 2. -[x] Checked
 - TEST    : Use `/v1/address/all{?user_id}` method and compare with addresses created at 1. And check it by DB
-- RESULT  : All addresses must be received
+- RESULT  : All addresses must be received and equal to those created earlier
 - COMMENT :
 
 3. -[x] Checked
-- TEST    : Check `/v1/balance{?user_id}` for new empty deposits
-- RESULT  : Balances must be zero
+- TEST    : Check `/v1/income{?user_id}` for new empty deposits
+- RESULT  : Income must be zero. The addresses must match the addresses obtained by method `/v1/address/all{?user_id}`.
 - COMMENT :
 
 4. -[x] Checked
-- TEST    : Make some payments at deposits and check it by `/v1/balance{?user_id}` method 
+- TEST    : Make some payments at deposits and check it by `/v1/income{?user_id}` method 
             with different `DEPOSIT_SIDE_BALANCE` env var
-- RESULT  : Balances must correlate with payments
+- RESULT  : Income must correlate with payments sum
 - COMMENT :
 
 5. -[x] Checked
@@ -221,10 +222,36 @@ Template:
 
 24. -[ ] Checked
 - TEST    : Set some Jetton in `JETTONS` env variable. Start service to init jetton hot wallet in DB.
-            Remove Jetton from env variable and restart. Try `/v1/address/all`, `/v1/balance` for user 
+            Remove Jetton from env variable and restart. Try `/v1/address/all`, `/v1/income` for user 
             with removed Jetton deposits.
-- RESULT  : Removed Jetton should not appear in `/v1/address/all`, `/v1/balance`.
+- RESULT  : Removed Jetton should not appear in `/v1/address/all`, `/v1/income`.
 - COMMENT : Not implemented yet
+
+25. -[x] Checked
+- TEST    : Make some payments at deposits and check it by `/v1/history{?user_id,currency,limit,offset}` method
+            with different `DEPOSIT_SIDE_BALANCE` env var
+- RESULT  : Incomes must correlate with payments and DB `external_incomes` table. The history on the deposits side
+            should always be displayed.
+- COMMENT :
+
+26. -[ ] Checked
+- TEST    : Replenish the TON deposit from the masterchain wallet and check it by
+            `/v1/history{?user_id,currency,limit,offset}` method.
+- RESULT  : The sender's address must be displayed correctly in the history.
+- COMMENT :
+
+27. -[x] Checked
+- TEST    : Replenish the TON deposit (when it in nonexist status) with a bounceable message and check it by
+            `/v1/history{?user_id,currency,limit,offset}` method. Also check logs.
+- RESULT  : The bounced payment should not be in the history. There should be no errors in the logs, only a warning
+            about a bounced message.
+- COMMENT :
+
+28. -[x] Checked
+- TEST    : Replenish the Jetton deposit with zero forward amount and check it by
+  `/v1/history{?user_id,currency,limit,offset}` method.
+- RESULT  : The sender's address must be not presented in the history.
+- COMMENT :
 
 ### Internal logic
 
@@ -235,7 +262,7 @@ Template:
             must correlate with explorer. 
 - COMMENT :
 
-2. -[x] Checked
+2. -[ ] Checked
 - TEST    : Start the service while a workchain merges and splits. Check the integrity of the chain of blocks in the 
             table by comparing with the explorer.
 - RESULT  : There should be no missing blocks in the DB.
@@ -275,9 +302,24 @@ Template:
             payment activity
 - COMMENT :
 
+6. -[x] Checked
+- TEST    : Start `payment-processor` with `WEBHOOK_ENDPOINT=http://localhost:3333/webhook` env var.
+            Start test webserver from `cmd/testwebhook/main.go`. Make some payments to deposits. Check payments data 
+            at webserver side. Add env variable `WEBHOOK_TOKEN=123` and restart `payment-processor`. Make some payments 
+            to deposits. Check payments data at webserver side.  
+- RESULT  : Must be payments log activity in webserver and warning about the absence of a token when the variable 
+            `WEBHOOK_TOKEN` is not set.
+- COMMENT :
+
+7. -[x] Checked
+- TEST    : Start `payment-processor` with webhooks. Make Jetton payment to deposits with zero froward amount. 
+            Check payments data at webserver side.
+- RESULT  : The sender's address must be not presented.
+- COMMENT :
+
 ### Stability test
 
-1. -[x] Checked
+1. -[ ] Checked
 - TEST    : Start `payment-test` service using technical_notes.md instructions
             with `CIRCULATION=true` env variable for long time (with enough amount of test TONs on wallet). 
             Periodically check availability and functionality of service by Grafana dashboard and docker logs.
@@ -286,9 +328,9 @@ Template:
 
 ### Highload test
 
-1. -[x] Checked
+1. -[ ] Checked
 - TEST    : Start `payment-test` service using technical_notes.md instructions
-            with `CIRCULATION=true` env variable and depositsQty=100 x 3 types of deposits 
+            with `CIRCULATION=true` env variable and depositsQty = 100 x 3 types of deposits 
             (with enough amount of test TONs on wallet).
             Periodically check availability and functionality of service by Grafana dashboard and docker logs.
 - RESULT  : There should be no abnormal behavior of service and errors in log

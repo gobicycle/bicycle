@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS payments.external_incomes
 (
     lt               bigint not null,
     utime            timestamptz not null,
+    payer_workchain  integer,
     deposit_address  bytea not null,
     payer_address    bytea,
     amount           numeric not null,

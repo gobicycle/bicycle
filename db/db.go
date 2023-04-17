@@ -12,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	log "github.com/sirupsen/logrus"
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"sync"
 	"time"
@@ -309,8 +309,9 @@ func saveExternalIncome(ctx context.Context, tx pgx.Tx, inc core.ExternalIncome)
 		deposit_address,
 		payer_address,
 		amount,
-		comment)
-		VALUES ($1, $2, $3, $4, $5, $6)                                               
+		comment,
+		payer_workchain)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)                                               
 	`,
 		inc.Lt,
 		time.Unix(int64(inc.Utime), 0),
@@ -318,6 +319,7 @@ func saveExternalIncome(ctx context.Context, tx pgx.Tx, inc core.ExternalIncome)
 		inc.From,
 		inc.Amount,
 		inc.Comment,
+		inc.FromWorkchain,
 	)
 	return err
 }
@@ -906,8 +908,8 @@ func (c *Connection) GetTonHotWalletAddress(ctx context.Context) (core.Address, 
 	return addr, err
 }
 
-func (c *Connection) GetLastSavedBlockID(ctx context.Context) (*tlb.BlockInfo, error) {
-	var blockID tlb.BlockInfo
+func (c *Connection) GetLastSavedBlockID(ctx context.Context) (*ton.BlockIDExt, error) {
+	var blockID ton.BlockIDExt
 	err := c.client.QueryRow(ctx, `
 		SELECT 
 		    seqno, 
@@ -933,6 +935,7 @@ func (c *Connection) GetLastSavedBlockID(ctx context.Context) (*tlb.BlockInfo, e
 	return &blockID, nil
 }
 
+// SetExpired TODO: maybe add block related expiration
 func (c *Connection) SetExpired(ctx context.Context) error {
 	_, err := c.client.Exec(ctx, `
 			UPDATE payments.internal_withdrawals
@@ -1060,12 +1063,13 @@ func (c *Connection) GetExternalWithdrawalStatus(ctx context.Context, id int64) 
 	return "", fmt.Errorf("bad status")
 }
 
-func (c *Connection) GetDepositBalances(
+// GetIncome returns list of incomes by user_id
+func (c *Connection) GetIncome(
 	ctx context.Context,
 	userID string,
 	isDepositSide bool,
 ) (
-	[]core.Balance,
+	[]core.TotalIncome,
 	error,
 ) {
 	var sqlStatement string
@@ -1101,14 +1105,75 @@ func (c *Connection) GetDepositBalances(
 	}
 	defer rows.Close()
 
-	res := make([]core.Balance, 0)
+	res := make([]core.TotalIncome, 0)
 	for rows.Next() {
-		var deposit core.Balance
-		err = rows.Scan(&deposit.Deposit, &deposit.Balance, &deposit.Currency)
+		var deposit core.TotalIncome
+		err = rows.Scan(&deposit.Deposit, &deposit.Amount, &deposit.Currency)
 		if err != nil {
 			return nil, err
 		}
 		res = append(res, deposit)
+	}
+	return res, nil
+}
+
+// GetIncomeHistory returns list of external incomes for deposit side by user_id and currency
+func (c *Connection) GetIncomeHistory(
+	ctx context.Context,
+	userID string,
+	currency string,
+	limit int,
+	offset int,
+) (
+	[]core.ExternalIncome,
+	error,
+) {
+	var (
+		res          []core.ExternalIncome
+		sqlStatement string
+		walletType   core.WalletType
+	)
+
+	if currency == core.TonSymbol {
+		sqlStatement = `
+			SELECT utime, lt, payer_address, deposit_address, amount, comment, payer_workchain
+			FROM payments.external_incomes i
+				LEFT JOIN payments.ton_wallets tw ON i.deposit_address = tw.address
+			WHERE tw.type = $1 AND tw.user_id = $2 AND $3 = $3
+			ORDER BY lt DESC
+			LIMIT $4
+			OFFSET $5
+		`
+		walletType = core.TonDepositWallet
+	} else {
+		sqlStatement = `
+			SELECT utime, lt, payer_address, deposit_address, amount, comment, payer_workchain
+			FROM payments.external_incomes i
+			    LEFT JOIN payments.jetton_wallets jw ON i.deposit_address = jw.address
+			WHERE jw.type = $1 AND jw.user_id = $2 AND jw.currency = $3
+			ORDER BY lt DESC
+			LIMIT $4
+			OFFSET $5
+		`
+		walletType = core.JettonDepositWallet
+	}
+
+	rows, err := c.client.Query(ctx, sqlStatement, walletType, userID, currency, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			income core.ExternalIncome
+			t      time.Time
+		)
+		err = rows.Scan(&t, &income.Lt, &income.From, &income.To, &income.Amount, &income.Comment, &income.FromWorkchain)
+		if err != nil {
+			return nil, err
+		}
+		income.Utime = uint32(t.Unix())
+		res = append(res, income)
 	}
 	return res, nil
 }

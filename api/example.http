@@ -17,7 +17,11 @@ GET {{url}}/v1/address/all?user_id=TestUser
 Authorization: Bearer {{token}}
 
 ###
-GET {{url}}/v1/balance?user_id=TestUser
+GET {{url}}/v1/income?user_id=TestUser
+Authorization: Bearer {{token}}
+
+###
+GET {{url}}/v1/deposit/history?user_id=TestUser&currency=TON&limit=3&offset=0
 Authorization: Bearer {{token}}
 
 ###

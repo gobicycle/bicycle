@@ -11,7 +11,7 @@ Generates new deposit address
 
     + Headers
 
-            Authentication: Bearer
+            Authorization: Bearer
     + Body
 
             {"user_id": "123", "currency": "TON"}
@@ -55,7 +55,7 @@ Get all created addresses by `user_id`
 
     + Headers
 
-            Authentication: Bearer
+            Authorization: Bearer
 
 + Response 200 (application/json)
 
@@ -92,9 +92,12 @@ Get all created addresses by `user_id`
                 "error": "error text"
             } 
 
-## Get balances [GET /v1/balance{?user_id}]
+## Get income [GET /v1/income{?user_id}]
 
-Get balances for deposits by `user_id`
+Get income for deposits by `user_id`. The total amount of funds that came to the deposit for the entire time.
+Funds sent from the deposit to the hot wallet or all funds received to the deposit are taken into account,
+depending on the service settings.
+Counting side field options: "hot_wallet", "deposit".
 
 + Parameters
 
@@ -104,22 +107,23 @@ Get balances for deposits by `user_id`
 
     + Headers
 
-            Authentication: Bearer
+            Authorization: Bearer
 
 + Response 200 (application/json)
 
     + Body
 
             {
-              "balances": [
+              "counting_side": "deposit",
+              "total_income": [
                 {
-                  "address": "0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR",
-                  "balance": "1000000",
+                  "deposit_address": "0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR",
+                  "amount": "1000000",
                   "currency": "TON"
                 },
                 {
-                  "address": "0QCdyiS-fIV9UVfI9Phswo4l2MA-hm8YseHynZ_YiH9Y1oSe",
-                  "balance": "1023000",
+                  "deposit_address": "0QCdyiS-fIV9UVfI9Phswo4l2MA-hm8YseHynZ_YiH9Y1oSe",
+                  "amount": "1023000",
                   "currency": "TGR"
                 }
               ]
@@ -143,6 +147,65 @@ Get balances for deposits by `user_id`
                 "error": "error text"
             } 
 
+## Get history [GET /v1/history{?user_id,currency,limit,offset}]
+
+Get history for deposits by `user_id` and `currency`. Returns the history of all deposits replenishments with the
+sender's address as `source_address` (if it could be determined).
+
++ Parameters
+
+    + user_id (string) - an unique identifier of the user
+    + currency (string) - the text identifier of the currency specified in the processor configuration. `TON` for TON coin.
+    + limit (number) - the maximum value of returned records
+    + offset (number) - offset for returned records
+
++ Request
+
+    + Headers
+
+            Authorization: Bearer
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+              "incomes": [
+                {
+                  "deposit_address": "0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR",
+                  "time": 1680604643,
+                  "source_address": "0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP",
+                  "amount": "1000000",
+                  "comment": "hello"
+                },
+                {
+                  "deposit_address": "0QCdyiS-fIV9UVfI9Phswo4l2MA-hm8YseHynZ_YiH9Y1oSe",
+                  "time": 1680604648,
+                  "source_address": "0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP",
+                  "amount": "1000000",
+                  "comment": "hello"
+                }
+              ]
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
 ## Send withdrawal [POST /v1/withdrawal/send]
 
 Send withdrawal request. **Amount must be in base units without decimal point (NanoTONs for TONs)**
@@ -151,7 +214,7 @@ Send withdrawal request. **Amount must be in base units without decimal point (N
 
     + Headers
 
-            Authentication: Bearer
+            Authorization: Bearer
     + Body
 
             {
@@ -198,7 +261,7 @@ Returns `memo` as comment for transfer message.
 
     + Headers
 
-            Authentication: Bearer
+            Authorization: Bearer
     + Body
 
             {
@@ -240,7 +303,7 @@ Returns `memo` as comment for transfer message.
 
     + Headers
 
-            Authentication: Bearer
+            Authorization: Bearer
     + Body
 
             {
@@ -286,7 +349,7 @@ Get withdrawal status. Returns `pending`, `processing`, `processed`
 
     + Headers
 
-            Authentication: Bearer
+            Authorization: Bearer
 
 + Response 200 (application/json)
 

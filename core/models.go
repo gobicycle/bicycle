@@ -10,6 +10,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"math/big"
 	"time"
@@ -18,6 +19,13 @@ import (
 const (
 	TonSymbol        = "TON"
 	DefaultWorkchain = 0 // use only 0 workchain
+)
+
+type IncomeSide = string
+
+const (
+	SideHotWallet IncomeSide = "hot_wallet"
+	SideDeposit   IncomeSide = "deposit"
 )
 
 type EventName = string
@@ -217,12 +225,13 @@ type InternalIncome struct {
 }
 
 type ExternalIncome struct {
-	Utime   uint32
-	Lt      uint64
-	From    []byte
-	To      Address
-	Amount  Coins
-	Comment string
+	Utime         uint32
+	Lt            uint64
+	From          []byte
+	FromWorkchain *int32
+	To            Address
+	Amount        Coins
+	Comment       string
 }
 
 type Events struct {
@@ -255,9 +264,9 @@ type InternalWithdrawalTask struct {
 	Currency    string
 }
 
-type Balance struct {
+type TotalIncome struct {
 	Deposit  Address
-	Balance  Coins
+	Amount   Coins
 	Currency string
 }
 
@@ -274,12 +283,12 @@ func ZeroCoins() Coins {
 // ShardBlockHeader
 // Block header for a specific shard mask attribute. Has only one parent.
 type ShardBlockHeader struct {
-	*tlb.BlockInfo
+	*ton.BlockIDExt
 	NotMaster bool
 	GenUtime  uint32
 	StartLt   uint64
 	EndLt     uint64
-	Parent    *tlb.BlockInfo
+	Parent    *ton.BlockIDExt
 }
 
 type storage interface {
@@ -308,10 +317,10 @@ type storage interface {
 
 type blockchain interface {
 	GetJettonWalletAddress(ctx context.Context, ownerWallet *address.Address, jettonMaster *address.Address) (*address.Address, error)
-	GetTransactionIDsFromBlock(ctx context.Context, blockID *tlb.BlockInfo) ([]*tlb.TransactionID, error)
-	GetTransactionFromBlock(ctx context.Context, blockID *tlb.BlockInfo, txID *tlb.TransactionID) (*tlb.Transaction, error)
+	GetTransactionIDsFromBlock(ctx context.Context, blockID *ton.BlockIDExt) ([]ton.TransactionShortInfo, error)
+	GetTransactionFromBlock(ctx context.Context, blockID *ton.BlockIDExt, txID ton.TransactionShortInfo) (*tlb.Transaction, error)
 	GenerateDefaultWallet(seed string, isHighload bool) (*wallet.Wallet, byte, uint32, error)
-	GetJettonBalance(ctx context.Context, address Address, blockID *tlb.BlockInfo) (*big.Int, error)
+	GetJettonBalance(ctx context.Context, address Address, blockID *ton.BlockIDExt) (*big.Int, error)
 	SendExternalMessage(ctx context.Context, msg *tlb.ExternalMessage) error
 	GetAccountCurrentState(ctx context.Context, address *address.Address) (*big.Int, tlb.AccountStatus, error)
 	GetLastJettonBalance(ctx context.Context, address *address.Address) (*big.Int, error)
@@ -323,6 +332,6 @@ type blocksTracker interface {
 	Stop()
 }
 
-type queue interface {
+type Notificator interface {
 	Publish(payload any) error
 }

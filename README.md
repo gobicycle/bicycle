@@ -21,6 +21,7 @@ Service is ADNL based and interacts directly with node and do not use any third 
 - [REST API](https://gobicycle.github.io/bicycle/)
 - [Technical notes](/technical_notes.md)
 - [Threat model](/threat_model.md)
+- [Manual migrations](/manual_migrations.md)
 - [TODO list](/todo_list.md)
 
 ![test_dashboard](https://user-images.githubusercontent.com/120649456/211955983-698b12b8-eccf-45c5-85bb-f8f6364c154e.png)
@@ -81,10 +82,12 @@ For more information on Jettons compatibility, see [Jettons compatibility](/jett
 | `JETTONS`              | list of Jettons, processed by service in format: <br/>`JETTON_SYMBOL_1:MASTER_CONTRACT_ADDR_1:hot_wallet_max_balance:min_withdrawal_amount, JETTON_SYMBOL_2:MASTER_CONTRACT_ADDR_2:hot_wallet_max_balance:min_withdrawal_amount`, <br/>example: `TGR:kQCKt2WPGX-fh0cIAz38Ljd_OKQjoZE_cqk7QrYGsNP6wfP0:1000000:100000` |
 | `TON_CUTOFFS`          | cutoffs in nanoTONs in format: <br/>`hot_wallet_min_balance:hot_wallet_max_balance:min_withdrawal_amount`, <br/> example `1000000000:100000000000:1000000000`                                                                                                                                                         |
 | `COLD_WALLET`          | cold-wallet address, example `kQCdyiS-fIV9UVfI9Phswo4l2MA-hm8YseH3XZ_YiH9Y1ufw`                                                                                                                                                                                                                                       |
-| `DEPOSIT_SIDE_BALANCE` | `true` - service calculates user balance by deposit incoming, `false` - by hot wallet incoming. Default: `false`.                                                                                                                                                                                                     |
+| `DEPOSIT_SIDE_BALANCE` | `true` - service calculates total income for user by deposit incoming, `false` - by hot wallet incoming. Default: `true`.                                                                                                                                                                                             |
 | `QUEUE_ENABLED`        | `true` - service sends incoming notifications to queue, `false` - sending disabled. Default: `false`.                                                                                                                                                                                                                 |
 | `QUEUE_URI`            | URI for queue client connection, example `amqp://guest:guest@payment_rabbitmq:5672/`                                                                                                                                                                                                                                  |
 | `QUEUE_NAME`           | name of exchange                                                                                                                                                                                                                                                                                                      |
+| `WEBHOOK_ENDPOINT`     | endpoint to send webhooks, example: `http://hostname:3333/webhook`. If the value is not set, then webhooks are not sent.                                                                                                                                                                                              |
+| `WEBHOOK_TOKEN`        | Bearer token for webhook request. If not set then not used.                                                                                                                                                                                                                                                           |
 
 **! Be careful with `IS_TESTNET` variable.** This does not guarantee that a testnet node is being used. It is only for address checking purposes.
 
@@ -118,6 +121,49 @@ Prepare `.env` file for `payment-rabbitmq` service or fill environment variables
 ```console
 docker-compose -f docker-compose-main.yml up -d payment-rabbitmq
 ```
+
+## Payment notifications
+
+The service has several mechanisms for notification of payments. These are webhooks and a AMQP (to RabbitMQ). 
+Depending on the `DEPOSIT_SIDE_BALANCE` setting, a notification is received either about the payment to the 
+deposit address, or about the withdrawal from the deposit to the hot wallet. Source address and comment returned if known.
+
+Message format when `DEPOSIT_SIDE_BALANCE` == true:
+```json
+{
+	"deposit_address":"0QCdsj-u39qVlfYdpPKuAY0hTe5VIsiJcpB5Rx4tOUOyBFhL",
+	"time": 12345678,
+	"amount":"100", 
+	"source_address":"0QAOp2OZwWdkF5HhJ0WVDspgh6HhpmHyQ3cBuBmfJ4q_AIVe",
+	"comment":"hello"
+}
+```
+
+Message format when `DEPOSIT_SIDE_BALANCE` == false (there is fewer data, because the accumulated amount is withdrawn 
+from the deposit):
+```json
+{
+	"deposit_address":"0QCdsj-u39qVlfYdpPKuAY0hTe5VIsiJcpB5Rx4tOUOyBFhL",
+	"time": 12345678,
+	"amount":"200"
+}
+```
+
+### Using RabbitMQ
+1. Set `QUEUE_ENABLED = true` env variable
+2. Set `QUEUE_URI` as described at [Configurable parameters](#Configurable-parameters)
+3. Set `QUEUE_NAME` env variable. Be careful, this is not the name of a specific queue in the rabbit, but the name of 
+   the exchange.
+4. Start RabbitMQ as described at [Service deploy](#Service-deploy)
+
+### Using webhooks
+1. Set `WEBHOOK_ENDPOINT` env variable
+2. Optionally set `WEBHOOK_TOKEN` env variable
+
+When the `payment-processor` is running, it will send a `POST` request to the webhook endpoint with each payment and 
+wait for a response with a `200` code and an empty body. If a successful delivery response is not received after 
+several attempts, the service will stop with an error. If the variable `WEBHOOK_TOKEN` is set, it will also 
+add header `Authorization: Bearer {token}`.
 
 <!-- Badges -->
 [ton-svg]: https://img.shields.io/badge/Based%20on-TON-blue
