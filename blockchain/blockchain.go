@@ -462,3 +462,7 @@ func (c *Connection) CurrentMasterchainInfo(ctx context.Context) (*ton.BlockIDEx
 func (c *Connection) GetMasterchainInfo(ctx context.Context) (*ton.BlockIDExt, error) {
 	return c.client.GetMasterchainInfo(ctx)
 }
+
+func (c *Connection) WaitForBlock(seqno uint32) ton.APIClientWaiter {
+	return c.client.WaitForBlock(seqno)
+}

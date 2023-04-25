@@ -533,7 +533,11 @@ func parseTX(tx *tlb.Transaction) ([]withdrawal, []uuid.UUID, error) {
 		ww    []withdrawal
 		uuids []uuid.UUID
 	)
-	for _, m := range tx.IO.Out {
+	outMessages, err := tx.IO.Out.ToSlice()
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, m := range outMessages {
 		if m.MsgType != tlb.MsgTypeInternal {
 			continue
 		}
