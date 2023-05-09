@@ -153,15 +153,7 @@ In order for the Jetton wallet to have a suitable address for the shard, the pro
 9. For Jetton withdrawals: get transaction with excesses in_msg with unique query_id from blockchain and mark correlated withdrawal as `confirmed` in DB
 10. Mark expired (and not found in blockchain) withdrawals in DB as `failed` and reset withdrawal requests `processing` flag
 
-## Shard tracker algorithm
-1. Get last masterchain block
-2. Get all shard blocks from masterchain block
-3. Filter shard blocks by custom shard prefix
-4. Get parent shard block for filtered shard block. If block has two parents then filter parents by shard prefix.
-5. Repeat 4. until find last known shard block
-6. Save all found shard blocks in memory
-7. Provide the following block on request by Next() method and remove from memory
-8. If there is no blocks in memory goto 1
+
 
 ## Block scanner algorithm
 1. Get next shard block with custom shard prefix from shard tracker
@@ -264,9 +256,10 @@ There are three levels of warnings:
   It is equivalent of empty bitstring.
 
 ### Default SHARD
-We use a fixed-size address prefix (8 bits). The first 8 bits of 256 bit std_address (not workchain) and workchain = 0.
-And all addresses will be in the same shard up to 2^8 (256) shards.
+We use a variable-size address prefix (N bits). The first N bits of 256 bit std_address (not workchain) and workchain = 0.
+And all addresses will be in the same shard up to 2^N shards.
 The default `SHARD` value is taken from the hot wallet address. Hot wallet address generates from seed phrase and default subwallet_id.
+If the shard prefix length is greater than the specified by configuration, then the shard tracker keeps track of all sub shards.
 
 #### Example:
 * `hot_ton_wallet_address = 0:60573d8db98cc369b7ce4ca1dadbfcbd17e82952938857a6cf14e1f8d77c811a` (raw form)
@@ -277,10 +270,27 @@ The default `SHARD` value is taken from the hot wallet address. Hot wallet addre
 * ` 1000000000000000000000000000000000000000000000000000000000000000` - 1 shard
 * `0110 100000000000000000000000000000000000000000000000000000000000`  - 16 shards
 * `01100000 10000000000000000000000000000000000000000000000000000000`  - 256 shards
+* `011000000 1000000000000000000000000000000000000000000000000000000`  - sub shard
+* `011000001 1000000000000000000000000000000000000000000000000000000`  - sub shard
 
 ##### Not suitable block shard prefixes (for these addresses):
 * `0010 100000000000000000000000000000000000000000000000000000000000`  - invalid prefix
-* `01100000 0 100000000000000000000000000000000000000000000000000000`  - more than 256 shards. No guarantees that the address will be in the right shard.
+
+### Scheme for committing workchain blocks in the masterchain
+![Merge split](docs/src/merge_split.png)
+
+## Shard tracker algorithm
+
+1. Load the last known masterchain (MC) block (in there are no saved blocks in DB, then get the last MC block)
+2. Get all workchain (WC) blocks from this MC block and save it as last known WC blocks
+3. Get next MC block by seqno
+4. Get all WC blocks from this MC block
+5. Filter WC blocks by custom shard prefix
+6. Save filtered WC blocks to batch
+7. Get parent blocks (and save it to batch) for each filtered WC block recursively until find already known WC block
+8. Clear last known MC blocks variable and save WC blocks from current MC block as last known
+9. Return batch of MC blocks
+10. Goto 3
 
 ## Running the test util for payment processor
 **It is strictly recommended to run the test utility with the processor configured for the testnet.**
