@@ -20,7 +20,7 @@ type Handler struct {
 	storage          storage
 	blockchain       blockchain
 	token            string
-	shard            byte
+	shard            core.ShardID
 	mutex            sync.Mutex
 	hotWalletAddress address.Address
 }
@@ -83,7 +83,7 @@ type income struct {
 	Comment        string `json:"comment,omitempty"`
 }
 
-func NewHandler(s storage, b blockchain, token string, shard byte, hotWalletAddress address.Address) *Handler {
+func NewHandler(s storage, b blockchain, token string, shard core.ShardID, hotWalletAddress address.Address) *Handler {
 	return &Handler{storage: s, blockchain: b, token: token, shard: shard, hotWalletAddress: hotWalletAddress}
 }
 
@@ -358,7 +358,7 @@ func generateAddress(
 	ctx context.Context,
 	userID string,
 	currency string,
-	shard byte,
+	shard core.ShardID,
 	dbConn storage,
 	bc blockchain,
 	hotWalletAddress address.Address,
@@ -621,10 +621,10 @@ type storage interface {
 }
 
 type blockchain interface {
-	GenerateSubWallet(seed string, shard byte, startSubWalletID uint32) (*wallet.Wallet, uint32, error)
+	GenerateSubWallet(seed string, shard core.ShardID, startSubWalletID uint32) (*wallet.Wallet, uint32, error)
 	GenerateDepositJettonWalletForProxy(
 		ctx context.Context,
-		shard byte,
+		shard core.ShardID,
 		proxyOwner, jettonMaster *address.Address,
 		startSubWalletID uint32,
 	) (
@@ -632,5 +632,5 @@ type blockchain interface {
 		addr *address.Address,
 		err error,
 	)
-	GenerateDefaultWallet(seed string, isHighload bool) (*wallet.Wallet, byte, uint32, error)
+	GenerateDefaultWallet(seed string, isHighload bool) (*wallet.Wallet, uint32, error)
 }

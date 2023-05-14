@@ -538,21 +538,23 @@ func (c *Connection) GetServiceDepositWithdrawalTasks(ctx context.Context, limit
 	return tasks, nil
 }
 
-func saveBlock(ctx context.Context, tx pgx.Tx, block core.ShardBlockHeader) error {
+func saveBlock(ctx context.Context, tx pgx.Tx, block *core.ShardBlockHeader) error {
 	_, err := tx.Exec(ctx, `
 		INSERT INTO payments.block_data (
 		shard,
 		seqno,
 		root_hash,
 		file_hash,
-		gen_utime                                 
-		) VALUES ($1, $2, $3, $4, $5)                                               
+		gen_utime,
+		is_master
+		) VALUES ($1, $2, $3, $4, $5, $6)                                               
 	`,
 		block.Shard,
 		block.SeqNo,
 		block.RootHash,
 		block.FileHash,
 		time.Unix(int64(block.GenUtime), 0),
+		block.IsMaster,
 	)
 	return err
 }
@@ -628,12 +630,8 @@ func (c *Connection) SaveInternalWithdrawalTask(
 	return err
 }
 
-func (c *Connection) SaveParsedBlockData(ctx context.Context, events core.BlockEvents) error {
-	tx, err := c.client.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
+func (c *Connection) saveParsedBlockData(ctx context.Context, tx pgx.Tx, events core.BlockEvents) error {
+	var err error
 	for _, ei := range events.ExternalIncomes {
 		err = saveExternalIncome(ctx, tx, ei)
 		if err != nil {
@@ -674,6 +672,28 @@ func (c *Connection) SaveParsedBlockData(ctx context.Context, events core.BlockE
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (c *Connection) SaveParsedBlocksData(ctx context.Context, events []core.BlockEvents, masterBlockID *core.ShardBlockHeader) error {
+	tx, err := c.client.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	for _, e := range events {
+		err = c.saveParsedBlockData(ctx, tx, e)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = saveBlock(ctx, tx, masterBlockID)
+	if err != nil {
+		return err
+	}
+
 	err = tx.Commit(ctx)
 	return err
 }
@@ -917,7 +937,8 @@ func (c *Connection) GetLastSavedBlockID(ctx context.Context) (*ton.BlockIDExt, 
 		    root_hash, 
 		    file_hash
 		FROM payments.block_data
-		ORDER BY seqno DESC
+		WHERE is_master = true
+		ORDER BY seqno DESC		
 		LIMIT 1
 	`).Scan(
 		&blockID.SeqNo,
@@ -931,7 +952,7 @@ func (c *Connection) GetLastSavedBlockID(ctx context.Context) (*ton.BlockIDExt, 
 	if err != nil {
 		return nil, err
 	}
-	blockID.Workchain = core.DefaultWorkchain
+	blockID.Workchain = core.MasterchainID
 	return &blockID, nil
 }
 
@@ -991,12 +1012,14 @@ func (c *Connection) SetExpired(ctx context.Context) error {
 	return tx.Commit(ctx)
 }
 
+// TODO: clarify actual time for sync
 func (c *Connection) IsActualBlockData(ctx context.Context) (bool, error) {
 	var lastBlockTime time.Time
 	err := c.client.QueryRow(ctx, `
 		SELECT 
 		    gen_utime
 		FROM payments.block_data
+		WHERE is_master = true
 		ORDER BY seqno DESC
 		LIMIT 1
 	`).Scan(&lastBlockTime)

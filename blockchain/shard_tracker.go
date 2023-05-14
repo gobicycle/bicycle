@@ -3,232 +3,183 @@ package blockchain
 import (
 	"context"
 	"github.com/gobicycle/bicycle/core"
-	log "github.com/sirupsen/logrus"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
-	"math/bits"
-	"strings"
 	"time"
 )
 
-const ErrBlockNotApplied = "block is not applied"
-
 type ShardTracker struct {
-	connection            *Connection
-	shard                 byte
-	lastKnownShardBlock   *ton.BlockIDExt
-	lastMasterBlock       *ton.BlockIDExt
-	buffer                []core.ShardBlockHeader
-	gracefulShutdown      bool
-	infoCounter, infoStep int
-	infoLastTime          time.Time
+	connection           *Connection
+	shardID              core.ShardID
+	lastMasterBlock      *ton.BlockIDExt
+	lastKnownShardBlocks []*ton.BlockIDExt
+}
+
+// Options holds parameters to configure a shard tracker instance.
+type Options struct {
+	StartMasterBlockID *ton.BlockIDExt // Masterchain block ID for init shard tracker
+	ShardID            core.ShardID    // Mask of shard for tracking in format with flip bit
+}
+
+type Option func(o *Options) error
+
+// WithStartBlock for configure first masterchain block ID for shard tracker
+func WithStartBlock(startMasterBlockID *ton.BlockIDExt) Option {
+	return func(o *Options) error {
+		o.StartMasterBlockID = startMasterBlockID
+		return nil
+	}
+}
+
+// WithShard to define the shard mask to get shard blocks
+func WithShard(shardID core.ShardID) Option {
+	return func(o *Options) error {
+		o.ShardID = shardID
+		return nil
+	}
 }
 
 // NewShardTracker creates new tracker to get blocks with specific shard attribute
-func NewShardTracker(shard byte, startBlock *ton.BlockIDExt, connection *Connection) *ShardTracker {
-	t := &ShardTracker{
-		connection:          connection,
-		shard:               shard,
-		lastKnownShardBlock: startBlock,
-		buffer:              make([]core.ShardBlockHeader, 0),
-		infoCounter:         0,
-		infoStep:            1000,
-		infoLastTime:        time.Now(),
-	}
-	return t
-}
-
-// NextBlock returns next block header and graceful shutdown flag.
-// (ShardBlockHeader, false) for normal operation and (empty block header, true) for graceful shutdown.
-func (s *ShardTracker) NextBlock() (core.ShardBlockHeader, bool, error) {
-	if s.gracefulShutdown {
-		return core.ShardBlockHeader{}, true, nil
-	}
-	h := s.getNext()
-	if h != nil {
-		return *h, false, nil
-	}
-	// the interval between blocks can be up to 40 seconds
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
-	defer cancel()
-	masterBlockID, err := s.getNextMasterBlockID(ctx)
+func NewShardTracker(connection *Connection, opts ...Option) (*ShardTracker, error) {
+	defaultShardID, err := core.ParseShardID(core.DefaultShard)
 	if err != nil {
-		return core.ShardBlockHeader{}, false, err
+		return nil, err
 	}
-	exit, err := s.loadShardBlocksBatch(masterBlockID)
-	if err != nil {
-		return core.ShardBlockHeader{}, false, err
+	options := &Options{
+		ShardID: defaultShardID,
 	}
-	if exit {
-		log.Printf("Shard tracker sync stopped")
-		return core.ShardBlockHeader{}, true, nil
-	}
-	return s.NextBlock()
-}
 
-// Stop initiates graceful shutdown
-func (s *ShardTracker) Stop() {
-	s.gracefulShutdown = true
-}
-
-func (s *ShardTracker) getNext() *core.ShardBlockHeader {
-	if len(s.buffer) != 0 {
-		h := s.buffer[0]
-		s.buffer = s.buffer[1:]
-		return &h
-	}
-	return nil
-}
-
-func (s *ShardTracker) getNextMasterBlockID(ctx context.Context) (*ton.BlockIDExt, error) {
-	for {
-		masterBlockID, err := s.connection.client.GetMasterchainInfo(ctx)
-		if err != nil {
-			// exit by context timeout
+	for _, o := range opts {
+		if err := o(options); err != nil {
 			return nil, err
 		}
-		if s.lastMasterBlock == nil {
-			s.lastMasterBlock = masterBlockID
-			return masterBlockID, nil
-		}
-		if masterBlockID.SeqNo == s.lastMasterBlock.SeqNo {
-			time.Sleep(time.Second)
-			continue
-		}
-		s.lastMasterBlock = masterBlockID
-		return masterBlockID, nil
 	}
+
+	if options.StartMasterBlockID == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+		defer cancel()
+		id, err := connection.CurrentMasterchainInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		options.StartMasterBlockID = id
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	shards, err := connection.client.GetBlockShardsInfo(ctx, options.StartMasterBlockID)
+	if err != nil {
+		return nil, err
+	}
+
+	t := &ShardTracker{
+		connection:           connection,
+		shardID:              options.ShardID,
+		lastMasterBlock:      options.StartMasterBlockID,
+		lastKnownShardBlocks: shards,
+	}
+	return t, nil
 }
 
-func (s *ShardTracker) loadShardBlocksBatch(masterBlockID *ton.BlockIDExt) (bool, error) {
-	var (
-		shards []*ton.BlockIDExt
-		err    error
-	)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+// NextBatch returns last scanned master block and batch of workchain blocks, committed to the next master blocks and
+// all intermediate blocks before those committed to the last known master block and filtered by shard parameter.
+func (s *ShardTracker) NextBatch() ([]*core.ShardBlockHeader, *core.ShardBlockHeader, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60) // timeout between master blocks may be up tp 60 sec
 	defer cancel()
-	for {
-		shards, err = s.connection.client.GetBlockShardsInfo(ctx, masterBlockID)
-		if err != nil && isNotReadyError(err) { // TODO: clarify error type
-			time.Sleep(time.Second)
-			continue
-		} else if err != nil {
-			return false, err
-			// exit by context timeout
-		}
-		break
-	}
-	s.infoCounter = 0
-	batch, exit, err := s.getShardBlocksRecursively(filterByShard(shards, s.shard), nil)
+
+	master, err := s.connection.WaitForBlock(s.lastMasterBlock.SeqNo+1).LookupBlock(
+		ctx, s.lastMasterBlock.Workchain, s.lastMasterBlock.Shard, s.lastMasterBlock.SeqNo+1)
 	if err != nil {
-		return false, err
+		return nil, nil, err
 	}
-	if exit {
-		return true, nil
+	masterBlock, err := s.connection.client.GetBlockData(ctx, master)
+	if err != nil {
+		return nil, nil, err
 	}
-	if len(batch) != 0 {
-		s.lastKnownShardBlock = batch[0].BlockIDExt
-		for i := len(batch) - 1; i >= 0; i-- {
-			s.buffer = append(s.buffer, batch[i])
+	masterHeader, err := convertBlockToShardHeader(masterBlock, master)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	shardBlocks, err := s.connection.client.GetBlockShardsInfo(ctx, master)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var batch []*core.ShardBlockHeader
+	filteredShardBlocks := s.filterByShard(shardBlocks)
+
+	for _, b := range filteredShardBlocks {
+		batch, err = s.getShardBlocksRecursively(b, batch)
+		if err != nil {
+			return nil, nil, err
 		}
 	}
-	return false, nil
+
+	s.lastKnownShardBlocks = shardBlocks
+	s.lastMasterBlock = master
+
+	return batch, masterHeader, nil
 }
 
-func (s *ShardTracker) getShardBlocksRecursively(i *ton.BlockIDExt, batch []core.ShardBlockHeader) ([]core.ShardBlockHeader, bool, error) {
-	if s.gracefulShutdown {
-		return nil, true, nil
-	}
-	if s.lastKnownShardBlock == nil {
-		s.lastKnownShardBlock = i
-	}
-	isKnown := (s.lastKnownShardBlock.Shard == i.Shard) && (s.lastKnownShardBlock.SeqNo == i.SeqNo)
-	if isKnown {
-		return batch, false, nil
-	}
-
-	seqnoDiff := int(i.SeqNo - s.lastKnownShardBlock.SeqNo)
-	if seqnoDiff > s.infoStep {
-		if s.infoCounter%s.infoStep == 0 {
-			estimatedTime := time.Duration(seqnoDiff/s.infoStep) * time.Since(s.infoLastTime)
-			s.infoLastTime = time.Now()
-			if s.infoCounter == 0 {
-				log.Printf("Shard tracker syncing... Seqno diff: %v Estimated time: unknown\n", seqnoDiff)
-			} else {
-				log.Printf("Shard tracker syncing... Seqno diff: %v Estimated time: %v\n", seqnoDiff, estimatedTime)
-			}
-		}
-		s.infoCounter++
+func (s *ShardTracker) getShardBlocksRecursively(blockID *ton.BlockIDExt, batch []*core.ShardBlockHeader) ([]*core.ShardBlockHeader, error) {
+	if s.isKnownShardBlock(blockID) {
+		return batch, nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
-	h, err := s.connection.getShardBlocksHeader(ctx, i, s.shard)
+
+	block, err := s.connection.client.GetBlockData(ctx, blockID)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
+	h, err := convertBlockToShardHeader(block, blockID)
+	if err != nil {
+		return nil, err
+	}
+
 	batch = append(batch, h)
-	return s.getShardBlocksRecursively(h.Parent, batch)
-}
-
-func isInShard(blockShardPrefix uint64, shard byte) bool {
-	if blockShardPrefix == 0 {
-		log.Fatalf("invalid shard_prefix")
-	}
-	prefixLen := 64 - 1 - bits.TrailingZeros64(blockShardPrefix) // without one insignificant bit
-	if prefixLen > 8 {
-		log.Fatalf("more than 256 shards is not supported")
-	}
-	res := (uint64(shard) << (64 - 8)) ^ blockShardPrefix
-
-	return bits.LeadingZeros64(res) >= prefixLen
-}
-
-func filterByShard(headers []*ton.BlockIDExt, shard byte) *ton.BlockIDExt {
-	for _, h := range headers {
-		if isInShard(uint64(h.Shard), shard) {
-			return h
+	for _, p := range h.Parents {
+		batch, err = s.getShardBlocksRecursively(p, batch)
+		if err != nil {
+			return nil, err
 		}
 	}
-	log.Fatalf("must be at least one suitable shard block")
-	return nil
+	return batch, nil
 }
 
-func convertBlockToShardHeader(block *tlb.Block, info *ton.BlockIDExt, shard byte) (core.ShardBlockHeader, error) {
+func (s *ShardTracker) isKnownShardBlock(blockID *ton.BlockIDExt) bool {
+	for _, lastBlockID := range s.lastKnownShardBlocks {
+		if (lastBlockID.Shard == blockID.Shard) && (lastBlockID.SeqNo == blockID.SeqNo) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *ShardTracker) filterByShard(headers []*ton.BlockIDExt) []*ton.BlockIDExt {
+	var res []*ton.BlockIDExt
+	for _, h := range headers {
+		if s.shardID.MatchBlockID(h) {
+			res = append(res, h)
+		}
+	}
+	// TODO: check for empty slice?
+	return res
+}
+
+func convertBlockToShardHeader(block *tlb.Block, info *ton.BlockIDExt) (*core.ShardBlockHeader, error) {
 	parents, err := block.BlockInfo.GetParentBlocks()
 	if err != nil {
-		return core.ShardBlockHeader{}, nil
+		return nil, err
 	}
-	parent := filterByShard(parents, shard)
-	return core.ShardBlockHeader{
-		NotMaster:  block.BlockInfo.NotMaster,
+	return &core.ShardBlockHeader{
+		IsMaster:   !block.BlockInfo.NotMaster,
 		GenUtime:   block.BlockInfo.GenUtime,
 		StartLt:    block.BlockInfo.StartLt,
 		EndLt:      block.BlockInfo.EndLt,
-		Parent:     parent,
+		Parents:    parents,
 		BlockIDExt: info,
 	}, nil
-}
-
-// get shard block header for specific shard attribute with one parent
-func (c *Connection) getShardBlocksHeader(ctx context.Context, shardBlockID *ton.BlockIDExt, shard byte) (core.ShardBlockHeader, error) {
-	var (
-		err   error
-		block *tlb.Block
-	)
-	for {
-		block, err = c.client.GetBlockData(ctx, shardBlockID)
-		if err != nil && isNotReadyError(err) {
-			continue
-		} else if err != nil {
-			return core.ShardBlockHeader{}, err
-			// exit by context timeout
-		}
-		break
-	}
-	return convertBlockToShardHeader(block, shardBlockID, shard)
-}
-
-func isNotReadyError(err error) bool {
-	return strings.Contains(err.Error(), ErrBlockNotApplied)
 }

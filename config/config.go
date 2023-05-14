@@ -51,6 +51,7 @@ var Config = struct {
 	QueueEnabled             bool   `env:"QUEUE_ENABLED" envDefault:"false"`
 	WebhookEndpoint          string `env:"WEBHOOK_ENDPOINT"`
 	WebhookToken             string `env:"WEBHOOK_TOKEN"`
+	ShardDepth               int    `env:"SHARD_DEPTH" envDefault:"0"`
 	Jettons                  map[string]Jetton
 	Ton                      Cutoffs
 	ColdWallet               *address.Address

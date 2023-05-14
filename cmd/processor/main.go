@@ -52,7 +52,7 @@ func main() {
 		log.Fatalf("Service and Node time not synced")
 	}
 
-	wallets, err := core.InitWallets(ctx, dbClient, bcClient, config.Config.Seed, config.Config.Jettons)
+	wallets, err := core.InitWallets(ctx, dbClient, bcClient, config.Config.Seed, config.Config.Jettons, config.Config.ShardDepth)
 	if err != nil {
 		log.Fatalf("Hot wallets initialization error: %v", err)
 	}
@@ -80,9 +80,12 @@ func main() {
 	if !errors.Is(err, core.ErrNotFound) && err != nil {
 		log.Fatalf("Get last saved block error: %v", err)
 	} else if errors.Is(err, core.ErrNotFound) {
-		tracker = blockchain.NewShardTracker(wallets.Shard, nil, bcClient)
+		tracker, err = blockchain.NewShardTracker(bcClient, blockchain.WithShard(wallets.Shard))
 	} else {
-		tracker = blockchain.NewShardTracker(wallets.Shard, block, bcClient)
+		tracker, err = blockchain.NewShardTracker(bcClient, blockchain.WithShard(wallets.Shard), blockchain.WithStartBlock(block))
+	}
+	if err != nil {
+		log.Fatalf("shard tracker creating error: %v", err)
 	}
 
 	blockScanner := core.NewBlockScanner(wg, dbClient, bcClient, wallets.Shard, tracker, notificators)

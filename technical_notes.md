@@ -153,8 +153,6 @@ In order for the Jetton wallet to have a suitable address for the shard, the pro
 9. For Jetton withdrawals: get transaction with excesses in_msg with unique query_id from blockchain and mark correlated withdrawal as `confirmed` in DB
 10. Mark expired (and not found in blockchain) withdrawals in DB as `failed` and reset withdrawal requests `processing` flag
 
-
-
 ## Block scanner algorithm
 1. Get next shard block with custom shard prefix from shard tracker
 2. Get TxIDs for block
@@ -291,6 +289,9 @@ If the shard prefix length is greater than the specified by configuration, then 
 8. Clear last known MC blocks variable and save WC blocks from current MC block as last known
 9. Return batch of MC blocks
 10. Goto 3
+
+**Attention, a batch of blocks may not be ordered by time, which means it must be processed atomically, because otherwise, 
+synchronization may be lost and double output may be performed.**
 
 ## Running the test util for payment processor
 **It is strictly recommended to run the test utility with the processor configured for the testnet.**

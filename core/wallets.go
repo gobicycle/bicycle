@@ -17,7 +17,7 @@ import (
 )
 
 type Wallets struct {
-	Shard            byte
+	Shard            ShardID
 	TonHotWallet     *wallet.Wallet
 	TonBasicWallet   *wallet.Wallet // basic V3 wallet to make other wallets with different subwallet_id
 	JettonHotWallets map[string]JettonWallet
@@ -32,13 +32,14 @@ func InitWallets(
 	bc blockchain,
 	seed string,
 	jettons map[string]config.Jetton,
+	shardPrefixLen int,
 ) (Wallets, error) {
-	tonHotWallet, shard, subwalletId, err := initTonHotWallet(ctx, db, bc, seed)
+	tonHotWallet, shard, subwalletId, err := initTonHotWallet(ctx, db, bc, seed, shardPrefixLen)
 	if err != nil {
 		return Wallets{}, err
 	}
 
-	tonBasicWallet, _, _, err := bc.GenerateDefaultWallet(seed, false)
+	tonBasicWallet, _, err := bc.GenerateDefaultWallet(seed, false)
 	if err != nil {
 		return Wallets{}, err
 	}
@@ -66,49 +67,54 @@ func initTonHotWallet(
 	db storage,
 	bc blockchain,
 	seed string,
+	shardPrefixLen int,
 ) (
 	tonHotWallet *wallet.Wallet,
-	shard byte,
+	shard ShardID,
 	subwalletId uint32,
 	err error,
 ) {
-	tonHotWallet, shard, subwalletId, err = bc.GenerateDefaultWallet(seed, true)
+	tonHotWallet, subwalletId, err = bc.GenerateDefaultWallet(seed, true)
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, ShardID{}, 0, err
 	}
+
 	hotSpec := tonHotWallet.GetSpec().(*wallet.SpecHighloadV2R2)
 	hotSpec.SetMessagesTTL(uint32(config.ExternalMessageLifetime.Seconds()))
 
 	addr := AddressMustFromTonutilsAddress(tonHotWallet.Address())
+	shard = ShardIdFromAddress(addr, shardPrefixLen)
+
+	// TODO: check for shard len changes
 	alreadySaved := false
 	addrFromDb, err := db.GetTonHotWalletAddress(ctx)
 	if err == nil && addr != addrFromDb {
 		audit.Log(audit.Error, string(TonHotWallet), InitEvent,
 			fmt.Sprintf("Hot TON wallet address is not equal to the one stored in the database. Maybe seed was being changed. %s != %s",
 				tonHotWallet.Address().String(), addrFromDb.ToTonutilsAddressStd(0).String()))
-		return nil, 0, 0,
+		return nil, ShardID{}, 0,
 			fmt.Errorf("saved hot wallet not equal generated hot wallet. Maybe seed was being changed")
 	} else if !errors.Is(err, ErrNotFound) && err != nil {
-		return nil, 0, 0, err
+		return nil, ShardID{}, 0, err
 	} else if err == nil {
 		alreadySaved = true
 	}
 
-	log.Infof("Shard: %v", shard)
+	log.Infof("Shard: %x", shard.prefix) // TODO: format shard
 	log.Infof("TON hot wallet address: %v", tonHotWallet.Address().String())
 
 	balance, status, err := bc.GetAccountCurrentState(ctx, tonHotWallet.Address())
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, ShardID{}, 0, err
 	}
 	if balance.Cmp(config.Config.Ton.HotWalletMin) == -1 { // hot wallet balance < TonHotWalletMinimumBalance
-		return nil, 0, 0,
+		return nil, ShardID{}, 0,
 			fmt.Errorf("hot wallet balance must be at least %v nanoTON", config.Config.Ton.HotWalletMin)
 	}
 	if status != tlb.AccountStatusActive {
 		err = bc.DeployTonWallet(ctx, tonHotWallet)
 		if err != nil {
-			return nil, 0, 0, err
+			return nil, ShardID{}, 0, err
 		}
 	}
 	if !alreadySaved {
@@ -119,7 +125,7 @@ func initTonHotWallet(
 			Address:     addr,
 		})
 		if err != nil {
-			return nil, 0, 0, err
+			return nil, ShardID{}, 0, err
 		}
 	}
 	return tonHotWallet, shard, subwalletId, nil

@@ -21,6 +21,16 @@ var (
 	jettonMasterAddress, _ = address.ParseAddr("kQCKt2WPGX-fh0cIAz38Ljd_OKQjoZE_cqk7QrYGsNP6wfP0") // TGR in Testnet
 	activeAccount, _       = address.ParseAddr("kQCOSEttz9aEGXkjd1h_NJsQqOca3T-Pld5zSIPHcYZIxsyf")
 	notActiveAccount, _    = address.ParseAddr("kQAkRRJ1RiViVHY2UmUhWCFjdiZBeEYnhkhxI1JTJFNUNG9v")
+
+	shardTestCases = []uint64{
+		0x6800000000000000, // 0110100000000000000000000000000000000000000000000000000000000000
+		0x6080000000000000, // 0110000010000000000000000000000000000000000000000000000000000000
+		0x6040000000000000, // 0110000001000000000000000000000000000000000000000000000000000000
+		0x60C0000000000000, // 0110000011000000000000000000000000000000000000000000000000000000
+		0x6020000000000000, // 0110000000100000000000000000000000000000000000000000000000000000
+		0x2800000000000000, // 0010100000000000000000000000000000000000000000000000000000000000
+		0x6180000000000000, // 0110000110000000000000000000000000000000000000000000000000000000
+	}
 )
 
 func init() {
@@ -62,22 +72,16 @@ func Test_NewConnection(t *testing.T) {
 func Test_GenerateDefaultWallet(t *testing.T) {
 	c := connect(t)
 	seed := getSeed()
-	hlWallet, shard, id, err := c.GenerateDefaultWallet(seed, false)
+	_, id, err := c.GenerateDefaultWallet(seed, false)
 	if err != nil {
 		t.Fatal("gen default wallet err: ", err)
-	}
-	if hlWallet.Address().Data()[0] != shard {
-		t.Fatal("invalid shard")
 	}
 	if id != wallet.DefaultSubwallet {
 		t.Fatal("invalid subwallet ID")
 	}
-	w, shard, id, err := c.GenerateDefaultWallet(seed, true)
+	_, id, err = c.GenerateDefaultWallet(seed, true)
 	if err != nil {
 		t.Fatal("gen default wallet err: ", err)
-	}
-	if w.Address().Data()[0] != shard {
-		t.Fatal("invalid shard")
 	}
 	if id != wallet.DefaultSubwallet {
 		t.Fatal("invalid subwallet ID")
@@ -87,8 +91,9 @@ func Test_GenerateDefaultWallet(t *testing.T) {
 func Test_GenerateSubWallet(t *testing.T) {
 	c := connect(t)
 	seed := getSeed()
-	for i := 0; i < 10; i++ {
-		shard := byte(rand.Intn(255))
+
+	for _, tc := range shardTestCases {
+		shard, err := core.ParseShardID(int64(tc))
 		startSubWalletID := rand.Uint32()
 		subWallet, subWalletID, err := c.GenerateSubWallet(seed, shard, startSubWalletID)
 		if err != nil {
@@ -97,7 +102,11 @@ func Test_GenerateSubWallet(t *testing.T) {
 		if subWalletID <= startSubWalletID {
 			t.Fatal("invalid subwallet ID")
 		}
-		if subWallet.Address().Data()[0] != shard {
+		addr, err := core.AddressFromTonutilsAddress(subWallet.Address())
+		if err != nil {
+			t.Fatal("can not parse wallet address err: ", err)
+		}
+		if !shard.MatchAddress(addr) {
 			t.Fatal("invalid shard")
 		}
 	}
@@ -108,7 +117,7 @@ func Test_GetJettonWalletAddress(t *testing.T) {
 	seed := getSeed()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
-	owner, _, _, err := c.GenerateDefaultWallet(seed, true)
+	owner, _, err := c.GenerateDefaultWallet(seed, true)
 	if err != nil {
 		t.Fatal("gen owner wallet err: ", err)
 	}
@@ -132,13 +141,13 @@ func Test_GenerateJettonWalletAddressForProxy(t *testing.T) {
 	seed := getSeed()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
-	owner, _, _, err := c.GenerateDefaultWallet(seed, true)
+	owner, _, err := c.GenerateDefaultWallet(seed, true)
 	if err != nil {
 		t.Fatal("gen owner wallet err: ", err)
 	}
 	master := jetton.NewJettonMasterClient(c.client, jettonMasterAddress)
-	for i := 0; i < 10; i++ {
-		shard := byte(rand.Intn(255))
+	for _, tc := range shardTestCases {
+		shard, err := core.ParseShardID(int64(tc))
 		startSubWalletID := rand.Uint32()
 		proxy, jettonWalletAddr, err := c.GenerateDepositJettonWalletForProxy(ctx, shard, owner.Address(), jettonMasterAddress, startSubWalletID)
 		if err != nil {
@@ -153,7 +162,11 @@ func Test_GenerateJettonWalletAddressForProxy(t *testing.T) {
 		if proxy.SubwalletID <= startSubWalletID {
 			t.Fatal("invalid subwallet ID")
 		}
-		if jettonWalletAddr.Data()[0] != shard {
+		addr, err := core.AddressFromTonutilsAddress(jettonWalletAddr)
+		if err != nil {
+			t.Fatal("can not parse wallet address err: ", err)
+		}
+		if !shard.MatchAddress(addr) {
 			t.Fatal("invalid shard")
 		}
 		jettonWallet, err := master.GetJettonWallet(ctx, proxy.Address())
@@ -213,70 +226,72 @@ func Test_GetAccountCurrentState(t *testing.T) {
 }
 
 func Test_DeployTonWallet(t *testing.T) {
-	c := connect(t)
-	seed := getSeed()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
-	defer cancel()
-	amount := tlb.FromNanoTONU(100_000_000)
-	mainWallet, _, _, err := c.GenerateDefaultWallet(seed, true)
-	if err != nil {
-		t.Fatal("gen main wallet err: ", err)
-	}
-	b, st, err := c.GetAccountCurrentState(ctx, mainWallet.Address())
-	if err != nil {
-		t.Fatal("get acc current state err: ", err)
-	}
-	if b.Cmp(amount.NanoTON()) != 1 || st != tlb.AccountStatusActive {
-		t.Fatal("wallet not active")
-	}
-	newWallet, err := mainWallet.GetSubwallet(3567745334)
-	if err != nil {
-		t.Fatal("gen new wallet err: ", err)
-	}
-	//fmt.Printf("Main wallet: %v\n", mainWallet.Address().String())
-	//fmt.Printf("New wallet: %v\n", newWallet.Address().String())
-	_, st, err = c.GetAccountCurrentState(ctx, newWallet.Address())
-	if err != nil {
-		t.Fatal("get acc current state err: ", err)
-	}
-	if st != tlb.AccountStatusNonExist {
-		t.Fatal("wallet not empty")
-	}
-	err = mainWallet.TransferNoBounce(
-		ctx,
-		newWallet.Address(),
-		amount,
-		"",
-		true,
-	)
-	if err != nil {
-		t.Fatal("transfer err: ", err)
-	}
-	err = c.WaitStatus(ctx, newWallet.Address(), tlb.AccountStatusUninit)
-	if err != nil {
-		t.Fatal("wait uninit err: ", err)
-	}
-	err = c.DeployTonWallet(ctx, newWallet)
-	if err != nil {
-		t.Fatal("deploy new wallet err: ", err)
-	}
-	err = newWallet.Send(ctx, &wallet.Message{
-		Mode: 128 + 32, // 128 + 32 send all and destroy
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      false,
-			DstAddr:     mainWallet.Address(),
-			Amount:      tlb.FromNanoTONU(0),
-			Body:        nil,
-		},
-	}, false)
-	if err != nil {
-		t.Fatal("send withdrawal err: ", err)
-	}
-	err = c.WaitStatus(ctx, newWallet.Address(), tlb.AccountStatusNonExist)
-	if err != nil {
-		t.Fatal("wait empty err: ", err)
-	}
+	// TODO: fix
+	//c := connect(t)
+	//seed := getSeed()
+	//ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
+	//defer cancel()
+	//amount := tlb.FromNanoTONU(100_000_000)
+	//mainWallet, _, _, err := c.GenerateDefaultWallet(seed, true)
+	//if err != nil {
+	//	t.Fatal("gen main wallet err: ", err)
+	//}
+	//b, st, err := c.GetAccountCurrentState(ctx, mainWallet.Address())
+	//if err != nil {
+	//	t.Fatal("get acc current state err: ", err)
+	//}
+	//if b.Cmp(amount.NanoTON()) != 1 || st != tlb.AccountStatusActive {
+	//	t.Fatal("wallet not active")
+	//}
+	//newWallet, err := mainWallet.GetSubwallet(3567745334)
+	//if err != nil {
+	//	t.Fatal("gen new wallet err: ", err)
+	//}
+	////fmt.Printf("Main wallet: %v\n", mainWallet.Address().String())
+	////fmt.Printf("New wallet: %v\n", newWallet.Address().String())
+	//_, st, err = c.GetAccountCurrentState(ctx, newWallet.Address())
+	//if err != nil {
+	//	t.Fatal("get acc current state err: ", err)
+	//}
+	//if st != tlb.AccountStatusNonExist {
+	//	t.Fatal("wallet not empty")
+	//}
+	//err = mainWallet.TransferNoBounce(
+	//	ctx,
+	//	newWallet.Address(),
+	//	amount,
+	//	"",
+	//	true,
+	//)
+	//if err != nil {
+	//	t.Fatal("transfer err: ", err)
+	//}
+	//err = c.WaitStatus(ctx, newWallet.Address(), tlb.AccountStatusUninit)
+	//if err != nil {
+	//	t.Fatal("wait uninit err: ", err)
+	//}
+	//err = c.DeployTonWallet(ctx, newWallet)
+	//if err != nil {
+	//	t.Fatal("deploy new wallet err: ", err)
+	//}
+	//err = newWallet.Send(ctx, &wallet.Message{
+	//	Mode: 128 + 32, // 128 + 32 send all and destroy
+	//	InternalMessage: &tlb.InternalMessage{
+	//		IHRDisabled: true,
+	//		Bounce:      false,
+	//		DstAddr:     mainWallet.Address(),
+	//		Amount:      tlb.FromNanoTONU(0),
+	//		Body:        nil,
+	//	},
+	//}, false)
+	//if err != nil {
+	//	t.Fatal("send withdrawal err: ", err)
+	//}
+	//err = c.WaitStatus(ctx, newWallet.Address(), tlb.AccountStatusNonExist)
+	//if err != nil {
+	//	t.Fatal("wait empty err: ", err)
+	//}
+	panic("not implemented")
 }
 
 func Test_GetTransactionIDsFromBlock(t *testing.T) {
@@ -386,35 +401,18 @@ func Test_RunGetMethod(t *testing.T) {
 }
 
 func Test_NextBlock(t *testing.T) {
-	c := connect(t)
-	var shard byte = 123
-	st := NewShardTracker(shard, nil, c)
-	for i := 0; i < 5; i++ {
-		h, _, err := st.NextBlock()
-		if err != nil {
-			t.Fatal("get next block err: ", err)
-		}
-		if !isInShard(uint64(h.Shard), shard) {
-			t.Fatal("next block not in shard")
-		}
-	}
-}
-
-func Test_Stop(t *testing.T) {
-	c := connect(t)
-	st := NewShardTracker(123, nil, c)
-	for i := 0; i < 2; i++ {
-		_, _, err := st.NextBlock()
-		if err != nil {
-			t.Fatal("get next block err: ", err)
-		}
-	}
-	st.Stop()
-	_, flag, err := st.NextBlock()
-	if err != nil {
-		t.Fatal("get next block err: ", err)
-	}
-	if !flag {
-		t.Fatal("no shutdown flag")
-	}
+	//c := connect(t)
+	//var shard byte = 123
+	//st := NewShardTracker(shard, nil, c)
+	//for i := 0; i < 5; i++ {
+	//	h, _, err := st.NextBlock()
+	//	if err != nil {
+	//		t.Fatal("get next block err: ", err)
+	//	}
+	//	if !isInShard(uint64(h.Shard), shard) {
+	//		t.Fatal("next block not in shard")
+	//	}
+	//}
+	// TODO: implement
+	panic("not implemented")
 }

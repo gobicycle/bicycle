@@ -16,16 +16,18 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"math/big"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 type BlockScanner struct {
-	db           storage
-	blockchain   blockchain
-	shard        byte
-	tracker      blocksTracker
-	wg           *sync.WaitGroup
-	notificators []Notificator
+	db               storage
+	blockchain       blockchain
+	shard            ShardID
+	tracker          blocksTracker
+	wg               *sync.WaitGroup
+	notificators     []Notificator
+	gracefulShutdown atomic.Bool
 }
 
 type transactions struct {
@@ -64,7 +66,7 @@ func NewBlockScanner(
 	wg *sync.WaitGroup,
 	db storage,
 	blockchain blockchain,
-	shard byte,
+	shard ShardID,
 	tracker blocksTracker,
 	notificators []Notificator,
 ) *BlockScanner {
@@ -85,16 +87,17 @@ func (s *BlockScanner) Start() {
 	defer s.wg.Done()
 	log.Printf("Block scanner started")
 	for {
-		block, exit, err := s.tracker.NextBlock()
-		if err != nil {
-			log.Fatalf("get block error: %v", err)
-		}
-		if exit {
-			log.Printf("Block scanner stopped")
+		if s.gracefulShutdown.Load() {
+			log.Infof("Block scanner stopped")
 			break
 		}
+		batch, master, err := s.tracker.NextBatch()
+		if err != nil {
+			log.Fatalf("get shard blocks error: %v", err)
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
-		err = s.processBlock(ctx, block)
+		err = s.processBlocks(ctx, batch, master)
 		if err != nil {
 			log.Fatalf("block processing error: %v", err)
 		}
@@ -103,27 +106,40 @@ func (s *BlockScanner) Start() {
 }
 
 func (s *BlockScanner) Stop() {
-	s.tracker.Stop()
+	s.gracefulShutdown.Store(true)
 }
 
-func (s *BlockScanner) processBlock(ctx context.Context, block ShardBlockHeader) error {
-	txIDs, err := s.blockchain.GetTransactionIDsFromBlock(ctx, block.BlockIDExt)
+func (s *BlockScanner) processBlocks(ctx context.Context, blocks []*ShardBlockHeader, masterBlock *ShardBlockHeader) error {
+	var events []BlockEvents
+
+	for _, b := range blocks {
+		txIDs, err := s.blockchain.GetTransactionIDsFromBlock(ctx, b.BlockIDExt)
+		if err != nil {
+			return err
+		}
+		filteredTXs, err := s.filterTXs(ctx, b.BlockIDExt, txIDs)
+		if err != nil {
+			return err
+		}
+		e, err := s.processTXs(ctx, filteredTXs, b)
+		if err != nil {
+			return err
+		}
+		events = append(events, e)
+	}
+
+	err := s.db.SaveParsedBlocksData(ctx, events, masterBlock)
 	if err != nil {
 		return err
 	}
-	filteredTXs, err := s.filterTXs(ctx, block.BlockIDExt, txIDs)
-	if err != nil {
-		return err
+
+	for _, e := range events {
+		err = s.pushNotifications(e)
+		if err != nil {
+			return err
+		}
 	}
-	e, err := s.processTXs(ctx, filteredTXs, block)
-	if err != nil {
-		return err
-	}
-	err = s.pushNotifications(e)
-	if err != nil {
-		return err
-	}
-	return s.db.SaveParsedBlockData(ctx, e)
+	return nil
 }
 
 func (s *BlockScanner) pushNotifications(e BlockEvents) error {
@@ -236,7 +252,7 @@ func checkTxForSuccess(tx *tlb.Transaction) (bool, error) {
 func (s *BlockScanner) processTXs(
 	ctx context.Context,
 	txs []transactions,
-	block ShardBlockHeader,
+	block *ShardBlockHeader,
 ) (
 	BlockEvents, error,
 ) {
@@ -257,7 +273,7 @@ func (s *BlockScanner) processTXs(
 			}
 			blockEvents.Append(tonDepositEvents)
 		case JettonDepositWallet:
-			jettonDepositEvents, err := s.processJettonDepositWalletTXs(ctx, t, block.BlockIDExt, block.Parent)
+			jettonDepositEvents, err := s.processJettonDepositWalletTXs(ctx, t, block) // TODO: fix parents
 			if err != nil {
 				return BlockEvents{}, err
 			}
@@ -354,7 +370,7 @@ func (s *BlockScanner) processTonDepositWalletTXs(txs transactions) (Events, err
 func (s *BlockScanner) processJettonDepositWalletTXs(
 	ctx context.Context,
 	txs transactions,
-	blockID, prevBlockID *ton.BlockIDExt,
+	block *ShardBlockHeader,
 ) (Events, error) {
 	var (
 		unknownTransactions []*tlb.Transaction
@@ -384,7 +400,7 @@ func (s *BlockScanner) processJettonDepositWalletTXs(
 		}
 	}
 
-	unknownIncomeAmount, err := s.calculateJettonAmounts(ctx, txs.Address, prevBlockID, blockID, knownIncomeAmount, totalWithdrawalsAmount)
+	unknownIncomeAmount, err := s.calculateJettonAmounts(ctx, txs.Address, block, knownIncomeAmount, totalWithdrawalsAmount)
 	if err != nil {
 		return Events{}, err
 	}
@@ -403,17 +419,21 @@ func (s *BlockScanner) processJettonDepositWalletTXs(
 func (s *BlockScanner) calculateJettonAmounts(
 	ctx context.Context,
 	address Address,
-	prevBlockID, blockID *ton.BlockIDExt,
+	block *ShardBlockHeader,
 	knownIncomeAmount, totalWithdrawalsAmount *big.Int,
 ) (
 	unknownIncomeAmount *big.Int,
 	err error,
 ) {
+	prevBlockID, err := block.MatchParentBlockByAddress(address)
+	if err != nil {
+		return nil, err
+	}
 	prevBalance, err := s.blockchain.GetJettonBalance(ctx, address, prevBlockID)
 	if err != nil {
 		return nil, err
 	}
-	currentBalance, err := s.blockchain.GetJettonBalance(ctx, address, blockID)
+	currentBalance, err := s.blockchain.GetJettonBalance(ctx, address, block.BlockIDExt)
 	if err != nil {
 		return nil, err
 	}

@@ -115,13 +115,14 @@ CREATE INDEX IF NOT EXISTS external_incomes_deposit_address_index
 
 CREATE TABLE IF NOT EXISTS payments.block_data
 (
-        saved_at                timestamptz not null default now(),
         shard                   bigint not null,
         seqno                   bigint not null,
+        saved_at                timestamptz not null default now(),
         gen_utime               timestamptz not null,
+        is_master               bool not null,
         root_hash               bytea not null,
         file_hash               bytea not null,
-        unique (shard, seqno)
+        unique (shard, seqno, is_master)
 );
 
 CREATE INDEX IF NOT EXISTS block_data_seqno_index

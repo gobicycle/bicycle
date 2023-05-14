@@ -22,6 +22,8 @@ import (
 	"time"
 )
 
+const ErrBlockNotApplied = "block is not applied"
+
 type Connection struct {
 	client *ton.APIClient
 }
@@ -48,7 +50,6 @@ func NewConnection(addr, key string) (*Connection, error) {
 // default subwallet_id and returns wallet, shard and subwalletID
 func (c *Connection) GenerateDefaultWallet(seed string, isHighload bool) (
 	w *wallet.Wallet,
-	shard byte,
 	subwalletID uint32, err error,
 ) {
 	words := strings.Split(seed, " ")
@@ -58,14 +59,14 @@ func (c *Connection) GenerateDefaultWallet(seed string, isHighload bool) (
 		w, err = wallet.FromSeed(c, words, wallet.V3)
 	}
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, 0, err
 	}
-	return w, w.Address().Data()[0], uint32(wallet.DefaultSubwallet), nil
+	return w, uint32(wallet.DefaultSubwallet), nil
 }
 
 // GenerateSubWallet generates subwallet for custom shard and
 // subwallet_id >= startSubWalletId and returns wallet and new subwallet_id
-func (c *Connection) GenerateSubWallet(seed string, shard byte, startSubWalletID uint32) (*wallet.Wallet, uint32, error) {
+func (c *Connection) GenerateSubWallet(seed string, shard core.ShardID, startSubWalletID uint32) (*wallet.Wallet, uint32, error) {
 	words := strings.Split(seed, " ")
 	basic, err := wallet.FromSeed(c, words, wallet.V3)
 	if err != nil {
@@ -80,7 +81,7 @@ func (c *Connection) GenerateSubWallet(seed string, shard byte, startSubWalletID
 		if err != nil {
 			return nil, 0, err
 		}
-		if inShard(addr, shard) {
+		if shard.MatchAddress(addr) {
 			return subWallet, id, nil
 		}
 	}
@@ -114,7 +115,7 @@ func (c *Connection) GetJettonWalletAddress(
 // Generates jetton wallet address for custom shard and proxy contract as owner with subwallet_id >= startSubWalletId
 func (c *Connection) GenerateDepositJettonWalletForProxy(
 	ctx context.Context,
-	shard byte,
+	shard core.ShardID,
 	proxyOwner, jettonMaster *address.Address,
 	startSubWalletID uint32,
 ) (
@@ -140,7 +141,7 @@ func (c *Connection) GenerateDepositJettonWalletForProxy(
 		if err != nil {
 			return nil, nil, err
 		}
-		if inShard(jettonWalletAddress, shard) {
+		if shard.MatchAddress(jettonWalletAddress) {
 			addr = jettonWalletAddress.ToTonutilsAddressStd(0)
 			addr.SetTestnetOnly(config.Config.Testnet)
 			return proxy, addr, nil
@@ -347,10 +348,6 @@ func (c *Connection) GetTransactionFromBlock(ctx context.Context, blockID *ton.B
 		return nil, err
 	}
 	return tx, nil
-}
-
-func inShard(addr core.Address, shard byte) bool {
-	return addr[0] == shard
 }
 
 func (c *Connection) getCurrentNodeTime(ctx context.Context) (time.Time, error) {

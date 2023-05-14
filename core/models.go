@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"database/sql/driver"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/gobicycle/bicycle/config"
@@ -13,12 +14,14 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"math/big"
+	"math/bits"
 	"time"
 )
 
 const (
 	TonSymbol        = "TON"
 	DefaultWorkchain = 0 // use only 0 workchain
+	MasterchainID    = -1
 )
 
 type IncomeSide = string
@@ -54,6 +57,8 @@ const (
 	ProcessingStatus WithdrawalStatus = "processing"
 	ProcessedStatus  WithdrawalStatus = "processed"
 )
+
+const DefaultShard = -9223372036854775808 // 0x8000000000000000 include all shards
 
 var (
 	ErrNotFound        = errors.New("not found")
@@ -254,7 +259,7 @@ func (e *Events) Append(ae Events) {
 
 type BlockEvents struct {
 	Events
-	Block ShardBlockHeader
+	Block *ShardBlockHeader
 }
 
 type InternalWithdrawalTask struct {
@@ -280,15 +285,71 @@ func ZeroCoins() Coins {
 	return decimal.New(0, 0)
 }
 
+// ShardID type copied from https://github.com/tonkeeper/tongo/blob/master/shards.go
+type ShardID struct {
+	// TODO: or use tongo ShardID type instead
+	prefix int64
+	mask   int64
+}
+
+func ParseShardID(m int64) (ShardID, error) {
+	if m == 0 {
+		return ShardID{}, errors.New("at least one non-zero bit required in shard id")
+	}
+	trailingZeros := bits.TrailingZeros64(uint64(m))
+	return ShardID{
+		prefix: m ^ (1 << trailingZeros),
+		mask:   -1 << (trailingZeros + 1),
+	}, nil
+}
+
+func ShardIdFromAddress(a Address, shardPrefixLen int) ShardID {
+	return ShardID{
+		prefix: int64(binary.BigEndian.Uint64(a[:8])),
+		mask:   -1 << (64 - shardPrefixLen),
+	}
+	// TODO: check for correctness with full prefix
+}
+
+func (s ShardID) MatchAddress(a Address) bool {
+	aPrefix := binary.BigEndian.Uint64(a[:8])
+	return (int64(aPrefix) & s.mask) == s.prefix
+}
+
+func (s ShardID) MatchBlockID(block *ton.BlockIDExt) bool {
+	sub, err := ParseShardID(block.Shard)
+	if err != nil {
+		// TODO: log error
+		return false
+	}
+	if bits.TrailingZeros64(uint64(s.mask)) < bits.TrailingZeros64(uint64(sub.mask)) {
+		return s.prefix&sub.mask == sub.prefix
+	}
+	return sub.prefix&s.mask == s.prefix
+}
+
 // ShardBlockHeader
 // Block header for a specific shard mask attribute. Has only one parent.
 type ShardBlockHeader struct {
 	*ton.BlockIDExt
-	NotMaster bool
-	GenUtime  uint32
-	StartLt   uint64
-	EndLt     uint64
-	Parent    *ton.BlockIDExt
+	IsMaster bool
+	GenUtime uint32
+	StartLt  uint64
+	EndLt    uint64
+	Parents  []*ton.BlockIDExt
+}
+
+func (s ShardBlockHeader) MatchParentBlockByAddress(a Address) (*ton.BlockIDExt, error) {
+	for _, p := range s.Parents {
+		shardID, err := ParseShardID(p.Shard)
+		if err != nil {
+			return nil, err
+		}
+		if shardID.MatchAddress(a) {
+			return p, nil
+		}
+	}
+	return nil, fmt.Errorf("must be at least one suitable block for this address")
 }
 
 type storage interface {
@@ -298,7 +359,7 @@ type storage interface {
 	GetWalletType(address Address) (WalletType, bool)
 	GetOwner(address Address) *Address
 	GetWalletTypeByTonutilsAddress(address *address.Address) (WalletType, bool)
-	SaveParsedBlockData(ctx context.Context, events BlockEvents) error
+	SaveParsedBlocksData(ctx context.Context, events []BlockEvents, masterBlockID *ShardBlockHeader) error
 	GetTonInternalWithdrawalTasks(ctx context.Context, limit int) ([]InternalWithdrawalTask, error)
 	GetJettonInternalWithdrawalTasks(ctx context.Context, forbiddenAddresses []Address, limit int) ([]InternalWithdrawalTask, error)
 	CreateExternalWithdrawals(ctx context.Context, tasks []ExternalWithdrawalTask, extMsgUuid uuid.UUID, expiredAt time.Time) error
@@ -319,7 +380,7 @@ type blockchain interface {
 	GetJettonWalletAddress(ctx context.Context, ownerWallet *address.Address, jettonMaster *address.Address) (*address.Address, error)
 	GetTransactionIDsFromBlock(ctx context.Context, blockID *ton.BlockIDExt) ([]ton.TransactionShortInfo, error)
 	GetTransactionFromBlock(ctx context.Context, blockID *ton.BlockIDExt, txID ton.TransactionShortInfo) (*tlb.Transaction, error)
-	GenerateDefaultWallet(seed string, isHighload bool) (*wallet.Wallet, byte, uint32, error)
+	GenerateDefaultWallet(seed string, isHighload bool) (*wallet.Wallet, uint32, error)
 	GetJettonBalance(ctx context.Context, address Address, blockID *ton.BlockIDExt) (*big.Int, error)
 	SendExternalMessage(ctx context.Context, msg *tlb.ExternalMessage) error
 	GetAccountCurrentState(ctx context.Context, address *address.Address) (*big.Int, tlb.AccountStatus, error)
@@ -328,8 +389,7 @@ type blockchain interface {
 }
 
 type blocksTracker interface {
-	NextBlock() (ShardBlockHeader, bool, error)
-	Stop()
+	NextBatch() ([]*ShardBlockHeader, *ShardBlockHeader, error)
 }
 
 type Notificator interface {
