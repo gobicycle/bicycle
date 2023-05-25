@@ -63,3 +63,4 @@
 - [ ] Not process removed Jettons
 - [ ] Separate .env files for services
 - [ ] Automatic migrations
+- [ ] Add user id to notifications
