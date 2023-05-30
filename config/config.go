@@ -143,7 +143,7 @@ func parseJettonString(s string) map[string]Jetton {
 func parseTonString(s string) Cutoffs {
 	data := strings.Split(s, ":")
 	if len(data) != 3 {
-		log.Fatalf("invalid jetton data")
+		log.Fatalf("invalid TON data")
 	}
 	hotWalletMin, err := decimal.NewFromString(data[0])
 	if err != nil {
