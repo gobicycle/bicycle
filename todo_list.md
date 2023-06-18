@@ -50,6 +50,8 @@
 - [x] Process masterchain addresses for external incomes
 - [x] Shard tracker with custom length of shard prefix
 - [x] Migration for new shard tracker
+- [ ] Add user id to notifications
+- [ ] Add transaction hash to notifications
 - [ ] Jetton threat model
 - [ ] TNX compatibility test
 - [ ] Support DNS names in recipient address
@@ -65,4 +67,3 @@
 - [ ] Not process removed Jettons
 - [ ] Separate .env files for services
 - [ ] Automatic migrations
-- [ ] Add user id to notifications
