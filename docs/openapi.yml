@@ -1,0 +1,555 @@
+openapi: 3.0.2
+
+info:
+  title: REST api to TON payment processor
+  version: 1.0.0
+  description: This API describes endpoints of payment processor
+
+servers:
+  - url: "http://localhost:8081"
+
+paths:
+
+  /v1/address/new:
+    post:
+      security:
+        - bearerAuth: []
+      description: Generates new deposit address
+      operationId: getNewAddress
+      tags:
+        - Deposits
+      requestBody:
+        $ref: "#/components/requestBodies/DepositParameters"
+      responses:
+        '200':
+          description: new deposit address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/address/all{?user_id}:
+    get:
+      security:
+        - bearerAuth: [ ]
+      description: Get all created addresses by `user_id`.
+      operationId: getAddresses
+      tags:
+        - Deposits
+      parameters:
+        - $ref: '#/components/parameters/userIdParameter'
+      responses:
+        '200':
+          description: addresses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deposits'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/income{?user_id}:
+    get:
+      security:
+        - bearerAuth: [ ]
+      description: Get income for deposits by `user_id`. The total amount of funds that came to the deposit for the entire time. Funds sent from the deposit to the hot wallet or all funds received to the deposit are taken into account, depending on the service settings. Counting side field options `hot_wallet`, `deposit`.
+      operationId: getIncome
+      tags:
+        - Income
+      parameters:
+        - $ref: '#/components/parameters/userIdParameter'
+      responses:
+        '200':
+          description: calculated total incomes on `deposit` or `hot_wallet` side
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculatedIncome'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/history{?user_id,currency,limit,offset}:
+    get:
+      security:
+        - bearerAuth: [ ]
+      description: Get history for deposits by `user_id` and `currency`. Returns the history of all deposits replenishments with the sender's address as `source_address` (if it could be determined)
+      operationId: getIncomeHistory
+      tags:
+        - Income
+      parameters:
+        - $ref: '#/components/parameters/userIdParameter'
+        - $ref: '#/components/parameters/currencyParameter'
+        - name: limit
+          in: path
+          description: the maximum value of returned records
+          schema:
+            type: integer
+            format: int64
+            default: 100
+            example: 100
+        - name: offset
+          in: path
+          description: offset for returned records
+          schema:
+            type: integer
+            format: int64
+            default: 0
+            example: 10
+      responses:
+        '200':
+          description: incomes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incomes'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/withdrawal/send:
+    post:
+      security:
+        - bearerAuth: [ ]
+      description: Send withdrawal request. **Amount must be in base units without decimal point (NanoTONs for TONs)**
+      operationId: sendWithdrawal
+      tags:
+        - Withdrawals
+      requestBody:
+        $ref: '#/components/requestBodies/Withdrawal'
+      responses:
+        '200':
+          description: Withdrawal ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WithdrawalID'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/withdrawal/status{?id}:
+    get:
+      security:
+        - bearerAuth: [ ]
+      description: Get withdrawal status. Returns `pending`, `processing`, `processed`.
+      operationId: getWithdrawalStatus
+      tags:
+        - Withdrawals
+      parameters:
+        - $ref: '#/components/parameters/withdrawalIDParameter'
+      responses:
+        '200':
+          description: Withdrawal status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WithdrawalStatus'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/withdrawal/service/ton:
+    post:
+      security:
+        - bearerAuth: [ ]
+      description: Send service withdrawal request. Withdraw all TONs from `from` address to hot wallet. Returns `memo` as comment for transfer message
+      operationId: serviceTonWithdrawal
+      tags:
+        - Service
+      requestBody:
+        $ref: '#/components/requestBodies/ServiceTonWithdrawal'
+      responses:
+        '200':
+          description: Service withdrawal memo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceWithdrawalMemo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/withdrawal/service/jetton:
+    post:
+      security:
+        - bearerAuth: [ ]
+      description: Send service withdrawal request. Withdraw all Jettons from Jetton wallet. Address calculated through owner and Jetton master. Returns `memo` as comment for transfer message
+      operationId: serviceJettonWithdrawal
+      tags:
+        - Service
+      requestBody:
+        $ref: '#/components/requestBodies/ServiceJettonWithdrawal'
+      responses:
+        '200':
+          description: Service withdrawal memo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceWithdrawalMemo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/system/sync:
+    get:
+      description: Get blockchain sync flag. Returns `true` if the service has up-to-date data from the blockchain. As long as the flag is equal to `false`, no withdrawals are made
+      operationId: getSync
+      tags:
+        - System
+      responses:
+        '200':
+          description: Service sync status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncStatus'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+
+  parameters:
+
+    userIdParameter:
+      in: path
+      name: user_id
+      required: true
+      description: external unique user ID for grouping deposits
+      schema:
+        type: string
+        example: 123
+
+    currencyParameter:
+      in: path
+      name: currency
+      required: true
+      description: the text identifier of the currency specified in the processor configuration. `TON` for TON coin
+      schema:
+        type: string
+        example: TON
+
+    withdrawalIDParameter:
+      in: path
+      name: id
+      required: true
+      description: an unique identifier of the withdrawal
+      schema:
+        type: integer
+        format: int64
+        example: 10
+
+  requestBodies:
+
+    DepositParameters:
+      description: parameters of new deposit
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - user_id
+              - currency
+            properties:
+              user_id:
+                type: string
+                example: 123
+              currency:
+                type: string
+                example: TON
+
+    Withdrawal:
+      description: withdrawal of funds
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - user_id
+              - query_id
+              - currency
+              - amount
+              - destination
+            properties:
+              user_id:
+                type: string
+                example: 123
+              query_id:
+                type: string
+                example: 1
+              currency:
+                type: string
+                example: TON
+              amount:
+                type: string
+                example: 1000
+              destination:
+                type: string
+                example: 0QCdyiS-fIV9UVfI9Phswo4l2MA-hm8YseHynZ_YiH9Y1oSe
+              comment:
+                type: string
+                example: hello
+
+    ServiceTonWithdrawal:
+      description: parameters of TON service withdrawal
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - from
+            properties:
+              from:
+                type: string
+                example: 0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP
+
+    ServiceJettonWithdrawal:
+      description: parameters of jetton service withdrawal
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - owner
+              - jetton_master
+            properties:
+              owner:
+                type: string
+                example: 0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP
+              jetton_master:
+                type: string
+                example: kQCKt2WPGX-fh0cIAz38Ljd_OKQjoZE_cqk7QrYGsNP6wfP0
+
+  schemas:
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: error description
+
+    Address:
+      type: object
+      required:
+        - address
+      properties:
+        address:
+          type: string
+          example: 0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR
+
+    Deposit:
+      type: object
+      required:
+        - address
+        - currency
+      properties:
+        address:
+          type: string
+          example: 0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR
+        currency:
+          type: string
+          example: TON
+
+    Deposits:
+      type: object
+      required:
+        - addresses
+      properties:
+        addresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Deposit'
+
+    CalculatedIncome:
+      type: object
+      required:
+        - counting_side
+        - total_income
+      properties:
+        counting_side:
+          type: string
+          enum: [deposit, hot_wallet]
+        total_income:
+          type: array
+          items:
+            $ref: '#/components/schemas/TotalIncome'
+
+    TotalIncome:
+      type: object
+      required:
+        - deposit_address
+        - amount
+        - currency
+      properties:
+        deposit_address:
+          type: string
+          example: 0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR
+        amount:
+          type: string
+          example: 1000000
+        currency:
+          type: string
+          example: TON
+
+    Incomes:
+      type: object
+      required:
+        - incomes
+      properties:
+        incomes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Income'
+
+    Income:
+      type: object
+      required:
+        - deposit_address
+        - time
+        - source_address
+        - amount
+      properties:
+        deposit_address:
+          type: string
+          example: 0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR
+        time:
+          type: integer
+          format: int64
+          example: 1680604643
+        source_address:
+          type: string
+          example: 0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP
+        amount:
+          type: string
+          example: 1000000
+        comment:
+          type: string
+          example: hello
+
+    WithdrawalID:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+
+    WithdrawalStatus:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [pending, processing, processed]
+
+    ServiceWithdrawalMemo:
+      type: object
+      required:
+        - memo
+      properties:
+        memo:
+          type: string
+          example: 123e4567-e89b-12d3-a456-426655440000
+
+    SyncStatus:
+      type: object
+      required:
+        - is_synced
+      properties:
+        is_synced:
+          type: boolean
+          example: true
+
+  responses:
+
+    NotFound:
+      description: The specified resource was not found
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - error
+            properties:
+              error:
+                type: string
+
+    InternalError:
+      description: Something went wrong on server side
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - error
+            properties:
+              error:
+                type: string
+
+    BadRequest:
+      description: Something went wrong on client side
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - error
+            properties:
+              error:
+                type: string
+
+    UnauthorizedError:
+      description: Access token is missing or invalid
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - error
+            properties:
+              error:
+                type: string
+
+  securitySchemes:
+    bearerAuth:
+      description: "Bearer token authorization"
+      type: http
+      scheme: bearer
