@@ -22,7 +22,7 @@ var (
 	InternalWithdrawalPeriod  = 30 * time.Second
 	ExpirationProcessorPeriod = 5 * time.Second
 
-	AllowableBlockchainLagging     = 15 * time.Second
+	AllowableBlockchainLagging     = 15 * time.Second // TODO: use env var
 	AllowableServiceToNodeTimeDiff = 2 * time.Second
 )
 
@@ -51,6 +51,7 @@ var Config = struct {
 	QueueEnabled             bool   `env:"QUEUE_ENABLED" envDefault:"false"`
 	WebhookEndpoint          string `env:"WEBHOOK_ENDPOINT"`
 	WebhookToken             string `env:"WEBHOOK_TOKEN"`
+	AllowableLaggingSec      int    `env:"ALLOWABLE_LAG"`
 	Jettons                  map[string]Jetton
 	Ton                      Cutoffs
 	ColdWallet               *address.Address
@@ -103,6 +104,10 @@ func GetConfig() {
 			log.Fatalf("Can not parse mainnet blockchain config: %v", err)
 		}
 		Config.BlockchainConfig = config[0]
+	}
+
+	if Config.AllowableLaggingSec != 0 {
+		AllowableBlockchainLagging = time.Second * time.Duration(Config.AllowableLaggingSec)
 	}
 }
 
