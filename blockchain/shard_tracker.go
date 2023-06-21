@@ -58,16 +58,17 @@ func NewShardTracker(connection *Connection, opts ...Option) (*ShardTracker, err
 	if options.StartMasterBlockID == nil {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 		defer cancel()
-		id, err := connection.CurrentMasterchainInfo(ctx)
+		info, err := connection.client.GetMasterchainInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
-		options.StartMasterBlockID = id
+		options.StartMasterBlockID = info.Last
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	shards, err := connection.client.GetBlockShardsInfo(ctx, options.StartMasterBlockID)
+
 	if err != nil {
 		return nil, err
 	}

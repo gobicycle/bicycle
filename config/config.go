@@ -3,7 +3,6 @@ package config
 import (
 	"github.com/caarlos0/env/v6"
 	"github.com/shopspring/decimal"
-	"github.com/tonkeeper/tongo/boc"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"log"
@@ -55,7 +54,7 @@ var Config = struct {
 	Jettons                  map[string]Jetton
 	Ton                      Cutoffs
 	ColdWallet               *address.Address
-	BlockchainConfig         *boc.Cell
+	BlockchainConfig         string
 }{}
 
 type Jetton struct {
@@ -70,6 +69,7 @@ type Cutoffs struct {
 	Withdrawal   *big.Int
 }
 
+// TODO: make config local var
 func GetConfig() {
 	err := env.Parse(&Config)
 	if err != nil {
@@ -92,18 +92,11 @@ func GetConfig() {
 		Config.ColdWallet = coldAddr
 	}
 
+	// TODO: load network config from node
 	if Config.Testnet {
-		config, err := boc.DeserializeBocBase64(TestnetConfig)
-		if err != nil {
-			log.Fatalf("Can not parse testnet blockchain config: %v", err)
-		}
-		Config.BlockchainConfig = config[0]
+		Config.BlockchainConfig = TestnetConfig
 	} else {
-		config, err := boc.DeserializeBocBase64(MainnetConfig)
-		if err != nil {
-			log.Fatalf("Can not parse mainnet blockchain config: %v", err)
-		}
-		Config.BlockchainConfig = config[0]
+		Config.BlockchainConfig = MainnetConfig
 	}
 }
 

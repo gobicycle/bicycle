@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gobicycle/bicycle/config"
 	log "github.com/sirupsen/logrus"
+	"github.com/tonkeeper/tongo"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -14,16 +15,13 @@ import (
 // It is possible create few jetton proxies for single TON wallet (as owner) and control multiple jetton wallets.
 // Read about JettonProxy smart contract at README.md and https://github.com/gobicycle/ton-proxy-contract
 type JettonProxy struct {
-	Owner       *address.Address
+	Owner       tongo.AccountID
 	SubwalletID uint32
-	address     *address.Address
+	address     tongo.AccountID
 	stateInit   *tlb.StateInit
 }
 
-func NewJettonProxy(subwalletId uint32, owner *address.Address) (*JettonProxy, error) {
-	if owner == nil {
-		return nil, fmt.Errorf("nil owner")
-	}
+func NewJettonProxy(subwalletId uint32, owner tongo.AccountID) (*JettonProxy, error) {
 	stateInit := buildJettonProxyStateInit(subwalletId, owner)
 	stateCell, err := tlb.ToCell(stateInit)
 	if err != nil {
@@ -39,7 +37,7 @@ func NewJettonProxy(subwalletId uint32, owner *address.Address) (*JettonProxy, e
 	}, nil
 }
 
-func buildJettonProxyStateInit(subwalletId uint32, owner *address.Address) *tlb.StateInit {
+func buildJettonProxyStateInit(subwalletId uint32, owner tongo.AccountID) *tlb.StateInit {
 	h, err := hex.DecodeString(config.JettonProxyContractCode)
 	if err != nil {
 		log.Fatalf("decode JettonProxyContractCode hex error: %v", err)
@@ -60,7 +58,7 @@ func buildJettonProxyStateInit(subwalletId uint32, owner *address.Address) *tlb.
 }
 
 // Address returns address of jetton proxy contract
-func (p *JettonProxy) Address() *address.Address {
+func (p *JettonProxy) Address() tongo.AccountID {
 	return p.address
 }
 
