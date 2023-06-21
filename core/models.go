@@ -286,11 +286,11 @@ func ZeroCoins() Coins {
 }
 
 // ShardID type copied from https://github.com/tonkeeper/tongo/blob/master/shards.go
-type ShardID struct {
-	// TODO: or use tongo ShardID type instead
-	prefix int64
-	mask   int64
-}
+//type ShardID struct {
+//	// TODO: or use tongo ShardID type instead
+//	prefix int64
+//	mask   int64
+//}
 
 func ParseShardID(m int64) (ShardID, error) {
 	if m == 0 {

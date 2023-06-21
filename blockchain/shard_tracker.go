@@ -3,6 +3,7 @@ package blockchain
 import (
 	"context"
 	"github.com/gobicycle/bicycle/core"
+	"github.com/tonkeeper/tongo"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"time"
@@ -10,29 +11,29 @@ import (
 
 type ShardTracker struct {
 	connection           *Connection
-	shardID              core.ShardID
-	lastMasterBlock      *ton.BlockIDExt
-	lastKnownShardBlocks []*ton.BlockIDExt
+	shardID              tongo.ShardID
+	lastMasterBlock      tongo.BlockIDExt
+	lastKnownShardBlocks []tongo.BlockIDExt
 }
 
 // Options holds parameters to configure a shard tracker instance.
 type Options struct {
-	StartMasterBlockID *ton.BlockIDExt // Masterchain block ID for init shard tracker
-	ShardID            core.ShardID    // Mask of shard for tracking in format with flip bit
+	StartMasterBlockSeqno *uint32       // Masterchain block ID for init shard tracker
+	ShardID               tongo.ShardID // Mask of shard for tracking in format with flip bit
 }
 
 type Option func(o *Options) error
 
-// WithStartBlock for configure first masterchain block ID for shard tracker
-func WithStartBlock(startMasterBlockID *ton.BlockIDExt) Option {
+// WithStartBlockSeqno for configure first masterchain block seqno for shard tracker
+func WithStartBlockSeqno(startMasterBlockSeqno uint32) Option {
 	return func(o *Options) error {
-		o.StartMasterBlockID = startMasterBlockID
+		o.StartMasterBlockSeqno = &startMasterBlockSeqno
 		return nil
 	}
 }
 
 // WithShard to define the shard mask to get shard blocks
-func WithShard(shardID core.ShardID) Option {
+func WithShard(shardID tongo.ShardID) Option {
 	return func(o *Options) error {
 		o.ShardID = shardID
 		return nil
@@ -41,7 +42,7 @@ func WithShard(shardID core.ShardID) Option {
 
 // NewShardTracker creates new tracker to get blocks with specific shard attribute
 func NewShardTracker(connection *Connection, opts ...Option) (*ShardTracker, error) {
-	defaultShardID, err := core.ParseShardID(core.DefaultShard)
+	defaultShardID, err := tongo.ParseShardID(core.DefaultShard)
 	if err != nil {
 		return nil, err
 	}
@@ -55,28 +56,41 @@ func NewShardTracker(connection *Connection, opts ...Option) (*ShardTracker, err
 		}
 	}
 
-	if options.StartMasterBlockID == nil {
+	if options.StartMasterBlockSeqno == nil {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 		defer cancel()
 		info, err := connection.client.GetMasterchainInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
-		options.StartMasterBlockID = info.Last
+		options.StartMasterBlockSeqno = &info.Last.Seqno // TODO: clarify seqno
+	}
+
+	lastMasterBlockID := tongo.BlockID{
+		Workchain: -1,
+		Shard:     -9223372036854775808,
+		Seqno:     *options.StartMasterBlockSeqno,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
-	shards, err := connection.client.GetBlockShardsInfo(ctx, options.StartMasterBlockID)
 
+	lastMasterBlockIDExt, _, err := connection.client.LookupBlock(ctx, lastMasterBlockID, 1, nil, nil) // TODO: check mode
 	if err != nil {
 		return nil, err
 	}
 
+	block, err := connection.client.GetBlock(ctx, lastMasterBlockIDExt)
+	if err != nil {
+		return nil, err
+	}
+
+	shards := tongo.ShardIDs(&block)
+
 	t := &ShardTracker{
 		connection:           connection,
 		shardID:              options.ShardID,
-		lastMasterBlock:      options.StartMasterBlockID,
+		lastMasterBlock:      lastMasterBlockIDExt,
 		lastKnownShardBlocks: shards,
 	}
 	return t, nil
