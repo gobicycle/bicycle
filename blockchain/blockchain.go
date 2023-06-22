@@ -15,6 +15,7 @@ import (
 	"github.com/tonkeeper/tongo/wallet"
 	"math"
 	"math/big"
+	"strings"
 	"time"
 )
 
@@ -309,6 +310,43 @@ func (c *Connection) DeployTonWallet(ctx context.Context, w *wallet.Wallet) erro
 		return nil
 	}
 	return c.WaitStatus(ctx, addr, tlb.AccountActive)
+}
+
+// lookupMasterchainBlock
+// Try to find masterchain block with retry. Returns error if context timeout is exceeded.
+// Context must be with timeout to avoid blocking!
+func (c *Connection) lookupMasterchainBlock(ctx context.Context, seqno uint32) (*tongo.BlockIDExt, error) {
+	id := tongo.BlockID{
+		Workchain: -1,
+		Shard:     -9223372036854775808,
+		Seqno:     seqno,
+	}
+
+	// TODO: replace retry with waitblock
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, core.ErrTimeoutExceeded // TODO: maybe remove
+		default:
+			idExt, _, err := c.client.LookupBlock(ctx, id, 1, nil, nil) // TODO: check mode
+			if err != nil && isBlockNotReadyError(err) {
+				time.Sleep(time.Millisecond * 200)
+			} else if err != nil {
+				return nil, err
+			}
+			return &idExt, nil
+		}
+	}
+}
+
+func isBlockNotReadyError(err error) bool {
+	if strings.Contains(err.Error(), "ltdb: block not found") {
+		return true
+	}
+	if strings.Contains(err.Error(), "block is not applied") {
+		return true
+	}
+	return false
 }
 
 // GetTransactionIDsFromBlock

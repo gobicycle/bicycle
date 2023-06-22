@@ -9,10 +9,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/tonkeeper/tongo"
 	"github.com/tonkeeper/tongo/boc"
-	tongoTlb "github.com/tonkeeper/tongo/tlb"
+	"github.com/tonkeeper/tongo/tlb"
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"math/big"
 	"sync"
@@ -23,7 +21,7 @@ import (
 type BlockScanner struct {
 	db               storage
 	blockchain       blockchain
-	shard            ShardID
+	shard            tongo.ShardID
 	tracker          blocksTracker
 	wg               *sync.WaitGroup
 	notificators     []Notificator
@@ -66,7 +64,7 @@ func NewBlockScanner(
 	wg *sync.WaitGroup,
 	db storage,
 	blockchain blockchain,
-	shard ShardID,
+	shard tongo.ShardID,
 	tracker blocksTracker,
 	notificators []Notificator,
 ) *BlockScanner {
@@ -109,15 +107,15 @@ func (s *BlockScanner) Stop() {
 	s.gracefulShutdown.Store(true)
 }
 
-func (s *BlockScanner) processBlocks(ctx context.Context, blocks []*ShardBlockHeader, masterBlock *ShardBlockHeader) error {
+func (s *BlockScanner) processBlocks(ctx context.Context, blocks []*ShardBlock, masterBlock *tlb.BlockInfo) error {
 	var events []BlockEvents
 
 	for _, b := range blocks {
-		txIDs, err := s.blockchain.GetTransactionIDsFromBlock(ctx, b.BlockIDExt)
-		if err != nil {
-			return err
-		}
-		filteredTXs, err := s.filterTXs(ctx, b.BlockIDExt, txIDs)
+		//txIDs, err := s.blockchain.GetTransactionIDsFromBlock(ctx, b.BlockIDExt)
+		//if err != nil {
+		//	return err
+		//}
+		filteredTXs, err := s.filterTXs(ctx, b)
 		if err != nil {
 			return err
 		}
@@ -201,18 +199,17 @@ func (s *BlockScanner) pushNotification(
 
 func (s *BlockScanner) filterTXs(
 	ctx context.Context,
-	blockID *ton.BlockIDExt,
-	ids []ton.TransactionShortInfo,
+	block ShardBlock,
 ) (
 	[]transactions, error,
 ) {
-	txMap := make(map[Address][]*tlb.Transaction)
-	for _, id := range ids {
-		a, err := AddressFromBytes(id.Account) // must be int256 for lite api
-		if err != nil {
-			return nil, err
-		}
-		_, ok := s.db.GetWalletType(a)
+	//txMap := make(map[Address][]*tlb.Transaction)
+	for _, tx := range block.Transactions {
+		//a, err := AddressFromBytes(id.Account) // must be int256 for lite api
+		//if err != nil {
+		//	return nil, err
+		//}
+		_, ok := s.db.GetWalletType(//TODO: get addr from TX)
 		if ok {
 			tx, err := s.blockchain.GetTransactionFromBlock(ctx, blockID, id)
 			if err != nil {

@@ -9,8 +9,10 @@ import (
 	"github.com/gobicycle/bicycle/config"
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
+	"github.com/tonkeeper/tongo"
+	"github.com/tonkeeper/tongo/tlb"
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
+	//"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"math/big"
@@ -328,15 +330,16 @@ func (s ShardID) MatchBlockID(block *ton.BlockIDExt) bool {
 	return sub.prefix&s.mask == s.prefix
 }
 
-// ShardBlockHeader
-// Block header for a specific shard mask attribute. Has only one parent.
-type ShardBlockHeader struct {
-	*ton.BlockIDExt
-	IsMaster bool
-	GenUtime uint32
-	StartLt  uint64
-	EndLt    uint64
-	Parents  []*ton.BlockIDExt
+// ShardBlock
+// Block data for a specific shard mask attribute.
+type ShardBlock struct {
+	tongo.BlockIDExt
+	//IsMaster bool
+	//GenUtime uint32
+	//StartLt  uint64
+	//EndLt    uint64
+	Transactions []*tlb.Transaction
+	Parents      []tongo.BlockIDExt
 }
 
 func (s ShardBlockHeader) MatchParentBlockByAddress(a Address) (*ton.BlockIDExt, error) {

@@ -4,8 +4,7 @@ import (
 	"context"
 	"github.com/gobicycle/bicycle/core"
 	"github.com/tonkeeper/tongo"
-	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton"
+	"github.com/tonkeeper/tongo/tlb"
 	"time"
 )
 
@@ -66,21 +65,15 @@ func NewShardTracker(connection *Connection, opts ...Option) (*ShardTracker, err
 		options.StartMasterBlockSeqno = &info.Last.Seqno // TODO: clarify seqno
 	}
 
-	lastMasterBlockID := tongo.BlockID{
-		Workchain: -1,
-		Shard:     -9223372036854775808,
-		Seqno:     *options.StartMasterBlockSeqno,
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
-	lastMasterBlockIDExt, _, err := connection.client.LookupBlock(ctx, lastMasterBlockID, 1, nil, nil) // TODO: check mode
+	lastMasterBlockIDExt, err := connection.lookupMasterchainBlock(ctx, *options.StartMasterBlockSeqno)
 	if err != nil {
 		return nil, err
 	}
 
-	block, err := connection.client.GetBlock(ctx, lastMasterBlockIDExt)
+	block, err := connection.client.GetBlock(ctx, *lastMasterBlockIDExt)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +83,7 @@ func NewShardTracker(connection *Connection, opts ...Option) (*ShardTracker, err
 	t := &ShardTracker{
 		connection:           connection,
 		shardID:              options.ShardID,
-		lastMasterBlock:      lastMasterBlockIDExt,
+		lastMasterBlock:      *lastMasterBlockIDExt,
 		lastKnownShardBlocks: shards,
 	}
 	return t, nil
@@ -98,31 +91,24 @@ func NewShardTracker(connection *Connection, opts ...Option) (*ShardTracker, err
 
 // NextBatch returns last scanned master block and batch of workchain blocks, committed to the next master blocks and
 // all intermediate blocks before those committed to the last known master block and filtered by shard parameter.
-func (s *ShardTracker) NextBatch() ([]*core.ShardBlockHeader, *core.ShardBlockHeader, error) {
+func (s *ShardTracker) NextBatch() ([]*core.ShardBlock, *tlb.BlockInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60) // timeout between master blocks may be up tp 60 sec
 	defer cancel()
 
-	master, err := s.connection.WaitForBlock(s.lastMasterBlock.SeqNo+1).LookupBlock(
-		ctx, s.lastMasterBlock.Workchain, s.lastMasterBlock.Shard, s.lastMasterBlock.SeqNo+1)
-	if err != nil {
-		return nil, nil, err
-	}
-	masterBlock, err := s.connection.client.GetBlockData(ctx, master)
-	if err != nil {
-		return nil, nil, err
-	}
-	masterHeader, err := convertBlockToShardHeader(masterBlock, master)
+	masterID, err := s.connection.lookupMasterchainBlock(ctx, s.lastMasterBlock.Seqno+1)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	shardBlocks, err := s.connection.client.GetBlockShardsInfo(ctx, master)
+	masterBlock, err := s.connection.client.GetBlock(ctx, *masterID)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var batch []*core.ShardBlockHeader
-	filteredShardBlocks := s.filterByShard(shardBlocks)
+	shards := tongo.ShardIDs(&masterBlock)
+
+	var batch []*core.ShardBlock
+	filteredShardBlocks := s.filterByShard(shards)
 
 	for _, b := range filteredShardBlocks {
 		batch, err = s.getShardBlocksRecursively(b, batch)
@@ -131,13 +117,13 @@ func (s *ShardTracker) NextBatch() ([]*core.ShardBlockHeader, *core.ShardBlockHe
 		}
 	}
 
-	s.lastKnownShardBlocks = shardBlocks
-	s.lastMasterBlock = master
+	s.lastKnownShardBlocks = shards
+	s.lastMasterBlock = *masterID
 
-	return batch, masterHeader, nil
+	return batch, &masterBlock.Info, nil
 }
 
-func (s *ShardTracker) getShardBlocksRecursively(blockID *ton.BlockIDExt, batch []*core.ShardBlockHeader) ([]*core.ShardBlockHeader, error) {
+func (s *ShardTracker) getShardBlocksRecursively(blockID tongo.BlockIDExt, batch []*core.ShardBlock) ([]*core.ShardBlock, error) {
 	if s.isKnownShardBlock(blockID) {
 		return batch, nil
 	}
@@ -145,11 +131,12 @@ func (s *ShardTracker) getShardBlocksRecursively(blockID *ton.BlockIDExt, batch 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
 
-	block, err := s.connection.client.GetBlockData(ctx, blockID)
+	block, err := s.connection.client.GetBlock(ctx, blockID)
 	if err != nil {
 		return nil, err
 	}
-	h, err := convertBlockToShardHeader(block, blockID)
+
+	h, err := convertBlockToShardHeader(&block, blockID)
 	if err != nil {
 		return nil, err
 	}
@@ -164,19 +151,19 @@ func (s *ShardTracker) getShardBlocksRecursively(blockID *ton.BlockIDExt, batch 
 	return batch, nil
 }
 
-func (s *ShardTracker) isKnownShardBlock(blockID *ton.BlockIDExt) bool {
+func (s *ShardTracker) isKnownShardBlock(blockID tongo.BlockIDExt) bool {
 	for _, lastBlockID := range s.lastKnownShardBlocks {
-		if (lastBlockID.Shard == blockID.Shard) && (lastBlockID.SeqNo == blockID.SeqNo) {
+		if (lastBlockID.Shard == blockID.Shard) && (lastBlockID.Seqno == blockID.Seqno) {
 			return true
 		}
 	}
 	return false
 }
 
-func (s *ShardTracker) filterByShard(headers []*ton.BlockIDExt) []*ton.BlockIDExt {
-	var res []*ton.BlockIDExt
+func (s *ShardTracker) filterByShard(headers []tongo.BlockIDExt) []tongo.BlockIDExt {
+	var res []tongo.BlockIDExt
 	for _, h := range headers {
-		if s.shardID.MatchBlockID(h) {
+		if s.shardID.MatchBlockID(h.BlockID) {
 			res = append(res, h)
 		}
 	}
@@ -184,17 +171,19 @@ func (s *ShardTracker) filterByShard(headers []*ton.BlockIDExt) []*ton.BlockIDEx
 	return res
 }
 
-func convertBlockToShardHeader(block *tlb.Block, info *ton.BlockIDExt) (*core.ShardBlockHeader, error) {
-	parents, err := block.BlockInfo.GetParentBlocks()
+func convertBlockToShardHeader(block *tlb.Block, id tongo.BlockIDExt) (*core.ShardBlock, error) {
+	parents, err := tongo.GetParents(block.Info)
 	if err != nil {
 		return nil, err
 	}
-	return &core.ShardBlockHeader{
-		IsMaster:   !block.BlockInfo.NotMaster,
-		GenUtime:   block.BlockInfo.GenUtime,
-		StartLt:    block.BlockInfo.StartLt,
-		EndLt:      block.BlockInfo.EndLt,
-		Parents:    parents,
-		BlockIDExt: info,
+
+	return &core.ShardBlock{
+		//IsMaster:   !block.BlockInfo.NotMaster,
+		//GenUtime:   block.BlockInfo.GenUtime,
+		//StartLt:    block.BlockInfo.StartLt,
+		//EndLt:      block.BlockInfo.EndLt,
+		BlockIDExt:   id,
+		Parents:      parents,
+		Transactions: block.AllTransactions(),
 	}, nil
 }
