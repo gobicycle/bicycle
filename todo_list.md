@@ -63,3 +63,6 @@
 - [ ] Not process removed Jettons
 - [ ] Separate .env files for services
 - [ ] Automatic migrations
+- [ ] SDK
+- [ ] Cold wallet withdrawal fix
+- [ ] migration from blueprint to openapi
