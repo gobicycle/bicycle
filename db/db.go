@@ -57,6 +57,11 @@ func (c *Connection) GetWalletType(address core.Address) (core.WalletType, bool)
 	return info.Type, ok
 }
 
+func (c *Connection) GetUserID(address core.Address) (string, bool) {
+	info, ok := c.addressBook.get(address)
+	return info.UserID, ok
+}
+
 // GetOwner returns owner for jetton deposit from address book and nil for other types
 func (c *Connection) GetOwner(address core.Address) *core.Address {
 	info, ok := c.addressBook.get(address)
@@ -103,7 +108,7 @@ func (c *Connection) SaveTonWallet(ctx context.Context, walletData core.WalletDa
 	if err != nil {
 		return err
 	}
-	c.addressBook.put(walletData.Address, core.AddressInfo{Type: walletData.Type, Owner: nil})
+	c.addressBook.put(walletData.Address, core.AddressInfo{Type: walletData.Type, Owner: nil, UserID: walletData.UserID})
 	return nil
 }
 
@@ -186,7 +191,7 @@ func (c *Connection) SaveJettonWallet(
 		// cold wallets excluded from address book
 		c.addressBook.put(ownerAddress, core.AddressInfo{Type: core.JettonOwner, Owner: nil})
 	}
-	c.addressBook.put(walletData.Address, core.AddressInfo{Type: walletData.Type, Owner: &ownerAddress})
+	c.addressBook.put(walletData.Address, core.AddressInfo{Type: walletData.Type, Owner: &ownerAddress, UserID: walletData.UserID})
 	return nil
 }
 
@@ -258,12 +263,13 @@ func (c *Connection) GetJettonOwnersAddresses(
 func (c *Connection) LoadAddressBook(ctx context.Context) error {
 	res := make(map[core.Address]core.AddressInfo)
 	var (
-		addr core.Address
-		t    core.WalletType
+		addr   core.Address
+		t      core.WalletType
+		userID string
 	)
 
 	rows, err := c.client.Query(ctx, `
-		SELECT address, type
+		SELECT address, type, user_id
 		FROM payments.ton_wallets
 	`)
 	if err != nil {
@@ -271,15 +277,15 @@ func (c *Connection) LoadAddressBook(ctx context.Context) error {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&addr, &t)
+		err = rows.Scan(&addr, &t, &userID)
 		if err != nil {
 			return err
 		}
-		res[addr] = core.AddressInfo{Type: t, Owner: nil}
+		res[addr] = core.AddressInfo{Type: t, Owner: nil, UserID: userID}
 	}
 
 	rows, err = c.client.Query(ctx, `
-		SELECT jw.address, jw.type, tw.address
+		SELECT jw.address, jw.type, tw.address, jw.user_id
 		FROM payments.jetton_wallets jw
 		LEFT JOIN payments.ton_wallets tw ON jw.subwallet_id = tw.subwallet_id
 	`)
@@ -289,11 +295,11 @@ func (c *Connection) LoadAddressBook(ctx context.Context) error {
 	defer rows.Close()
 	for rows.Next() {
 		var owner core.Address
-		err = rows.Scan(&addr, &t, &owner)
+		err = rows.Scan(&addr, &t, &owner, &userID)
 		if err != nil {
 			return err
 		}
-		res[addr] = core.AddressInfo{Type: t, Owner: &owner}
+		res[addr] = core.AddressInfo{Type: t, Owner: &owner, UserID: userID}
 	}
 
 	c.addressBook.addresses = res

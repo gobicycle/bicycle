@@ -58,6 +58,8 @@ type incomeNotification struct {
 	Amount    string `json:"amount"`
 	Source    string `json:"source_address,omitempty"`
 	Comment   string `json:"comment,omitempty"`
+	UserID    string `json:"user_id"`
+	TxHash    string `json:"tx_hash"`
 }
 
 func NewBlockScanner(
@@ -133,14 +135,14 @@ func (s *BlockScanner) pushNotifications(e BlockEvents) error {
 
 	if config.Config.IsDepositSideCalculation {
 		for _, ei := range e.ExternalIncomes {
-			err := s.pushNotification(ei.To, ei.Amount, ei.Utime, ei.From, ei.FromWorkchain, ei.Comment)
+			err := s.pushNotification(ei.To, ei.Amount, ei.Utime, ei.From, ei.FromWorkchain, ei.Comment, ei.TxHash)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
 		for _, ii := range e.InternalIncomes {
-			err := s.pushNotification(ii.From, ii.Amount, ii.Utime, nil, nil, "")
+			err := s.pushNotification(ii.From, ii.Amount, ii.Utime, nil, nil, "", ii.TxHash)
 			if err != nil {
 				return err
 			}
@@ -156,16 +158,23 @@ func (s *BlockScanner) pushNotification(
 	from []byte,
 	fromWorkchain *int32,
 	comment string,
+	txHash []byte,
 ) error {
 	owner := s.db.GetOwner(addr)
 	if owner != nil {
 		addr = *owner
+	}
+	userID, ok := s.db.GetUserID(addr)
+	if !ok {
+		return fmt.Errorf("not found UserID for deposit %s", addr.ToUserFormat())
 	}
 	notification := incomeNotification{
 		Deposit:   addr.ToUserFormat(),
 		Amount:    amount.String(),
 		Timestamp: int64(timestamp),
 		Comment:   comment,
+		UserID:    userID,
+		TxHash:    fmt.Sprintf("%x", txHash),
 	}
 	if len(from) == 32 && fromWorkchain != nil {
 		// supports only std address
@@ -433,6 +442,7 @@ func convertUnknownJettonTxs(txs []*tlb.Transaction, addr Address, amount *big.I
 			Lt:     tx.LT,
 			To:     addr,
 			Amount: ZeroCoins(),
+			TxHash: tx.Hash,
 		})
 
 	}
@@ -442,6 +452,7 @@ func convertUnknownJettonTxs(txs []*tlb.Transaction, addr Address, amount *big.I
 			Lt:     txs[0].LT,
 			To:     addr,
 			Amount: NewCoins(amount),
+			TxHash: txs[0].Hash,
 		})
 	}
 	return incomes, nil
@@ -746,6 +757,7 @@ func (s *BlockScanner) processTonHotWalletInternalInMsg(tx *tlb.Transaction) (Ev
 			Amount:   NewCoins(inMsg.Amount.NanoTON()),
 			Memo:     inMsg.Comment(),
 			IsFailed: false,
+			TxHash:   tx.Hash,
 		}
 		success, err := checkTxForSuccess(tx)
 		if err != nil {
@@ -777,6 +789,7 @@ func (s *BlockScanner) processTonHotWalletInternalInMsg(tx *tlb.Transaction) (Ev
 				Amount:   income.Amount,
 				Memo:     income.Comment,
 				IsFailed: false,
+				TxHash:   tx.Hash,
 			})
 		}
 	}
@@ -854,6 +867,7 @@ func (s *BlockScanner) processTonDepositWalletInternalInMsg(tx *tlb.Transaction)
 			To:            dstAddr,
 			Amount:        NewCoins(inMsg.Amount.NanoTON()),
 			Comment:       inMsg.Comment(),
+			TxHash:        tx.Hash,
 		})
 	}
 	return events, nil
@@ -927,6 +941,7 @@ func (s *BlockScanner) processJettonDepositOutMsgs(tx *tlb.Transaction) (Events,
 			To:            srcAddr,
 			Amount:        notify.Amount,
 			Comment:       notify.Comment,
+			TxHash:        tx.Hash,
 		})
 		knownIncomeAmount.Add(knownIncomeAmount, notify.Amount.BigInt())
 	}

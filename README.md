@@ -148,7 +148,9 @@ Message format when `DEPOSIT_SIDE_BALANCE` == true:
 	"time": 12345678,
 	"amount":"100", 
 	"source_address":"0QAOp2OZwWdkF5HhJ0WVDspgh6HhpmHyQ3cBuBmfJ4q_AIVe",
-	"comment":"hello"
+	"comment":"hello",
+    "tx_hash": "f9b9e7efd3a38da318a894576499f0b6af5ca2da97ccd15c5f1d291a808a0ebf",
+    "user_id": "123"
 }
 ```
 
@@ -158,7 +160,9 @@ from the deposit):
 {
 	"deposit_address":"0QCdsj-u39qVlfYdpPKuAY0hTe5VIsiJcpB5Rx4tOUOyBFhL",
 	"time": 12345678,
-	"amount":"200"
+	"amount":"200",
+    "tx_hash": "f9b9e7efd3a38da318a894576499f0b6af5ca2da97ccd15c5f1d291a808a0ebf",
+    "user_id": "123"
 }
 ```
 

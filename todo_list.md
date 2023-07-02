@@ -49,9 +49,10 @@
 - [x] Update to tonutils-go 1.6.2
 - [x] Process masterchain addresses for external incomes
 - [x] Cold wallet withdrawal fix
-- [ ] Add hysteresis to cold wallet withdrawal
-- [ ] Add user id to notifications
-- [ ] Add transaction hash to notifications
+- [x] Add hysteresis to cold wallet withdrawal
+- [x] Add user id to notifications
+- [x] Add transaction hash to notifications
+- [ ] Save tx hash to DB
 - [ ] Support DNS names in recipient address
 - [ ] Jetton threat model
 - [ ] TNX compatibility test

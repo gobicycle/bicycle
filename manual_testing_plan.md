@@ -254,7 +254,7 @@ Template:
 
 28. -[ ] Checked
 - TEST    : Replenish the Jetton deposit with zero forward amount and check it by
-  `/v1/history{?user_id,currency,limit,offset}` method.
+            `/v1/history{?user_id,currency,limit,offset}` method.
 - RESULT  : The sender's address must be not presented in the history.
 - COMMENT :
 
