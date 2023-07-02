@@ -122,8 +122,15 @@ If TONs arrive at the wallet address at this time, the message will be applied a
 - D: warning about this behavior in technical_notes file for method description
 
 #### Setting the value to "expired" without taking into account the allowable delay
-- P: It is impossible to absolutely precisely synchronize in time with the blockchain, so there is an 
+- P: it is impossible to absolutely precisely synchronize in time with the blockchain, so there is an 
      allowable time delay value. If you get into this gap, the "expired" may be incorrectly set.
 - T: double spending for external withdrawals or unnecessary internal withdrawals
 - S: check expiration taking into account time delay
 - D: check expiration taking into account time delay
+
+#### Repetitive failed transactions burning fees
+- P: with periodic withdrawal cycles, there may be situations where the transaction fails every time. 
+     For example, when withdrawing to an uninitialized cold wallet with the bounce flag.
+- T: constant burning of a certain amount of TON on fees
+- S: additional checks to predict the success of the transaction and additional messages in the audit log
+- D: made an additional check on the state of the cold wallet and checking the bounce flag for withdrawal
