@@ -631,7 +631,7 @@ func (p *WithdrawalsProcessor) makeColdWalletWithdrawals(ctx context.Context) er
 		if err != nil {
 			return err
 		}
-		jettonAmount.Sub(jettonBalance, config.Config.Jettons[cur].HotWalletMaxCutoff)
+		jettonAmount.Sub(jettonBalance, config.Config.Jettons[cur].HotWalletResidual)
 		tonBalance.Sub(tonBalance, config.JettonTransferTonAmount.NanoTON())
 		req := WithdrawalRequest{
 			Currency:    jw.Currency,
@@ -665,7 +665,7 @@ func (p *WithdrawalsProcessor) makeColdWalletWithdrawals(ctx context.Context) er
 	if err != nil {
 		return err
 	}
-	tonAmount.Sub(tonBalance, config.Config.Ton.HotWalletMax)
+	tonAmount.Sub(tonBalance, config.Config.Ton.HotWalletResidual)
 	req := WithdrawalRequest{
 		Currency:    TonSymbol,
 		Amount:      NewCoins(tonAmount),

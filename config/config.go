@@ -16,6 +16,8 @@ var (
 	JettonTransferTonAmount = tlb.FromNanoTONU(100_000_000)
 	JettonForwardAmount     = tlb.FromNanoTONU(20_000_000) // must be < JettonTransferTonAmount
 
+	DefaultHotWalletHysteresis = decimal.NewFromFloat(0.95) // `hot_wallet_residual_balance` = `hot_wallet_max_balance` * `hysteresis`
+
 	ExternalMessageLifetime = 50 * time.Second
 
 	ExternalWithdrawalPeriod  = 80 * time.Second // must be ExternalWithdrawalPeriod > ExternalMessageLifetime and some time for balance update
@@ -62,12 +64,14 @@ type Jetton struct {
 	Master             *address.Address
 	WithdrawalCutoff   *big.Int
 	HotWalletMaxCutoff *big.Int
+	HotWalletResidual  *big.Int
 }
 
 type Cutoffs struct {
-	HotWalletMin *big.Int
-	HotWalletMax *big.Int
-	Withdrawal   *big.Int
+	HotWalletMin      *big.Int
+	HotWalletMax      *big.Int
+	Withdrawal        *big.Int
+	HotWalletResidual *big.Int
 }
 
 func GetConfig() {
@@ -119,7 +123,7 @@ func parseJettonString(s string) map[string]Jetton {
 	jettons := strings.Split(s, ",")
 	for _, j := range jettons {
 		data := strings.Split(j, ":")
-		if len(data) != 4 {
+		if len(data) != 4 && len(data) != 5 {
 			log.Fatalf("invalid jetton data")
 		}
 		cur := data[0]
@@ -135,10 +139,20 @@ func parseJettonString(s string) map[string]Jetton {
 		if err != nil {
 			log.Fatalf("invalid %v jetton withdrawal cutoff: %v", data[0], err)
 		}
+
+		residual := maxCutoff.Mul(DefaultHotWalletHysteresis)
+		if len(data) == 5 {
+			residual, err = decimal.NewFromString(data[4])
+			if err != nil {
+				log.Fatalf("invalid hot_wallet_residual_balance parameter: %v", err)
+			}
+		}
+
 		res[cur] = Jetton{
 			Master:             addr,
 			WithdrawalCutoff:   withdrawalCutoff.BigInt(),
 			HotWalletMaxCutoff: maxCutoff.BigInt(),
+			HotWalletResidual:  residual.BigInt(),
 		}
 	}
 	return res
@@ -146,8 +160,8 @@ func parseJettonString(s string) map[string]Jetton {
 
 func parseTonString(s string) Cutoffs {
 	data := strings.Split(s, ":")
-	if len(data) != 3 {
-		log.Fatalf("invalid jetton data")
+	if len(data) != 3 && len(data) != 4 {
+		log.Fatalf("invalid TON cuttofs")
 	}
 	hotWalletMin, err := decimal.NewFromString(data[0])
 	if err != nil {
@@ -164,9 +178,19 @@ func parseTonString(s string) Cutoffs {
 	if hotWalletMin.Cmp(hotWalletMax) == 1 {
 		log.Fatalf("TON hot wallet max cutoff must be greater than TON hot wallet min cutoff")
 	}
+
+	residual := hotWalletMax.Mul(DefaultHotWalletHysteresis)
+	if len(data) == 4 {
+		residual, err = decimal.NewFromString(data[3])
+		if err != nil {
+			log.Fatalf("invalid hot_wallet_residual_balance parameter: %v", err)
+		}
+	}
+
 	return Cutoffs{
-		HotWalletMin: hotWalletMin.BigInt(),
-		HotWalletMax: hotWalletMax.BigInt(),
-		Withdrawal:   withdrawal.BigInt(),
+		HotWalletMin:      hotWalletMin.BigInt(),
+		HotWalletMax:      hotWalletMax.BigInt(),
+		Withdrawal:        withdrawal.BigInt(),
+		HotWalletResidual: residual.BigInt(),
 	}
 }

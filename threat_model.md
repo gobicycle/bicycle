@@ -134,3 +134,12 @@ If TONs arrive at the wallet address at this time, the message will be applied a
 - T: constant burning of a certain amount of TON on fees
 - S: additional checks to predict the success of the transaction and additional messages in the audit log
 - D: made an additional check on the state of the cold wallet and checking the bounce flag for withdrawal
+
+#### Too frequent withdrawals from a hot wallet to a cold wallet
+- P: if you set only the maximum cutoff for funds on the hot wallet, then the withdrawal to the cold wallet will occur 
+     if this amount is exceeded, even if the amount of the excess is less than the amount of the withdrawal fee
+- T: there may be withdrawals of the amount of funds at which the amount of funds is unreasonably small, 
+     which will lead to unnecessary burning of funds on fees
+- S: it is necessary to set some delta between the amount of triggering the withdrawal to the cold wallet and the 
+     amount that will remain after the withdrawal
+- D: one more parameter has been added to the cutoffs - `hot_wallet_residual_balance`

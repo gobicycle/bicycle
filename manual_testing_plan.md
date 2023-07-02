@@ -276,9 +276,10 @@ Template:
 
 3. -[ ] Checked
 - TEST    : Replenish the deposit with TONs and Jettons so that as a result the amount on the hot wallet is greater
-            than `hot_wallet_max_balance`. Check withdrawals in DB
+            than `hot_wallet_max_balance`. Try with and without `hot_wallet_residual_balance` parameter. Check withdrawals in DB
 - RESULT  : You must find new withdrawal in `withdrawal_requests` table with `is_internal=true`. And final status
-            must correlate with explorer. Withdrawal amount must correlate with hysteresis formula.
+            must correlate with explorer. Withdrawal amount must correlate with hysteresis formula 
+            (and `hot_wallet_residual_balance` parameter).
 - COMMENT :
 
 ### Deploy

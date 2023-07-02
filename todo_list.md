@@ -69,3 +69,4 @@
 - [ ] Automatic migrations
 - [ ] SDK
 - [ ] migration from blueprint to openapi
+- [ ] refactor config and cutoff parameters
