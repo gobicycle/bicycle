@@ -64,7 +64,7 @@ Template:
 
 ### API
 
-1. -[ ] Checked
+1. -[x] Checked
 - TEST    : Use `/v1/address/new` method (few for TONs and few for Jettons for different users). 
             Check new addresses in DB
 - RESULT  : You must receive different addresses in user-friendly format with `bounce = false` flag and 
@@ -72,23 +72,23 @@ Template:
             owner address.
 - COMMENT :
 
-2. -[ ] Checked
+2. -[x] Checked
 - TEST    : Use `/v1/address/all{?user_id}` method and compare with addresses created at 1. And check it by DB
 - RESULT  : All addresses must be received and equal to those created earlier
 - COMMENT :
 
-3. -[ ] Checked
+3. -[x] Checked
 - TEST    : Check `/v1/income{?user_id}` for new empty deposits
 - RESULT  : Income must be zero. The addresses must match the addresses obtained by method `/v1/address/all{?user_id}`.
 - COMMENT :
 
-4. -[ ] Checked
+4. -[x] Checked
 - TEST    : Make some payments at deposits and check it by `/v1/income{?user_id}` method 
             with different `DEPOSIT_SIDE_BALANCE` env var
 - RESULT  : Income must correlate with payments sum
 - COMMENT :
 
-5. -[ ] Checked
+5. -[x] Checked
 - TEST    : Make some withdrawals by `/v1/withdrawal/send` method for TONs and Jettons with amount > hot wallet balance
             and check it by `/v1/withdrawal/status{?id}` few times. Check status of withdrawals by transaction explorer 
             (e.g. https://testnet.tonapi.io/ or https://tonapi.io/). Check withdrawal in DB.
@@ -96,7 +96,7 @@ Template:
             There is no any correlated messages in `external withdrawals` table.
 - COMMENT :
 
-6. -[ ] Checked
+6. -[x] Checked
 - TEST    : Make some withdrawals by `/v1/withdrawal/send` method for TONs and check it by `/v1/withdrawal/status{?id}` 
             few times and try to catch all statuses: `pending`, `processing`, `processed`. Check status of withdrawals 
             by transaction explorer (e.g. https://testnet.tonapi.io/ or https://tonapi.io/). Check withdrawal in DB.
@@ -113,7 +113,7 @@ Template:
             There is no any correlated messages in `external withdrawals` table.
 - COMMENT :
 
-8. -[ ] Checked
+8. -[x] Checked
 - TEST    : Make some withdrawals by `/v1/withdrawal/send` method for Jettons with deployed Jetton hot wallets 
             and check it by `/v1/withdrawal/status{?id}` few times and try to catch all statuses: 
             `pending`, `processing`, `processed`. Check status of withdrawals by transaction explorer 
@@ -239,7 +239,7 @@ Template:
             should always be displayed.
 - COMMENT :
 
-26. -[ ] Checked
+26. -[x] Checked
 - TEST    : Replenish the TON deposit from the masterchain wallet and check it by
             `/v1/history{?user_id,currency,limit,offset}` method.
 - RESULT  : The sender's address must be displayed correctly in the history.
@@ -274,7 +274,7 @@ Template:
 - RESULT  : There should be no missing blocks in the DB.
 - COMMENT :
 
-3. -[ ] Checked
+3. -[x] Checked
 - TEST    : Replenish the deposit with TONs and Jettons so that as a result the amount on the hot wallet is greater
             than `hot_wallet_max_balance`. Try with and without `hot_wallet_residual_balance` parameter. Check withdrawals in DB
 - RESULT  : You must find new withdrawal in `withdrawal_requests` table with `is_internal=true`. And final status
@@ -316,7 +316,7 @@ Template:
             payment activity
 - COMMENT :
 
-6. -[ ] Checked
+6. -[x] Checked
 - TEST    : Start `payment-processor` with `WEBHOOK_ENDPOINT=http://localhost:3333/webhook` env var.
             Start test webserver from `cmd/testwebhook/main.go`. Make some payments to deposits. Check payments data 
             at webserver side. Add env variable `WEBHOOK_TOKEN=123` and restart `payment-processor`. Make some payments 
@@ -325,7 +325,7 @@ Template:
             `WEBHOOK_TOKEN` is not set.
 - COMMENT :
 
-7. -[ ] Checked
+7. -[x] Checked
 - TEST    : Start `payment-processor` with webhooks. Make Jetton payment to deposits with zero froward amount. 
             Check payments data at webserver side.
 - RESULT  : The sender's address must be not presented.
