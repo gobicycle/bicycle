@@ -156,19 +156,19 @@ Template:
 - RESULT  : Withdrawals must be rejected
 - COMMENT :
 
-15. -[ ] Checked
+15. -[x] Checked
 - TEST    : Make withdrawals by `/v1/withdrawal/service/ton` and `/v1/withdrawal/service/jetton` from unknown address 
             and another network (testnet addr for mainnet address and -1 workchain address)
 - RESULT  : Withdrawals must be rejected
 - COMMENT :
 
-16. -[ ] Checked
+16. -[x] Checked
 - TEST    : Make withdrawal by `/v1/withdrawal/service/ton` and `/v1/withdrawal/service/jetton` from known internal but 
             not Jetton deposit owner and not TON deposit address (hot wallet and Jetton wallet)
 - RESULT  : Withdrawal must be rejected
 - COMMENT :
 
-17. -[ ] Checked
+17. -[x] Checked
 - TEST    : Make TON withdrawal by `/v1/withdrawal/service/ton` from known Jetton deposit owner address.
             Check for unusual transactions in the database
 - RESULT  : Withdrawal must be accepted. All TONs must be sent from Jetton deposit owner to hot wallet. There is no
@@ -176,7 +176,7 @@ Template:
             must be `processed = true`
 - COMMENT :
 
-18. -[ ] Checked
+18. -[x] Checked
 - TEST    : Make Jetton (not deposit Jetton type) withdrawal by `/v1/withdrawal/service/jetton` from known internal
             Jetton deposit owner address. Check for unusual transactions in the database
 - RESULT  : Withdrawal must be accepted. Jettons must be sent from Jetton wallet to hot wallet.
@@ -185,7 +185,7 @@ Template:
 - COMMENT : Should be zero forward TON amount in transfer message to prevent invoking notification message and 
             incorrect interpretation hot wallet incoming message
 
-19. -[ ] Checked
+19. -[x] Checked
 - TEST    : Make Jetton withdrawal by `/v1/withdrawal/service/jetton` from known internal TON deposit address. 
             Check for unusual transactions in the database
 - RESULT  : Withdrawal must be accepted. First, there must be a TON filling transaction from hot wallet to TON deposit. 
@@ -197,21 +197,21 @@ Template:
             TON deposit occurs through the Jetton wallet and is not detected by the block scanner as an internal TON 
             withdrawal. The deposit balance on the hot wallet side is not replenished.
 
-20. -[ ] Checked
+20. -[x] Checked
 - TEST    : Make Jetton (for deposit Jetton type) withdrawal by `/v1/withdrawal/service/jetton` from known internal
             Jetton deposit owner address.
 - RESULT  : In `service_withdrawal_request` DB table should be `processed = true` and `filled=false` with zero balances.
             Must be warning about rejected withdrawal in audit log
 - COMMENT :
 
-21. -[ ] Checked
+21. -[x] Checked
 - TEST    : Make TON withdrawal by `/v1/withdrawal/service/ton` from Jetton owner address with zero TON balance
 - RESULT  : Withdrawal must be accepted. There should be audit log info about zero balance.
             There is no any deposit transactions (incomes/withdrawals) in the database and no messages from hot wallet.
             In `service_withdrawal_request` DB table must be `processed = true`
 - COMMENT :
 
-22. -[ ] Checked
+22. -[x] Checked
 - TEST    : Make Jetton withdrawal by `/v1/withdrawal/service/jetton` from Jetton owner address and from TON 
             deposit address with zero Jetton balance
 - RESULT  : Withdrawal must be accepted. There should be audit log info about zero balance. There is no any deposit 
@@ -303,13 +303,13 @@ Template:
 - RESULT  : Must be some message activity in RabbitMQ dashboard for exchange
 - COMMENT :
 
-4. -[ ] Checked
+4. -[x] Checked
 - TEST    : Start `payment-test` service using technical_notes.md instructions 
             with `CIRCULATION=false` env variable. Check availability and functionality of service by Grafana dashboard.
 - RESULT  : Grafana must show prometheus metrics from `payment-test` service (deposit and total balances)
 - COMMENT :
 
-5. -[ ] Checked
+5. -[x] Checked
 - TEST    : Start `payment-test` service using technical_notes.md instructions
             with `CIRCULATION=true` env variable. Check availability and functionality of service by Grafana dashboard.
 - RESULT  : Grafana must show prometheus metrics from `payment-test` service (deposit and total balances) and 
@@ -333,7 +333,7 @@ Template:
 
 ### Stability test
 
-1. -[ ] Checked
+1. -[x] Checked
 - TEST    : Start `payment-test` service using technical_notes.md instructions
             with `CIRCULATION=true` env variable for long time (with enough amount of test TONs on wallet). 
             Periodically check availability and functionality of service by Grafana dashboard and docker logs.
