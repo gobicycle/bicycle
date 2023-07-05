@@ -67,3 +67,4 @@
 - [ ] Not process removed Jettons
 - [ ] Separate .env files for services
 - [ ] Automatic migrations
+- [ ] Time sync with two nodes
