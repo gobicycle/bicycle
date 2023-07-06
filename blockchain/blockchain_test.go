@@ -215,7 +215,7 @@ func Test_GetAccountCurrentState(t *testing.T) {
 func Test_DeployTonWallet(t *testing.T) {
 	c := connect(t)
 	seed := getSeed()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*200)
 	defer cancel()
 	amount := tlb.FromNanoTONU(100_000_000)
 	mainWallet, _, _, err := c.GenerateDefaultWallet(seed, true)
@@ -229,7 +229,7 @@ func Test_DeployTonWallet(t *testing.T) {
 	if b.Cmp(amount.NanoTON()) != 1 || st != tlb.AccountStatusActive {
 		t.Fatal("wallet not active")
 	}
-	newWallet, err := mainWallet.GetSubwallet(3567745334)
+	newWallet, err := mainWallet.GetSubwallet(rand.Uint32())
 	if err != nil {
 		t.Fatal("gen new wallet err: ", err)
 	}
