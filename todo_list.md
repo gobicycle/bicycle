@@ -48,9 +48,15 @@
 - [x] Add filling deposit with bounce to test plan
 - [x] Update to tonutils-go 1.6.2
 - [x] Process masterchain addresses for external incomes
+- [x] Cold wallet withdrawal fix
+- [x] Add hysteresis to cold wallet withdrawal
+- [x] Add user id to notifications
+- [x] Add transaction hash to notifications
+- [ ] Avoid blocking withdrawals to an address if there is a very large amount in the queue for withdrawals to this address
+- [ ] Save tx hash to DB
+- [ ] Support DNS names in recipient address
 - [ ] Jetton threat model
 - [ ] TNX compatibility test
-- [ ] Support DNS names in recipient address
 - [ ] Installation video manual
 - [ ] Use stable branch for emulator
 - [ ] Download blockchain config at start
@@ -63,3 +69,6 @@
 - [ ] Not process removed Jettons
 - [ ] Separate .env files for services
 - [ ] Automatic migrations
+- [ ] SDK
+- [ ] migration from blueprint to openapi
+- [ ] refactor config and cutoff parameters

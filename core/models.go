@@ -131,8 +131,9 @@ func AddressMustFromTonutilsAddress(addr *address.Address) Address {
 }
 
 type AddressInfo struct {
-	Type  WalletType
-	Owner *Address
+	Type   WalletType
+	Owner  *Address
+	UserID string
 }
 
 type JettonWallet struct {
@@ -222,6 +223,7 @@ type InternalIncome struct {
 	Amount   Coins
 	Memo     string
 	IsFailed bool
+	TxHash   []byte
 }
 
 type ExternalIncome struct {
@@ -232,6 +234,7 @@ type ExternalIncome struct {
 	To            Address
 	Amount        Coins
 	Comment       string
+	TxHash        []byte
 }
 
 type Events struct {
@@ -297,6 +300,7 @@ type storage interface {
 	SaveJettonWallet(ctx context.Context, ownerAddress Address, walletData WalletData, notSaveOwner bool) error
 	GetWalletType(address Address) (WalletType, bool)
 	GetOwner(address Address) *Address
+	GetUserID(address Address) (string, bool)
 	GetWalletTypeByTonutilsAddress(address *address.Address) (WalletType, bool)
 	SaveParsedBlockData(ctx context.Context, events BlockEvents) error
 	GetTonInternalWithdrawalTasks(ctx context.Context, limit int) ([]InternalWithdrawalTask, error)

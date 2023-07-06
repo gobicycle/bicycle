@@ -33,6 +33,18 @@ func InitWallets(
 	seed string,
 	jettons map[string]config.Jetton,
 ) (Wallets, error) {
+
+	if config.Config.ColdWallet != nil && config.Config.ColdWallet.IsBounceable() {
+		_, status, err := bc.GetAccountCurrentState(ctx, config.Config.ColdWallet)
+		if err != nil {
+			return Wallets{}, err
+		}
+		log.Infof("Cold wallet status: %s", status)
+		if status != tlb.AccountStatusActive {
+			return Wallets{}, fmt.Errorf("cold wallet address must be non-bounceable for not active wallet")
+		}
+	}
+
 	tonHotWallet, shard, subwalletId, err := initTonHotWallet(ctx, db, bc, seed)
 	if err != nil {
 		return Wallets{}, err

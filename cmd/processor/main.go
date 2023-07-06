@@ -54,7 +54,7 @@ func main() {
 
 	wallets, err := core.InitWallets(ctx, dbClient, bcClient, config.Config.Seed, config.Config.Jettons)
 	if err != nil {
-		log.Fatalf("Hot wallets initialization error: %v", err)
+		log.Fatalf("Wallets initialization error: %v", err)
 	}
 
 	var notificators []core.Notificator

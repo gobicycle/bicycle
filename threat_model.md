@@ -122,8 +122,24 @@ If TONs arrive at the wallet address at this time, the message will be applied a
 - D: warning about this behavior in technical_notes file for method description
 
 #### Setting the value to "expired" without taking into account the allowable delay
-- P: It is impossible to absolutely precisely synchronize in time with the blockchain, so there is an 
+- P: it is impossible to absolutely precisely synchronize in time with the blockchain, so there is an 
      allowable time delay value. If you get into this gap, the "expired" may be incorrectly set.
 - T: double spending for external withdrawals or unnecessary internal withdrawals
 - S: check expiration taking into account time delay
 - D: check expiration taking into account time delay
+
+#### Repetitive failed transactions burning fees
+- P: with periodic withdrawal cycles, there may be situations where the transaction fails every time. 
+     For example, when withdrawing to an uninitialized cold wallet with the bounce flag.
+- T: constant burning of a certain amount of TON on fees
+- S: additional checks to predict the success of the transaction and additional messages in the audit log
+- D: made an additional check on the state of the cold wallet and checking the bounce flag for withdrawal
+
+#### Too frequent withdrawals from a hot wallet to a cold wallet
+- P: if you set only the maximum cutoff for funds on the hot wallet, then the withdrawal to the cold wallet will occur 
+     if this amount is exceeded, even if the amount of the excess is less than the amount of the withdrawal fee
+- T: there may be withdrawals of the amount of funds at which the amount of funds is unreasonably small, 
+     which will lead to unnecessary burning of funds on fees
+- S: it is necessary to set some delta between the amount of triggering the withdrawal to the cold wallet and the 
+     amount that will remain after the withdrawal
+- D: one more parameter has been added to the cutoffs - `hot_wallet_residual_balance`

@@ -1,4 +1,4 @@
-## Manual testing plan for v0.2.0
+## Manual testing plan for v0.4.0
 Template:
 -[x] Checked
 - TEST    : test description
@@ -55,6 +55,11 @@ Template:
 - TEST    : Run service with one `JETTONS` env variable, then rename currency for one of Jetton and restart.
             Like `TGR:ABC...,FNZ:CDE...` -> `SCALE:ABC...,FNZ:CDE...`.
 - RESULT  : Service must stop. Must be address duplication error message in audit log.
+- COMMENT :
+
+10. -[x] Checked
+- TEST    : Start service with uninitialized cold wallet and bounceable address for cold wallet.
+- RESULT  : Service must stop. Must be invalid address format error message in log.
 - COMMENT :
 
 ### API
@@ -234,7 +239,7 @@ Template:
             should always be displayed.
 - COMMENT :
 
-26. -[ ] Checked
+26. -[x] Checked
 - TEST    : Replenish the TON deposit from the masterchain wallet and check it by
             `/v1/history{?user_id,currency,limit,offset}` method.
 - RESULT  : The sender's address must be displayed correctly in the history.
@@ -249,7 +254,7 @@ Template:
 
 28. -[x] Checked
 - TEST    : Replenish the Jetton deposit with zero forward amount and check it by
-  `/v1/history{?user_id,currency,limit,offset}` method.
+            `/v1/history{?user_id,currency,limit,offset}` method.
 - RESULT  : The sender's address must be not presented in the history.
 - COMMENT :
 
@@ -257,15 +262,24 @@ Template:
 
 1. -[x] Checked
 - TEST    : Replenish the deposit with TONs and Jettons so that as a result the amount on the hot wallet is greater 
-            than hot_wallet_max_balance. Check withdrawals in DB
-- RESULT  : You must find new withdrawal in `withdrawal_requests` table with `is_internal=true`. And final status 
-            must correlate with explorer. 
+            than `hot_wallet_max_balance` when cold wallet is not active and cold wallet address in non-bounceable format. 
+            Check withdrawals in DB
+- RESULT  : You must find new withdrawal in `withdrawal_requests` table with `is_internal=true` and `bounceable=false`. 
+            And final status must correlate with explorer. 
 - COMMENT :
 
 2. -[ ] Checked
 - TEST    : Start the service while a workchain merges and splits. Check the integrity of the chain of blocks in the 
             table by comparing with the explorer.
 - RESULT  : There should be no missing blocks in the DB.
+- COMMENT :
+
+3. -[x] Checked
+- TEST    : Replenish the deposit with TONs and Jettons so that as a result the amount on the hot wallet is greater
+            than `hot_wallet_max_balance`. Try with and without `hot_wallet_residual_balance` parameter. Check withdrawals in DB
+- RESULT  : You must find new withdrawal in `withdrawal_requests` table with `is_internal=true`. And final status
+            must correlate with explorer. Withdrawal amount must correlate with hysteresis formula 
+            (and `hot_wallet_residual_balance` parameter).
 - COMMENT :
 
 ### Deploy
@@ -319,7 +333,7 @@ Template:
 
 ### Stability test
 
-1. -[ ] Checked
+1. -[x] Checked
 - TEST    : Start `payment-test` service using technical_notes.md instructions
             with `CIRCULATION=true` env variable for long time (with enough amount of test TONs on wallet). 
             Periodically check availability and functionality of service by Grafana dashboard and docker logs.
