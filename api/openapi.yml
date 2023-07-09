@@ -10,7 +10,7 @@ servers:
 
 paths:
 
-  /v1/address/new:
+  /v2/address/new:
     post:
       security:
         - bearerAuth: []
@@ -34,7 +34,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /v1/address/all{?user_id}:
+  /v2/users/{user_id}/addresses:
     get:
       security:
         - bearerAuth: [ ]
@@ -58,7 +58,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /v1/income{?user_id}:
+  /v2/users/{user_id}/income:
     get:
       security:
         - bearerAuth: [ ]
@@ -82,7 +82,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /v1/history{?user_id,currency,limit,offset}:
+  /v2/users/{user_id}/history:
     get:
       security:
         - bearerAuth: [ ]
@@ -94,7 +94,7 @@ paths:
         - $ref: '#/components/parameters/userIdParameter'
         - $ref: '#/components/parameters/currencyParameter'
         - name: limit
-          in: path
+          in: query
           description: the maximum value of returned records
           schema:
             type: integer
@@ -102,7 +102,7 @@ paths:
             default: 100
             example: 100
         - name: offset
-          in: path
+          in: query
           description: offset for returned records
           schema:
             type: integer
@@ -123,7 +123,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /v1/withdrawal/send:
+  /v2/withdrawal/send:
     post:
       security:
         - bearerAuth: [ ]
@@ -147,7 +147,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /v1/withdrawal/status{?id}:
+  /v2/withdrawal/status:
     get:
       security:
         - bearerAuth: [ ]
@@ -171,7 +171,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /v1/withdrawal/service/ton:
+  /v2/withdrawal/service/ton:
     post:
       security:
         - bearerAuth: [ ]
@@ -195,7 +195,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /v1/withdrawal/service/jetton:
+  /v2/withdrawal/service/jetton:
     post:
       security:
         - bearerAuth: [ ]
@@ -219,7 +219,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /v1/system/sync:
+  /v2/system/sync:
     get:
       description: Get blockchain sync flag. Returns `true` if the service has up-to-date data from the blockchain. As long as the flag is equal to `false`, no withdrawals are made
       operationId: getSync
@@ -249,7 +249,7 @@ components:
         example: 123
 
     currencyParameter:
-      in: path
+      in: query
       name: currency
       required: true
       description: the text identifier of the currency specified in the processor configuration. `TON` for TON coin
@@ -258,7 +258,7 @@ components:
         example: TON
 
     withdrawalIDParameter:
-      in: path
+      in: query
       name: id
       required: true
       description: an unique identifier of the withdrawal
