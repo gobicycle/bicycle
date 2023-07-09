@@ -55,24 +55,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 			switch elem[0] {
-			case 'a': // Prefix: "address/new"
-				if l := len("address/new"); len(elem) >= l && elem[0:l] == "address/new" {
-					elem = elem[l:]
-				} else {
-					break
-				}
-
-				if len(elem) == 0 {
-					// Leaf node.
-					switch r.Method {
-					case "POST":
-						s.handleGetNewAddressRequest([0]string{}, elemIsEscaped, w, r)
-					default:
-						s.notAllowed(w, r, "POST")
-					}
-
-					return
-				}
 			case 's': // Prefix: "system/sync"
 				if l := len("system/sync"); len(elem) >= l && elem[0:l] == "system/sync" {
 					elem = elem[l:]
@@ -122,18 +104,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						break
 					}
 					switch elem[0] {
-					case 'a': // Prefix: "addresses"
-						if l := len("addresses"); len(elem) >= l && elem[0:l] == "addresses" {
+					case 'd': // Prefix: "deposits"
+						if l := len("deposits"); len(elem) >= l && elem[0:l] == "deposits" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
 						if len(elem) == 0 {
-							// Leaf node.
 							switch r.Method {
 							case "GET":
-								s.handleGetAddressesRequest([1]string{
+								s.handleGetDepositsRequest([1]string{
 									args[0],
 								}, elemIsEscaped, w, r)
 							default:
@@ -141,6 +122,28 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							}
 
 							return
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/new"
+							if l := len("/new"); len(elem) >= l && elem[0:l] == "/new" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleMakeNewDepositRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "POST")
+								}
+
+								return
+							}
 						}
 					case 'h': // Prefix: "history"
 						if l := len("history"); len(elem) >= l && elem[0:l] == "history" {
@@ -373,27 +376,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 				break
 			}
 			switch elem[0] {
-			case 'a': // Prefix: "address/new"
-				if l := len("address/new"); len(elem) >= l && elem[0:l] == "address/new" {
-					elem = elem[l:]
-				} else {
-					break
-				}
-
-				if len(elem) == 0 {
-					switch method {
-					case "POST":
-						// Leaf: GetNewAddress
-						r.name = "GetNewAddress"
-						r.operationID = "getNewAddress"
-						r.pathPattern = "/v2/address/new"
-						r.args = args
-						r.count = 0
-						return r, true
-					default:
-						return
-					}
-				}
 			case 's': // Prefix: "system/sync"
 				if l := len("system/sync"); len(elem) >= l && elem[0:l] == "system/sync" {
 					elem = elem[l:]
@@ -446,8 +428,8 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						break
 					}
 					switch elem[0] {
-					case 'a': // Prefix: "addresses"
-						if l := len("addresses"); len(elem) >= l && elem[0:l] == "addresses" {
+					case 'd': // Prefix: "deposits"
+						if l := len("deposits"); len(elem) >= l && elem[0:l] == "deposits" {
 							elem = elem[l:]
 						} else {
 							break
@@ -456,15 +438,37 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						if len(elem) == 0 {
 							switch method {
 							case "GET":
-								// Leaf: GetAddresses
-								r.name = "GetAddresses"
-								r.operationID = "getAddresses"
-								r.pathPattern = "/v2/users/{user_id}/addresses"
+								r.name = "GetDeposits"
+								r.operationID = "getDeposits"
+								r.pathPattern = "/v2/users/{user_id}/deposits"
 								r.args = args
 								r.count = 1
 								return r, true
 							default:
 								return
+							}
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/new"
+							if l := len("/new"); len(elem) >= l && elem[0:l] == "/new" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								switch method {
+								case "POST":
+									// Leaf: MakeNewDeposit
+									r.name = "MakeNewDeposit"
+									r.operationID = "makeNewDeposit"
+									r.pathPattern = "/v2/users/{user_id}/deposits/new"
+									r.args = args
+									r.count = 1
+									return r, true
+								default:
+									return
+								}
 							}
 						}
 					case 'h': // Prefix: "history"

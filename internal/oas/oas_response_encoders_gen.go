@@ -11,7 +11,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func encodeGetAddressesResponse(response GetAddressesRes, w http.ResponseWriter, span trace.Span) error {
+func encodeGetDepositsResponse(response GetDepositsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *Deposits:
 		w.Header().Set("Content-Type", "application/json")
@@ -176,9 +176,40 @@ func encodeGetIncomeHistoryResponse(response GetIncomeHistoryRes, w http.Respons
 	}
 }
 
-func encodeGetNewAddressResponse(response GetNewAddressRes, w http.ResponseWriter, span trace.Span) error {
+func encodeGetSyncResponse(response GetSyncRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *Address:
+	case *SyncStatus:
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		span.SetStatus(codes.Ok, http.StatusText(200))
+
+		e := jx.GetEncoder()
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+		return nil
+
+	case *InternalError:
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(500)
+		span.SetStatus(codes.Error, http.StatusText(500))
+
+		e := jx.GetEncoder()
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+		return nil
+
+	default:
+		return errors.Errorf("unexpected response type: %T", response)
+	}
+}
+
+func encodeGetWithdrawalStatusResponse(response GetWithdrawalStatusRes, w http.ResponseWriter, span trace.Span) error {
+	switch response := response.(type) {
+	case *WithdrawalStatus:
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))
@@ -231,40 +262,9 @@ func encodeGetNewAddressResponse(response GetNewAddressRes, w http.ResponseWrite
 	}
 }
 
-func encodeGetSyncResponse(response GetSyncRes, w http.ResponseWriter, span trace.Span) error {
+func encodeMakeNewDepositResponse(response MakeNewDepositRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *SyncStatus:
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		span.SetStatus(codes.Ok, http.StatusText(200))
-
-		e := jx.GetEncoder()
-		response.Encode(e)
-		if _, err := e.WriteTo(w); err != nil {
-			return errors.Wrap(err, "write")
-		}
-		return nil
-
-	case *InternalError:
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(500)
-		span.SetStatus(codes.Error, http.StatusText(500))
-
-		e := jx.GetEncoder()
-		response.Encode(e)
-		if _, err := e.WriteTo(w); err != nil {
-			return errors.Wrap(err, "write")
-		}
-		return nil
-
-	default:
-		return errors.Errorf("unexpected response type: %T", response)
-	}
-}
-
-func encodeGetWithdrawalStatusResponse(response GetWithdrawalStatusRes, w http.ResponseWriter, span trace.Span) error {
-	switch response := response.(type) {
-	case *WithdrawalStatus:
+	case *Deposit:
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		span.SetStatus(codes.Ok, http.StatusText(200))

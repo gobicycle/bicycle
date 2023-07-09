@@ -15,13 +15,13 @@ import (
 	"github.com/ogen-go/ogen/validate"
 )
 
-// GetAddressesParams is parameters of getAddresses operation.
-type GetAddressesParams struct {
+// GetDepositsParams is parameters of getDeposits operation.
+type GetDepositsParams struct {
 	// External unique user ID for grouping deposits.
 	UserID string
 }
 
-func unpackGetAddressesParams(packed middleware.Parameters) (params GetAddressesParams) {
+func unpackGetDepositsParams(packed middleware.Parameters) (params GetDepositsParams) {
 	{
 		key := middleware.ParameterKey{
 			Name: "user_id",
@@ -32,7 +32,7 @@ func unpackGetAddressesParams(packed middleware.Parameters) (params GetAddresses
 	return params
 }
 
-func decodeGetAddressesParams(args [1]string, argsEscaped bool, r *http.Request) (params GetAddressesParams, _ error) {
+func decodeGetDepositsParams(args [1]string, argsEscaped bool, r *http.Request) (params GetDepositsParams, _ error) {
 	// Decode path: user_id.
 	if err := func() error {
 		param := args[0]
@@ -424,6 +424,118 @@ func decodeGetWithdrawalStatusParams(args [0]string, argsEscaped bool, r *http.R
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "id",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// MakeNewDepositParams is parameters of makeNewDeposit operation.
+type MakeNewDepositParams struct {
+	// External unique user ID for grouping deposits.
+	UserID string
+	// The text identifier of the currency specified in the processor configuration. `TON` for TON coin.
+	Currency string
+}
+
+func unpackMakeNewDepositParams(packed middleware.Parameters) (params MakeNewDepositParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "user_id",
+			In:   "path",
+		}
+		params.UserID = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "currency",
+			In:   "query",
+		}
+		params.Currency = packed[key].(string)
+	}
+	return params
+}
+
+func decodeMakeNewDepositParams(args [1]string, argsEscaped bool, r *http.Request) (params MakeNewDepositParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode path: user_id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "user_id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.UserID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "user_id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode query: currency.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "currency",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.Currency = c
+				return nil
+			}); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "currency",
 			In:   "query",
 			Err:  err,
 		}

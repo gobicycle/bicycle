@@ -8,12 +8,12 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
-	// GetAddresses implements getAddresses operation.
+	// GetDeposits implements getDeposits operation.
 	//
 	// Get all created addresses by `user_id`.
 	//
-	// GET /v2/users/{user_id}/addresses
-	GetAddresses(ctx context.Context, params GetAddressesParams) (GetAddressesRes, error)
+	// GET /v2/users/{user_id}/deposits
+	GetDeposits(ctx context.Context, params GetDepositsParams) (GetDepositsRes, error)
 	// GetIncome implements getIncome operation.
 	//
 	// Get income for deposits by `user_id`. The total amount of funds that came to the deposit for the
@@ -30,12 +30,6 @@ type Handler interface {
 	//
 	// GET /v2/users/{user_id}/history
 	GetIncomeHistory(ctx context.Context, params GetIncomeHistoryParams) (GetIncomeHistoryRes, error)
-	// GetNewAddress implements getNewAddress operation.
-	//
-	// Generates new deposit address.
-	//
-	// POST /v2/address/new
-	GetNewAddress(ctx context.Context, req *GetNewAddressReq) (GetNewAddressRes, error)
 	// GetSync implements getSync operation.
 	//
 	// Get blockchain sync flag. Returns `true` if the service has up-to-date data from the blockchain.
@@ -49,6 +43,12 @@ type Handler interface {
 	//
 	// GET /v2/withdrawal/status
 	GetWithdrawalStatus(ctx context.Context, params GetWithdrawalStatusParams) (GetWithdrawalStatusRes, error)
+	// MakeNewDeposit implements makeNewDeposit operation.
+	//
+	// Generates new deposit address.
+	//
+	// POST /v2/users/{user_id}/deposits/new
+	MakeNewDeposit(ctx context.Context, params MakeNewDepositParams) (MakeNewDepositRes, error)
 	// SendWithdrawal implements sendWithdrawal operation.
 	//
 	// Send withdrawal request. **Amount must be in base units without decimal point (NanoTONs for TONs)**.

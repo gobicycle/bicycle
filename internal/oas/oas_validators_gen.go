@@ -50,13 +50,13 @@ func (s CalculatedIncomeCountingSide) Validate() error {
 func (s *Deposits) Validate() error {
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.Addresses == nil {
+		if s.Deposits == nil {
 			return errors.New("nil is invalid value")
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "addresses",
+			Name:  "deposits",
 			Error: err,
 		})
 	}

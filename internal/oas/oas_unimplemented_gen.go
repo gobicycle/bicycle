@@ -13,12 +13,12 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
-// GetAddresses implements getAddresses operation.
+// GetDeposits implements getDeposits operation.
 //
 // Get all created addresses by `user_id`.
 //
-// GET /v2/users/{user_id}/addresses
-func (UnimplementedHandler) GetAddresses(ctx context.Context, params GetAddressesParams) (r GetAddressesRes, _ error) {
+// GET /v2/users/{user_id}/deposits
+func (UnimplementedHandler) GetDeposits(ctx context.Context, params GetDepositsParams) (r GetDepositsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -44,15 +44,6 @@ func (UnimplementedHandler) GetIncomeHistory(ctx context.Context, params GetInco
 	return r, ht.ErrNotImplemented
 }
 
-// GetNewAddress implements getNewAddress operation.
-//
-// Generates new deposit address.
-//
-// POST /v2/address/new
-func (UnimplementedHandler) GetNewAddress(ctx context.Context, req *GetNewAddressReq) (r GetNewAddressRes, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // GetSync implements getSync operation.
 //
 // Get blockchain sync flag. Returns `true` if the service has up-to-date data from the blockchain.
@@ -69,6 +60,15 @@ func (UnimplementedHandler) GetSync(ctx context.Context) (r GetSyncRes, _ error)
 //
 // GET /v2/withdrawal/status
 func (UnimplementedHandler) GetWithdrawalStatus(ctx context.Context, params GetWithdrawalStatusParams) (r GetWithdrawalStatusRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// MakeNewDeposit implements makeNewDeposit operation.
+//
+// Generates new deposit address.
+//
+// POST /v2/users/{user_id}/deposits/new
+func (UnimplementedHandler) MakeNewDeposit(ctx context.Context, params MakeNewDepositParams) (r MakeNewDepositRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

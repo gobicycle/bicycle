@@ -10,23 +10,24 @@ servers:
 
 paths:
 
-  /v2/address/new:
+  /v2/users/{user_id}/deposits/new:
     post:
       security:
         - bearerAuth: []
       description: Generates new deposit address
-      operationId: getNewAddress
+      operationId: makeNewDeposit
       tags:
         - Deposits
-      requestBody:
-        $ref: "#/components/requestBodies/DepositParameters"
+      parameters:
+        - $ref: '#/components/parameters/userIdParameter'
+        - $ref: '#/components/parameters/currencyParameter'
       responses:
         '200':
           description: new deposit address
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Address'
+                $ref: '#/components/schemas/Deposit'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -34,19 +35,19 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /v2/users/{user_id}/addresses:
+  /v2/users/{user_id}/deposits:
     get:
       security:
         - bearerAuth: [ ]
       description: Get all created addresses by `user_id`.
-      operationId: getAddresses
+      operationId: getDeposits
       tags:
         - Deposits
       parameters:
         - $ref: '#/components/parameters/userIdParameter'
       responses:
         '200':
-          description: addresses
+          description: deposits
           content:
             application/json:
               schema:
@@ -363,15 +364,6 @@ components:
           type: string
           example: error description
 
-    Address:
-      type: object
-      required:
-        - address
-      properties:
-        address:
-          type: string
-          example: 0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR
-
     Deposit:
       type: object
       required:
@@ -388,9 +380,9 @@ components:
     Deposits:
       type: object
       required:
-        - addresses
+        - deposits
       properties:
-        addresses:
+        deposits:
           type: array
           items:
             $ref: '#/components/schemas/Deposit'

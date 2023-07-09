@@ -18,20 +18,20 @@ import (
 	"github.com/ogen-go/ogen/otelogen"
 )
 
-// handleGetAddressesRequest handles getAddresses operation.
+// handleGetDepositsRequest handles getDeposits operation.
 //
 // Get all created addresses by `user_id`.
 //
-// GET /v2/users/{user_id}/addresses
-func (s *Server) handleGetAddressesRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// GET /v2/users/{user_id}/deposits
+func (s *Server) handleGetDepositsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getAddresses"),
+		otelogen.OperationID("getDeposits"),
 		semconv.HTTPMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/v2/users/{user_id}/addresses"),
+		semconv.HTTPRouteKey.String("/v2/users/{user_id}/deposits"),
 	}
 
 	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(r.Context(), "GetAddresses",
+	ctx, span := s.cfg.Tracer.Start(r.Context(), "GetDeposits",
 		trace.WithAttributes(otelAttrs...),
 		serverSpanKind,
 	)
@@ -56,15 +56,15 @@ func (s *Server) handleGetAddressesRequest(args [1]string, argsEscaped bool, w h
 		}
 		err          error
 		opErrContext = ogenerrors.OperationContext{
-			Name: "GetAddresses",
-			ID:   "getAddresses",
+			Name: "GetDeposits",
+			ID:   "getDeposits",
 		}
 	)
 	{
 		type bitset = [1]uint8
 		var satisfied bitset
 		{
-			sctx, ok, err := s.securityBearerAuth(ctx, "GetAddresses", r)
+			sctx, ok, err := s.securityBearerAuth(ctx, "GetDeposits", r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -104,7 +104,7 @@ func (s *Server) handleGetAddressesRequest(args [1]string, argsEscaped bool, w h
 			return
 		}
 	}
-	params, err := decodeGetAddressesParams(args, argsEscaped, r)
+	params, err := decodeGetDepositsParams(args, argsEscaped, r)
 	if err != nil {
 		err = &ogenerrors.DecodeParamsError{
 			OperationContext: opErrContext,
@@ -115,12 +115,12 @@ func (s *Server) handleGetAddressesRequest(args [1]string, argsEscaped bool, w h
 		return
 	}
 
-	var response GetAddressesRes
+	var response GetDepositsRes
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:       ctx,
-			OperationName: "GetAddresses",
-			OperationID:   "getAddresses",
+			OperationName: "GetDeposits",
+			OperationID:   "getDeposits",
 			Body:          nil,
 			Params: middleware.Parameters{
 				{
@@ -133,8 +133,8 @@ func (s *Server) handleGetAddressesRequest(args [1]string, argsEscaped bool, w h
 
 		type (
 			Request  = struct{}
-			Params   = GetAddressesParams
-			Response = GetAddressesRes
+			Params   = GetDepositsParams
+			Response = GetDepositsRes
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -143,14 +143,14 @@ func (s *Server) handleGetAddressesRequest(args [1]string, argsEscaped bool, w h
 		](
 			m,
 			mreq,
-			unpackGetAddressesParams,
+			unpackGetDepositsParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.GetAddresses(ctx, params)
+				response, err = s.h.GetDeposits(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.GetAddresses(ctx, params)
+		response, err = s.h.GetDeposits(ctx, params)
 	}
 	if err != nil {
 		recordError("Internal", err)
@@ -158,7 +158,7 @@ func (s *Server) handleGetAddressesRequest(args [1]string, argsEscaped bool, w h
 		return
 	}
 
-	if err := encodeGetAddressesResponse(response, w, span); err != nil {
+	if err := encodeGetDepositsResponse(response, w, span); err != nil {
 		recordError("EncodeResponse", err)
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
@@ -475,153 +475,6 @@ func (s *Server) handleGetIncomeHistoryRequest(args [1]string, argsEscaped bool,
 	}
 }
 
-// handleGetNewAddressRequest handles getNewAddress operation.
-//
-// Generates new deposit address.
-//
-// POST /v2/address/new
-func (s *Server) handleGetNewAddressRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getNewAddress"),
-		semconv.HTTPMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/v2/address/new"),
-	}
-
-	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(r.Context(), "GetNewAddress",
-		trace.WithAttributes(otelAttrs...),
-		serverSpanKind,
-	)
-	defer span.End()
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		elapsedDuration := time.Since(startTime)
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		s.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	s.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	var (
-		recordError = func(stage string, err error) {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			s.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: "GetNewAddress",
-			ID:   "getNewAddress",
-		}
-	)
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			sctx, ok, err := s.securityBearerAuth(ctx, "GetNewAddress", r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "BearerAuth",
-					Err:              err,
-				}
-				recordError("Security:BearerAuth", err)
-				s.cfg.ErrorHandler(ctx, w, r, err)
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 0
-				ctx = sctx
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			err = &ogenerrors.SecurityError{
-				OperationContext: opErrContext,
-				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
-			}
-			recordError("Security", err)
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-	}
-	request, close, err := s.decodeGetNewAddressRequest(r)
-	if err != nil {
-		err = &ogenerrors.DecodeRequestError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		recordError("DecodeRequest", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-	defer func() {
-		if err := close(); err != nil {
-			recordError("CloseRequest", err)
-		}
-	}()
-
-	var response GetNewAddressRes
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:       ctx,
-			OperationName: "GetNewAddress",
-			OperationID:   "getNewAddress",
-			Body:          request,
-			Params:        middleware.Parameters{},
-			Raw:           r,
-		}
-
-		type (
-			Request  = *GetNewAddressReq
-			Params   = struct{}
-			Response = GetNewAddressRes
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			nil,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.GetNewAddress(ctx, request)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.GetNewAddress(ctx, request)
-	}
-	if err != nil {
-		recordError("Internal", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	if err := encodeGetNewAddressResponse(response, w, span); err != nil {
-		recordError("EncodeResponse", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-}
-
 // handleGetSyncRequest handles getSync operation.
 //
 // Get blockchain sync flag. Returns `true` if the service has up-to-date data from the blockchain.
@@ -848,6 +701,157 @@ func (s *Server) handleGetWithdrawalStatusRequest(args [0]string, argsEscaped bo
 	}
 
 	if err := encodeGetWithdrawalStatusResponse(response, w, span); err != nil {
+		recordError("EncodeResponse", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+}
+
+// handleMakeNewDepositRequest handles makeNewDeposit operation.
+//
+// Generates new deposit address.
+//
+// POST /v2/users/{user_id}/deposits/new
+func (s *Server) handleMakeNewDepositRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("makeNewDeposit"),
+		semconv.HTTPMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v2/users/{user_id}/deposits/new"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), "MakeNewDeposit",
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	s.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			s.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: "MakeNewDeposit",
+			ID:   "makeNewDeposit",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearerAuth(ctx, "MakeNewDeposit", r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "BearerAuth",
+					Err:              err,
+				}
+				recordError("Security:BearerAuth", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeMakeNewDepositParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var response MakeNewDepositRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:       ctx,
+			OperationName: "MakeNewDeposit",
+			OperationID:   "makeNewDeposit",
+			Body:          nil,
+			Params: middleware.Parameters{
+				{
+					Name: "user_id",
+					In:   "path",
+				}: params.UserID,
+				{
+					Name: "currency",
+					In:   "query",
+				}: params.Currency,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = MakeNewDepositParams
+			Response = MakeNewDepositRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackMakeNewDepositParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.MakeNewDeposit(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.MakeNewDeposit(ctx, params)
+	}
+	if err != nil {
+		recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeMakeNewDepositResponse(response, w, span); err != nil {
 		recordError("EncodeResponse", err)
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return

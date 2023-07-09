@@ -71,20 +71,20 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 	return u
 }
 
-// GetAddresses invokes getAddresses operation.
+// GetDeposits invokes getDeposits operation.
 //
 // Get all created addresses by `user_id`.
 //
-// GET /v2/users/{user_id}/addresses
-func (c *Client) GetAddresses(ctx context.Context, params GetAddressesParams) (GetAddressesRes, error) {
-	res, err := c.sendGetAddresses(ctx, params)
+// GET /v2/users/{user_id}/deposits
+func (c *Client) GetDeposits(ctx context.Context, params GetDepositsParams) (GetDepositsRes, error) {
+	res, err := c.sendGetDeposits(ctx, params)
 	_ = res
 	return res, err
 }
 
-func (c *Client) sendGetAddresses(ctx context.Context, params GetAddressesParams) (res GetAddressesRes, err error) {
+func (c *Client) sendGetDeposits(ctx context.Context, params GetDepositsParams) (res GetDepositsRes, err error) {
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getAddresses"),
+		otelogen.OperationID("getDeposits"),
 	}
 
 	// Run stopwatch.
@@ -99,7 +99,7 @@ func (c *Client) sendGetAddresses(ctx context.Context, params GetAddressesParams
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetAddresses",
+	ctx, span := c.cfg.Tracer.Start(ctx, "GetDeposits",
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -136,7 +136,7 @@ func (c *Client) sendGetAddresses(ctx context.Context, params GetAddressesParams
 		}
 		pathParts[1] = encoded
 	}
-	pathParts[2] = "/addresses"
+	pathParts[2] = "/deposits"
 	uri.AddPathParts(u, pathParts[:]...)
 
 	stage = "EncodeRequest"
@@ -150,7 +150,7 @@ func (c *Client) sendGetAddresses(ctx context.Context, params GetAddressesParams
 		var satisfied bitset
 		{
 			stage = "Security:BearerAuth"
-			switch err := c.securityBearerAuth(ctx, "GetAddresses", r); {
+			switch err := c.securityBearerAuth(ctx, "GetDeposits", r); {
 			case err == nil: // if NO error
 				satisfied[0] |= 1 << 0
 			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
@@ -186,7 +186,7 @@ func (c *Client) sendGetAddresses(ctx context.Context, params GetAddressesParams
 	defer resp.Body.Close()
 
 	stage = "DecodeResponse"
-	result, err := decodeGetAddressesResponse(resp)
+	result, err := decodeGetDepositsResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -496,113 +496,6 @@ func (c *Client) sendGetIncomeHistory(ctx context.Context, params GetIncomeHisto
 	return result, nil
 }
 
-// GetNewAddress invokes getNewAddress operation.
-//
-// Generates new deposit address.
-//
-// POST /v2/address/new
-func (c *Client) GetNewAddress(ctx context.Context, request *GetNewAddressReq) (GetNewAddressRes, error) {
-	res, err := c.sendGetNewAddress(ctx, request)
-	_ = res
-	return res, err
-}
-
-func (c *Client) sendGetNewAddress(ctx context.Context, request *GetNewAddressReq) (res GetNewAddressRes, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getNewAddress"),
-	}
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, "GetNewAddress",
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/v2/address/new"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "POST", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeGetNewAddressRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			stage = "Security:BearerAuth"
-			switch err := c.securityBearerAuth(ctx, "GetNewAddress", r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"BearerAuth\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, errors.New("no security requirement satisfied")
-		}
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	stage = "DecodeResponse"
-	result, err := decodeGetNewAddressResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
 // GetSync invokes getSync operation.
 //
 // Get blockchain sync flag. Returns `true` if the service has up-to-date data from the blockchain.
@@ -790,6 +683,147 @@ func (c *Client) sendGetWithdrawalStatus(ctx context.Context, params GetWithdraw
 
 	stage = "DecodeResponse"
 	result, err := decodeGetWithdrawalStatusResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// MakeNewDeposit invokes makeNewDeposit operation.
+//
+// Generates new deposit address.
+//
+// POST /v2/users/{user_id}/deposits/new
+func (c *Client) MakeNewDeposit(ctx context.Context, params MakeNewDepositParams) (MakeNewDepositRes, error) {
+	res, err := c.sendMakeNewDeposit(ctx, params)
+	_ = res
+	return res, err
+}
+
+func (c *Client) sendMakeNewDeposit(ctx context.Context, params MakeNewDepositParams) (res MakeNewDepositRes, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("makeNewDeposit"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(float64(elapsedDuration)/float64(time.Millisecond)), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, "MakeNewDeposit",
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/v2/users/"
+	{
+		// Encode "user_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "user_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.UserID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/deposits/new"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "currency" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "currency",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(conv.StringToString(params.Currency))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:BearerAuth"
+			switch err := c.securityBearerAuth(ctx, "MakeNewDeposit", r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, errors.New("no security requirement satisfied")
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeMakeNewDepositResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

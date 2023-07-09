@@ -6,23 +6,6 @@ import (
 	"github.com/go-faster/errors"
 )
 
-// Ref: #/components/schemas/Address
-type Address struct {
-	Address string `json:"address"`
-}
-
-// GetAddress returns the value of Address.
-func (s *Address) GetAddress() string {
-	return s.Address
-}
-
-// SetAddress sets the value of Address.
-func (s *Address) SetAddress(val string) {
-	s.Address = val
-}
-
-func (*Address) getNewAddressRes() {}
-
 type BadRequest struct {
 	Error string `json:"error"`
 }
@@ -37,11 +20,11 @@ func (s *BadRequest) SetError(val string) {
 	s.Error = val
 }
 
-func (*BadRequest) getAddressesRes()            {}
+func (*BadRequest) getDepositsRes()             {}
 func (*BadRequest) getIncomeHistoryRes()        {}
 func (*BadRequest) getIncomeRes()               {}
-func (*BadRequest) getNewAddressRes()           {}
 func (*BadRequest) getWithdrawalStatusRes()     {}
+func (*BadRequest) makeNewDepositRes()          {}
 func (*BadRequest) sendWithdrawalRes()          {}
 func (*BadRequest) serviceJettonWithdrawalRes() {}
 func (*BadRequest) serviceTonWithdrawalRes()    {}
@@ -147,47 +130,24 @@ func (s *Deposit) SetCurrency(val string) {
 	s.Currency = val
 }
 
+func (*Deposit) makeNewDepositRes() {}
+
 // Ref: #/components/schemas/Deposits
 type Deposits struct {
-	Addresses []Deposit `json:"addresses"`
+	Deposits []Deposit `json:"deposits"`
 }
 
-// GetAddresses returns the value of Addresses.
-func (s *Deposits) GetAddresses() []Deposit {
-	return s.Addresses
+// GetDeposits returns the value of Deposits.
+func (s *Deposits) GetDeposits() []Deposit {
+	return s.Deposits
 }
 
-// SetAddresses sets the value of Addresses.
-func (s *Deposits) SetAddresses(val []Deposit) {
-	s.Addresses = val
+// SetDeposits sets the value of Deposits.
+func (s *Deposits) SetDeposits(val []Deposit) {
+	s.Deposits = val
 }
 
-func (*Deposits) getAddressesRes() {}
-
-type GetNewAddressReq struct {
-	UserID   string `json:"user_id"`
-	Currency string `json:"currency"`
-}
-
-// GetUserID returns the value of UserID.
-func (s *GetNewAddressReq) GetUserID() string {
-	return s.UserID
-}
-
-// GetCurrency returns the value of Currency.
-func (s *GetNewAddressReq) GetCurrency() string {
-	return s.Currency
-}
-
-// SetUserID sets the value of UserID.
-func (s *GetNewAddressReq) SetUserID(val string) {
-	s.UserID = val
-}
-
-// SetCurrency sets the value of Currency.
-func (s *GetNewAddressReq) SetCurrency(val string) {
-	s.Currency = val
-}
+func (*Deposits) getDepositsRes() {}
 
 // Ref: #/components/schemas/Income
 type Income struct {
@@ -279,12 +239,12 @@ func (s *InternalError) SetError(val string) {
 	s.Error = val
 }
 
-func (*InternalError) getAddressesRes()            {}
+func (*InternalError) getDepositsRes()             {}
 func (*InternalError) getIncomeHistoryRes()        {}
 func (*InternalError) getIncomeRes()               {}
-func (*InternalError) getNewAddressRes()           {}
 func (*InternalError) getSyncRes()                 {}
 func (*InternalError) getWithdrawalStatusRes()     {}
+func (*InternalError) makeNewDepositRes()          {}
 func (*InternalError) sendWithdrawalRes()          {}
 func (*InternalError) serviceJettonWithdrawalRes() {}
 func (*InternalError) serviceTonWithdrawalRes()    {}
@@ -575,11 +535,11 @@ func (s *UnauthorizedError) SetError(val string) {
 	s.Error = val
 }
 
-func (*UnauthorizedError) getAddressesRes()            {}
+func (*UnauthorizedError) getDepositsRes()             {}
 func (*UnauthorizedError) getIncomeHistoryRes()        {}
 func (*UnauthorizedError) getIncomeRes()               {}
-func (*UnauthorizedError) getNewAddressRes()           {}
 func (*UnauthorizedError) getWithdrawalStatusRes()     {}
+func (*UnauthorizedError) makeNewDepositRes()          {}
 func (*UnauthorizedError) sendWithdrawalRes()          {}
 func (*UnauthorizedError) serviceJettonWithdrawalRes() {}
 func (*UnauthorizedError) serviceTonWithdrawalRes()    {}

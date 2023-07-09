@@ -6,25 +6,24 @@ import (
 	"fmt"
 	"github.com/gobicycle/bicycle/internal/config"
 	"github.com/gobicycle/bicycle/internal/core"
+	"github.com/gobicycle/bicycle/internal/oas"
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	log "github.com/sirupsen/logrus"
 	"github.com/tonkeeper/tongo"
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/ton/wallet"
 	"net/http"
 	"strconv"
-	"sync"
 )
 
-type Handler struct {
-	storage          storage
-	blockchain       blockchain
-	token            string
-	shard            tongo.ShardID
-	mutex            sync.Mutex
-	hotWalletAddress address.Address
-}
+//type Handler struct {
+//	storage          storage
+//	blockchain       blockchain
+//	token            string
+//	shard            tongo.ShardID
+//	mutex            sync.Mutex
+//	hotWalletAddress address.Address
+//}
 
 type WithdrawalRequest struct {
 	UserID      string     `json:"user_id"`
@@ -84,59 +83,25 @@ type income struct {
 	Comment        string `json:"comment,omitempty"`
 }
 
-func NewHandler(s storage, b blockchain, token string, shard tongo.ShardID, hotWalletAddress address.Address) *Handler {
-	return &Handler{storage: s, blockchain: b, token: token, shard: shard, hotWalletAddress: hotWalletAddress}
-}
-
-func (h *Handler) getNewAddress(resp http.ResponseWriter, req *http.Request) {
-	var data struct {
-		UserID   string `json:"user_id"`
-		Currency string `json:"currency"`
-	}
-	err := json.NewDecoder(req.Body).Decode(&data)
-	if err != nil {
-		writeHttpError(resp, http.StatusBadRequest, fmt.Sprintf("decode payload data err: %v", err))
-		return
-	}
-	if !isValidCurrency(data.Currency) {
-		writeHttpError(resp, http.StatusBadRequest, "invalid currency type")
-		return
+func (h Handler) MakeNewDeposit(ctx context.Context, params oas.MakeNewDepositParams) (oas.MakeNewDepositRes, error) {
+	if !isValidCurrency(params.Currency) {
+		return &oas.BadRequest{Error: "invalid currency type"}, nil
 	}
 	h.mutex.Lock()
 	defer h.mutex.Unlock() // To prevent data race
-	addr, err := generateAddress(req.Context(), data.UserID, data.Currency, h.shard, h.storage, h.blockchain, h.hotWalletAddress)
+	deposit, err := generateDeposit(ctx, params.UserID, params.Currency, h.shard, h.storage, h.executor, h.hotWalletAddress)
 	if err != nil {
-		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("generate address err: %v", err))
-		return
+		return &oas.InternalError{Error: err.Error()}, nil
 	}
-	res := struct {
-		Address string `json:"address"`
-	}{Address: addr}
-	resp.Header().Add("Content-Type", "application/json")
-	resp.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(resp).Encode(res)
-	if err != nil {
-		log.Errorf("json encode error: %v", err)
-	}
+	return deposit, nil
 }
 
-func (h *Handler) getAddresses(resp http.ResponseWriter, req *http.Request) {
-	userID := req.URL.Query().Get("user_id")
-	if userID == "" {
-		writeHttpError(resp, http.StatusBadRequest, "need to provide user ID")
-		return
-	}
-	addresses, err := getAddresses(req.Context(), userID, h.storage)
+func (h Handler) GetDeposits(ctx context.Context, params oas.GetDepositsParams) (oas.GetDepositsRes, error) {
+	deposits, err := getDeposits(ctx, params.UserID, h.storage)
 	if err != nil {
-		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get addresses err: %v", err))
-		return
+		return &oas.InternalError{Error: err.Error()}, nil
 	}
-	resp.Header().Add("Content-Type", "application/json")
-	resp.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(resp).Encode(addresses)
-	if err != nil {
-		log.Errorf("json encode error: %v", err)
-	}
+	return deposits, nil
 }
 
 func (h *Handler) sendWithdrawal(resp http.ResponseWriter, req *http.Request) {
@@ -354,7 +319,7 @@ func RegisterHandlers(mux *http.ServeMux, h *Handler) {
 	mux.HandleFunc("/v1/deposit/history", recoverMiddleware(authMiddleware(get(h.getIncomeHistory))))
 }
 
-func generateAddress(
+func generateDeposit(
 	ctx context.Context,
 	userID string,
 	currency string,
@@ -363,7 +328,7 @@ func generateAddress(
 	bc blockchain,
 	hotWalletAddress address.Address,
 ) (
-	string,
+	*oas.Deposit,
 	error,
 ) {
 	subwalletID, err := dbConn.GetLastSubwalletID(ctx)
@@ -430,7 +395,7 @@ func generateAddress(
 	return res, nil
 }
 
-func getAddresses(ctx context.Context, userID string, dbConn storage) (GetAddressesResponse, error) {
+func getDeposits(ctx context.Context, userID string, dbConn storage) (*oas.Deposits, error) {
 	var res = GetAddressesResponse{
 		Addresses: []WalletAddress{},
 	}
@@ -601,36 +566,4 @@ func validateAddress(addr string) (core.Address, bool, error) {
 	}
 	res, err := core.AddressFromTonutilsAddress(a)
 	return res, a.IsBounceable(), err
-}
-
-type storage interface {
-	GetLastSubwalletID(ctx context.Context) (uint32, error)
-	SaveTonWallet(ctx context.Context, walletData core.WalletData) error
-	SaveJettonWallet(ctx context.Context, ownerAddress core.Address, walletData core.WalletData, notSaveOwner bool) error
-	GetTonWalletsAddresses(ctx context.Context, userID string, types []core.WalletType) ([]core.Address, error)
-	GetJettonOwnersAddresses(ctx context.Context, userID string, types []core.WalletType) ([]core.OwnerWallet, error)
-	SaveWithdrawalRequest(ctx context.Context, w core.WithdrawalRequest) (int64, error)
-	IsWithdrawalRequestUnique(ctx context.Context, w core.WithdrawalRequest) (bool, error)
-	IsActualBlockData(ctx context.Context) (bool, error)
-	GetExternalWithdrawalStatus(ctx context.Context, id int64) (core.WithdrawalStatus, error)
-	GetWalletType(address core.Address) (core.WalletType, bool)
-	GetIncome(ctx context.Context, userID string, isDepositSide bool) ([]core.TotalIncome, error)
-	SaveServiceWithdrawalRequest(ctx context.Context, w core.ServiceWithdrawalRequest) (uuid.UUID, error)
-	GetIncomeHistory(ctx context.Context, userID string, currency string, limit int, offset int) ([]core.ExternalIncome, error)
-	GetOwner(address core.Address) *core.Address
-}
-
-type blockchain interface {
-	GenerateSubWallet(seed string, shard tongo.ShardID, startSubWalletID uint32) (*wallet.Wallet, uint32, error)
-	GenerateDepositJettonWalletForProxy(
-		ctx context.Context,
-		shard tongo.ShardID,
-		proxyOwner, jettonMaster *address.Address,
-		startSubWalletID uint32,
-	) (
-		proxy *core.JettonProxy,
-		addr *address.Address,
-		err error,
-	)
-	GenerateDefaultWallet(seed string, isHighload bool) (*wallet.Wallet, uint32, error)
 }
