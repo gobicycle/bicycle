@@ -3,11 +3,10 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/gobicycle/bicycle/blockchain"
 	"github.com/gobicycle/bicycle/internal/api"
-	blockchain2 "github.com/gobicycle/bicycle/internal/blockchain"
+	"github.com/gobicycle/bicycle/internal/blockchain"
 	"github.com/gobicycle/bicycle/internal/config"
-	core2 "github.com/gobicycle/bicycle/internal/core"
+	"github.com/gobicycle/bicycle/internal/core"
 	"github.com/gobicycle/bicycle/internal/database"
 	"github.com/gobicycle/bicycle/internal/queue"
 	"github.com/gobicycle/bicycle/internal/webhook"
@@ -27,7 +26,7 @@ func main() {
 	signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
 	wg := new(sync.WaitGroup)
 
-	bcClient, err := blockchain2.NewConnection(config.Config.LiteServer, config.Config.LiteServerKey)
+	bcClient, err := blockchain.NewConnection(config.Config.LiteServer, config.Config.LiteServerKey)
 	if err != nil {
 		log.Fatalf("blockchain connection error: %v", err)
 	}
@@ -53,12 +52,12 @@ func main() {
 		log.Fatalf("Service and Node time not synced")
 	}
 
-	wallets, err := core2.InitWallets(ctx, dbClient, bcClient, config.Config.Seed, config.Config.Jettons, config.Config.ShardDepth)
+	wallets, err := core.InitWallets(ctx, dbClient, bcClient, config.Config.Seed, config.Config.Jettons, config.Config.ShardDepth)
 	if err != nil {
 		log.Fatalf("Hot wallets initialization error: %v", err)
 	}
 
-	var notificators []core2.Notificator
+	var notificators []core.Notificator
 
 	if config.Config.QueueEnabled {
 		queueClient, err := queue.NewAmqpClient(config.Config.QueueURI, config.Config.QueueEnabled, config.Config.QueueName)
@@ -76,22 +75,22 @@ func main() {
 		notificators = append(notificators, webhookClient)
 	}
 
-	var tracker *blockchain2.ShardTracker
+	var tracker *blockchain.ShardTracker
 	block, err := dbClient.GetLastSavedBlockID(ctx)
-	if !errors.Is(err, core2.ErrNotFound) && err != nil {
+	if !errors.Is(err, core.ErrNotFound) && err != nil {
 		log.Fatalf("Get last saved block error: %v", err)
-	} else if errors.Is(err, core2.ErrNotFound) {
-		tracker, err = blockchain2.NewShardTracker(bcClient, blockchain2.WithShard(wallets.Shard))
+	} else if errors.Is(err, core.ErrNotFound) {
+		tracker, err = blockchain.NewShardTracker(bcClient, blockchain.WithShard(wallets.Shard))
 	} else {
-		tracker, err = blockchain2.NewShardTracker(bcClient, blockchain2.WithShard(wallets.Shard), blockchain.WithStartBlock(block))
+		tracker, err = blockchain.NewShardTracker(bcClient, blockchain.WithShard(wallets.Shard), blockchain.WithStartBlock(block))
 	}
 	if err != nil {
 		log.Fatalf("shard tracker creating error: %v", err)
 	}
 
-	blockScanner := core2.NewBlockScanner(wg, dbClient, bcClient, wallets.Shard, tracker, notificators)
+	blockScanner := core.NewBlockScanner(wg, dbClient, bcClient, wallets.Shard, tracker, notificators)
 
-	withdrawalsProcessor := core2.NewWithdrawalsProcessor(
+	withdrawalsProcessor := core.NewWithdrawalsProcessor(
 		wg, dbClient, bcClient, wallets, config.Config.ColdWallet)
 	withdrawalsProcessor.Start()
 
