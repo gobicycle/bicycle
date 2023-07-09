@@ -3,7 +3,7 @@ package api
 import (
 	"crypto/subtle"
 	"encoding/json"
-	"github.com/gobicycle/bicycle/config"
+	"github.com/gobicycle/bicycle/internal/config"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"runtime/debug"

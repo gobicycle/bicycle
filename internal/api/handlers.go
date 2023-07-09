@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gobicycle/bicycle/config"
-	"github.com/gobicycle/bicycle/core"
+	"github.com/gobicycle/bicycle/internal/config"
+	"github.com/gobicycle/bicycle/internal/core"
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	log "github.com/sirupsen/logrus"
+	"github.com/tonkeeper/tongo"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"net/http"
@@ -20,7 +21,7 @@ type Handler struct {
 	storage          storage
 	blockchain       blockchain
 	token            string
-	shard            core.ShardID
+	shard            tongo.ShardID
 	mutex            sync.Mutex
 	hotWalletAddress address.Address
 }
@@ -83,7 +84,7 @@ type income struct {
 	Comment        string `json:"comment,omitempty"`
 }
 
-func NewHandler(s storage, b blockchain, token string, shard core.ShardID, hotWalletAddress address.Address) *Handler {
+func NewHandler(s storage, b blockchain, token string, shard tongo.ShardID, hotWalletAddress address.Address) *Handler {
 	return &Handler{storage: s, blockchain: b, token: token, shard: shard, hotWalletAddress: hotWalletAddress}
 }
 
@@ -349,7 +350,6 @@ func RegisterHandlers(mux *http.ServeMux, h *Handler) {
 	mux.HandleFunc("/v1/withdrawal/service/jetton", recoverMiddleware(authMiddleware(post(h.serviceJettonWithdrawal))))
 	mux.HandleFunc("/v1/withdrawal/status", recoverMiddleware(authMiddleware(get(h.getWithdrawalStatus))))
 	mux.HandleFunc("/v1/system/sync", recoverMiddleware(get(h.getSync)))
-	mux.HandleFunc("/v1/balance", recoverMiddleware(authMiddleware(get(h.getBalance)))) // deprecated
 	mux.HandleFunc("/v1/income", recoverMiddleware(authMiddleware(get(h.getIncome))))
 	mux.HandleFunc("/v1/deposit/history", recoverMiddleware(authMiddleware(get(h.getIncomeHistory))))
 }
@@ -358,7 +358,7 @@ func generateAddress(
 	ctx context.Context,
 	userID string,
 	currency string,
-	shard core.ShardID,
+	shard tongo.ShardID,
 	dbConn storage,
 	bc blockchain,
 	hotWalletAddress address.Address,
@@ -621,10 +621,10 @@ type storage interface {
 }
 
 type blockchain interface {
-	GenerateSubWallet(seed string, shard core.ShardID, startSubWalletID uint32) (*wallet.Wallet, uint32, error)
+	GenerateSubWallet(seed string, shard tongo.ShardID, startSubWalletID uint32) (*wallet.Wallet, uint32, error)
 	GenerateDepositJettonWalletForProxy(
 		ctx context.Context,
-		shard core.ShardID,
+		shard tongo.ShardID,
 		proxyOwner, jettonMaster *address.Address,
 		startSubWalletID uint32,
 	) (

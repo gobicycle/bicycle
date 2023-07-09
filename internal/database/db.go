@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gobicycle/bicycle/audit"
-	"github.com/gobicycle/bicycle/config"
 	"github.com/gobicycle/bicycle/core"
+	"github.com/gobicycle/bicycle/internal/audit"
+	"github.com/gobicycle/bicycle/internal/config"
+	core2 "github.com/gobicycle/bicycle/internal/core"
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -24,18 +25,18 @@ type Connection struct {
 }
 
 type addressBook struct {
-	addresses map[core.Address]core.AddressInfo
+	addresses map[core2.Address]core2.AddressInfo
 	mutex     sync.Mutex
 }
 
-func (ab *addressBook) get(address core.Address) (core.AddressInfo, bool) {
+func (ab *addressBook) get(address core2.Address) (core2.AddressInfo, bool) {
 	ab.mutex.Lock()
 	t, ok := ab.addresses[address]
 	ab.mutex.Unlock()
 	return t, ok
 }
 
-func (ab *addressBook) put(address core.Address, t core.AddressInfo) {
+func (ab *addressBook) put(address core2.Address, t core2.AddressInfo) {
 	ab.mutex.Lock()
 	ab.addresses[address] = t
 	ab.mutex.Unlock()
@@ -52,22 +53,22 @@ func NewConnection(URI string) (*Connection, error) {
 	return &conn, nil
 }
 
-func (c *Connection) GetWalletType(address core.Address) (core.WalletType, bool) {
+func (c *Connection) GetWalletType(address core2.Address) (core2.WalletType, bool) {
 	info, ok := c.addressBook.get(address)
 	return info.Type, ok
 }
 
 // GetOwner returns owner for jetton deposit from address book and nil for other types
-func (c *Connection) GetOwner(address core.Address) *core.Address {
+func (c *Connection) GetOwner(address core2.Address) *core2.Address {
 	info, ok := c.addressBook.get(address)
-	if ok && info.Type == core.JettonDepositWallet && info.Owner == nil {
+	if ok && info.Type == core2.JettonDepositWallet && info.Owner == nil {
 		log.Fatalf("must be owner address in address book for jetton deposit")
 	}
 	return info.Owner
 }
 
-func (c *Connection) GetWalletTypeByTonutilsAddress(address *address.Address) (core.WalletType, bool) {
-	a, err := core.AddressFromTonutilsAddress(address)
+func (c *Connection) GetWalletTypeByTonutilsAddress(address *address.Address) (core2.WalletType, bool) {
+	a, err := core2.AddressFromTonutilsAddress(address)
 	if err != nil {
 		return "", false
 	}
@@ -86,7 +87,7 @@ func (c *Connection) GetLastSubwalletID(ctx context.Context) (uint32, error) {
 	return id, err
 }
 
-func (c *Connection) SaveTonWallet(ctx context.Context, walletData core.WalletData) error {
+func (c *Connection) SaveTonWallet(ctx context.Context, walletData core2.WalletData) error {
 	_, err := c.client.Exec(ctx, `
 		INSERT INTO payments.ton_wallets (
 		user_id,
@@ -103,12 +104,12 @@ func (c *Connection) SaveTonWallet(ctx context.Context, walletData core.WalletDa
 	if err != nil {
 		return err
 	}
-	c.addressBook.put(walletData.Address, core.AddressInfo{Type: walletData.Type, Owner: nil})
+	c.addressBook.put(walletData.Address, core2.AddressInfo{Type: walletData.Type, Owner: nil})
 	return nil
 }
 
-func (c *Connection) GetJettonWallet(ctx context.Context, address core.Address) (*core.WalletData, bool, error) {
-	d := core.WalletData{
+func (c *Connection) GetJettonWallet(ctx context.Context, address core2.Address) (*core2.WalletData, bool, error) {
+	d := core2.WalletData{
 		Address: address,
 	}
 	err := c.client.QueryRow(ctx, `
@@ -127,8 +128,8 @@ func (c *Connection) GetJettonWallet(ctx context.Context, address core.Address) 
 
 func (c *Connection) SaveJettonWallet(
 	ctx context.Context,
-	ownerAddress core.Address,
-	walletData core.WalletData,
+	ownerAddress core2.Address,
+	walletData core2.WalletData,
 	notSaveOwner bool,
 ) error {
 	tx, err := c.client.Begin(ctx)
@@ -148,7 +149,7 @@ func (c *Connection) SaveJettonWallet(
 	`,
 			walletData.UserID,
 			walletData.SubwalletID,
-			core.JettonOwner,
+			core2.JettonOwner,
 			ownerAddress,
 		)
 		if err != nil {
@@ -180,26 +181,26 @@ func (c *Connection) SaveJettonWallet(
 		return err
 	}
 
-	if walletData.Type == core.JettonDepositWallet {
+	if walletData.Type == core2.JettonDepositWallet {
 		// only jetton deposit owners tracked by address book
 		// hot TON wallet also owner of jetton hot wallets
 		// cold wallets excluded from address book
-		c.addressBook.put(ownerAddress, core.AddressInfo{Type: core.JettonOwner, Owner: nil})
+		c.addressBook.put(ownerAddress, core2.AddressInfo{Type: core2.JettonOwner, Owner: nil})
 	}
-	c.addressBook.put(walletData.Address, core.AddressInfo{Type: walletData.Type, Owner: &ownerAddress})
+	c.addressBook.put(walletData.Address, core2.AddressInfo{Type: walletData.Type, Owner: &ownerAddress})
 	return nil
 }
 
 func (c *Connection) GetTonWalletsAddresses(
 	ctx context.Context,
 	userID string,
-	types []core.WalletType,
+	types []core2.WalletType,
 ) (
-	[]core.Address,
+	[]core2.Address,
 	error,
 ) {
 	if types == nil {
-		types = make([]core.WalletType, 0)
+		types = make([]core2.WalletType, 0)
 	}
 	rows, err := c.client.Query(ctx, `
 		SELECT address
@@ -210,9 +211,9 @@ func (c *Connection) GetTonWalletsAddresses(
 		return nil, err
 	}
 	defer rows.Close()
-	var res []core.Address
+	var res []core2.Address
 	for rows.Next() {
-		var a core.Address
+		var a core2.Address
 		err = rows.Scan(&a)
 		if err != nil {
 			return nil, err
@@ -225,13 +226,13 @@ func (c *Connection) GetTonWalletsAddresses(
 func (c *Connection) GetJettonOwnersAddresses(
 	ctx context.Context,
 	userID string,
-	types []core.WalletType,
+	types []core2.WalletType,
 ) (
-	[]core.OwnerWallet,
+	[]core2.OwnerWallet,
 	error,
 ) {
 	if types == nil {
-		types = make([]core.WalletType, 0)
+		types = make([]core2.WalletType, 0)
 	}
 	rows, err := c.client.Query(ctx, `
 		SELECT tw.address, jw.currency
@@ -243,9 +244,9 @@ func (c *Connection) GetJettonOwnersAddresses(
 		return nil, err
 	}
 	defer rows.Close()
-	var res []core.OwnerWallet
+	var res []core2.OwnerWallet
 	for rows.Next() {
-		var ow core.OwnerWallet
+		var ow core2.OwnerWallet
 		err = rows.Scan(&ow.Address, &ow.Currency)
 		if err != nil {
 			return nil, err
@@ -256,10 +257,10 @@ func (c *Connection) GetJettonOwnersAddresses(
 }
 
 func (c *Connection) LoadAddressBook(ctx context.Context) error {
-	res := make(map[core.Address]core.AddressInfo)
+	res := make(map[core2.Address]core2.AddressInfo)
 	var (
-		addr core.Address
-		t    core.WalletType
+		addr core2.Address
+		t    core2.WalletType
 	)
 
 	rows, err := c.client.Query(ctx, `
@@ -275,7 +276,7 @@ func (c *Connection) LoadAddressBook(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		res[addr] = core.AddressInfo{Type: t, Owner: nil}
+		res[addr] = core2.AddressInfo{Type: t, Owner: nil}
 	}
 
 	rows, err = c.client.Query(ctx, `
@@ -288,12 +289,12 @@ func (c *Connection) LoadAddressBook(ctx context.Context) error {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var owner core.Address
+		var owner core2.Address
 		err = rows.Scan(&addr, &t, &owner)
 		if err != nil {
 			return err
 		}
-		res[addr] = core.AddressInfo{Type: t, Owner: &owner}
+		res[addr] = core2.AddressInfo{Type: t, Owner: &owner}
 	}
 
 	c.addressBook.addresses = res
@@ -301,7 +302,7 @@ func (c *Connection) LoadAddressBook(ctx context.Context) error {
 	return nil
 }
 
-func saveExternalIncome(ctx context.Context, tx pgx.Tx, inc core.ExternalIncome) error {
+func saveExternalIncome(ctx context.Context, tx pgx.Tx, inc core2.ExternalIncome) error {
 	_, err := tx.Exec(ctx, `
 		INSERT INTO payments.external_incomes (
 		lt,
@@ -324,15 +325,15 @@ func saveExternalIncome(ctx context.Context, tx pgx.Tx, inc core.ExternalIncome)
 	return err
 }
 
-func (c *Connection) saveInternalIncome(ctx context.Context, tx pgx.Tx, inc core.InternalIncome) error {
+func (c *Connection) saveInternalIncome(ctx context.Context, tx pgx.Tx, inc core2.InternalIncome) error {
 	memo, err := uuid.FromString(inc.Memo)
 	if err != nil {
 		return err
 	}
 
 	wType, ok := c.GetWalletType(inc.From)
-	var from core.Address
-	if ok && wType == core.JettonOwner { // convert jetton owner address to jetton wallet address
+	var from core2.Address
+	if ok && wType == core2.JettonOwner { // convert jetton owner address to jetton wallet address
 		err = tx.QueryRow(ctx, `
 			SELECT jw.address
 			FROM payments.ton_wallets tw
@@ -364,7 +365,7 @@ func (c *Connection) saveInternalIncome(ctx context.Context, tx pgx.Tx, inc core
 	return err
 }
 
-func (c *Connection) SaveWithdrawalRequest(ctx context.Context, w core.WithdrawalRequest) (int64, error) {
+func (c *Connection) SaveWithdrawalRequest(ctx context.Context, w core2.WithdrawalRequest) (int64, error) {
 	var queryID int64
 	err := c.client.QueryRow(ctx, `
 		INSERT INTO payments.withdrawal_requests (
@@ -392,7 +393,7 @@ func (c *Connection) SaveWithdrawalRequest(ctx context.Context, w core.Withdrawa
 	return queryID, err
 }
 
-func (c *Connection) SaveServiceWithdrawalRequest(ctx context.Context, w core.ServiceWithdrawalRequest) (
+func (c *Connection) SaveServiceWithdrawalRequest(ctx context.Context, w core2.ServiceWithdrawalRequest) (
 	uuid.UUID,
 	error,
 ) {
@@ -413,8 +414,8 @@ func (c *Connection) SaveServiceWithdrawalRequest(ctx context.Context, w core.Se
 
 func (c *Connection) UpdateServiceWithdrawalRequest(
 	ctx context.Context,
-	t core.ServiceWithdrawalTask,
-	tonAmount core.Coins,
+	t core2.ServiceWithdrawalTask,
+	tonAmount core2.Coins,
 	expiredAt time.Time,
 	filled bool,
 ) error {
@@ -431,7 +432,7 @@ func (c *Connection) UpdateServiceWithdrawalRequest(
 	return err
 }
 
-func (c *Connection) IsWithdrawalRequestUnique(ctx context.Context, w core.WithdrawalRequest) (bool, error) {
+func (c *Connection) IsWithdrawalRequestUnique(ctx context.Context, w core2.WithdrawalRequest) (bool, error) {
 	var queryID int64
 	err := c.client.QueryRow(ctx, `
 		SELECT query_id
@@ -450,8 +451,8 @@ func (c *Connection) IsWithdrawalRequestUnique(ctx context.Context, w core.Withd
 	return false, nil
 }
 
-func (c *Connection) GetExternalWithdrawalTasks(ctx context.Context, limit int) ([]core.ExternalWithdrawalTask, error) {
-	var res []core.ExternalWithdrawalTask
+func (c *Connection) GetExternalWithdrawalTasks(ctx context.Context, limit int) ([]core2.ExternalWithdrawalTask, error) {
+	var res []core2.ExternalWithdrawalTask
 	rows, err := c.client.Query(ctx, `
 		SELECT DISTINCT ON (dest_address) dest_address,
 		                                  query_id,
@@ -469,7 +470,7 @@ func (c *Connection) GetExternalWithdrawalTasks(ctx context.Context, limit int) 
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var w core.ExternalWithdrawalTask
+		var w core2.ExternalWithdrawalTask
 		err = rows.Scan(&w.Destination, &w.QueryID, &w.Currency, &w.Bounceable, &w.Comment, &w.Amount)
 		if err != nil {
 			return nil, err
@@ -480,8 +481,8 @@ func (c *Connection) GetExternalWithdrawalTasks(ctx context.Context, limit int) 
 }
 
 // GetServiceHotWithdrawalTasks return tasks for Hot wallet withdrawals
-func (c *Connection) GetServiceHotWithdrawalTasks(ctx context.Context, limit int) ([]core.ServiceWithdrawalTask, error) {
-	var tasks []core.ServiceWithdrawalTask
+func (c *Connection) GetServiceHotWithdrawalTasks(ctx context.Context, limit int) ([]core2.ServiceWithdrawalTask, error) {
+	var tasks []core2.ServiceWithdrawalTask
 	rows, err := c.client.Query(ctx, `
 		SELECT DISTINCT ON (from_address) swr.from_address,
 		                                  swr.memo,
@@ -492,13 +493,13 @@ func (c *Connection) GetServiceHotWithdrawalTasks(ctx context.Context, limit int
 		WHERE  processed = false and type = ANY($1) and filled = false
         ORDER BY from_address
 		LIMIT  $2
-	`, []core.WalletType{core.JettonOwner, core.TonDepositWallet}, limit)
+	`, []core2.WalletType{core2.JettonOwner, core2.TonDepositWallet}, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var w core.ServiceWithdrawalTask
+		var w core2.ServiceWithdrawalTask
 		err = rows.Scan(&w.From, &w.Memo, &w.JettonMaster, &w.SubwalletID)
 		if err != nil {
 			return nil, err
@@ -509,8 +510,8 @@ func (c *Connection) GetServiceHotWithdrawalTasks(ctx context.Context, limit int
 }
 
 // GetServiceDepositWithdrawalTasks return tasks for TON deposit wallets
-func (c *Connection) GetServiceDepositWithdrawalTasks(ctx context.Context, limit int) ([]core.ServiceWithdrawalTask, error) {
-	var tasks []core.ServiceWithdrawalTask
+func (c *Connection) GetServiceDepositWithdrawalTasks(ctx context.Context, limit int) ([]core2.ServiceWithdrawalTask, error) {
+	var tasks []core2.ServiceWithdrawalTask
 	rows, err := c.client.Query(ctx, `
 		SELECT DISTINCT ON (from_address) swr.from_address,
 		                                  swr.memo,
@@ -522,13 +523,13 @@ func (c *Connection) GetServiceDepositWithdrawalTasks(ctx context.Context, limit
 		WHERE  processed = false AND filled = true AND type = $1
         ORDER BY from_address
 		LIMIT $2
-	`, core.TonDepositWallet, limit)
+	`, core2.TonDepositWallet, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var w core.ServiceWithdrawalTask
+		var w core2.ServiceWithdrawalTask
 		err = rows.Scan(&w.From, &w.Memo, &w.JettonMaster, &w.JettonAmount, &w.SubwalletID)
 		if err != nil {
 			return nil, err
@@ -559,7 +560,7 @@ func saveBlock(ctx context.Context, tx pgx.Tx, block *core.ShardBlockHeader) err
 	return err
 }
 
-func updateInternalWithdrawal(ctx context.Context, tx pgx.Tx, w core.InternalWithdrawal) error {
+func updateInternalWithdrawal(ctx context.Context, tx pgx.Tx, w core2.InternalWithdrawal) error {
 	memo, err := uuid.FromString(w.Memo)
 	if err != nil {
 		return err
@@ -577,13 +578,13 @@ func updateInternalWithdrawal(ctx context.Context, tx pgx.Tx, w core.InternalWit
 	`, memo).Scan(&alreadyFailed, &sendingLt)
 
 	if alreadyFailed {
-		audit.Log(audit.Error, "internal withdrawal message", core.InternalWithdrawalEvent,
+		audit.Log(audit.Error, "internal withdrawal message", core2.InternalWithdrawalEvent,
 			fmt.Sprintf("successful withdrawal for expired internal withdrawal message. memo: %v", w.Memo))
 		return fmt.Errorf("invalid behavior of the expiration processor")
 	}
 
 	if sendingLt == nil {
-		audit.Log(audit.Error, "internal withdrawal message", core.InternalWithdrawalEvent,
+		audit.Log(audit.Error, "internal withdrawal message", core2.InternalWithdrawalEvent,
 			fmt.Sprintf("successful withdrawal without sending confirmation. memo: %v", w.Memo))
 		return fmt.Errorf("invalid event order")
 	}
@@ -610,7 +611,7 @@ func updateInternalWithdrawal(ctx context.Context, tx pgx.Tx, w core.InternalWit
 
 func (c *Connection) SaveInternalWithdrawalTask(
 	ctx context.Context,
-	task core.InternalWithdrawalTask,
+	task core2.InternalWithdrawalTask,
 	expiredAt time.Time,
 	memo uuid.UUID,
 ) error {
@@ -630,7 +631,7 @@ func (c *Connection) SaveInternalWithdrawalTask(
 	return err
 }
 
-func (c *Connection) saveParsedBlockData(ctx context.Context, tx pgx.Tx, events core.BlockEvents) error {
+func (c *Connection) saveParsedBlockData(ctx context.Context, tx pgx.Tx, events core2.BlockEvents) error {
 	var err error
 	for _, ei := range events.ExternalIncomes {
 		err = saveExternalIncome(ctx, tx, ei)
@@ -675,7 +676,7 @@ func (c *Connection) saveParsedBlockData(ctx context.Context, tx pgx.Tx, events 
 	return nil
 }
 
-func (c *Connection) SaveParsedBlocksData(ctx context.Context, events []core.BlockEvents, masterBlockID *core.ShardBlockHeader) error {
+func (c *Connection) SaveParsedBlocksData(ctx context.Context, events []core2.BlockEvents, masterBlockID *core.ShardBlockHeader) error {
 	tx, err := c.client.Begin(ctx)
 	if err != nil {
 		return err
@@ -698,8 +699,8 @@ func (c *Connection) SaveParsedBlocksData(ctx context.Context, events []core.Blo
 	return err
 }
 
-func (c *Connection) GetTonInternalWithdrawalTasks(ctx context.Context, limit int) ([]core.InternalWithdrawalTask, error) {
-	var tasks []core.InternalWithdrawalTask
+func (c *Connection) GetTonInternalWithdrawalTasks(ctx context.Context, limit int) ([]core2.InternalWithdrawalTask, error) {
+	var tasks []core2.InternalWithdrawalTask
 	// lt > finish_lt condition because all TONs withdraws
 	rows, err := c.client.Query(ctx, `
 		SELECT deposit_address, MAX(lt) AS last_lt, tw.subwallet_id
@@ -718,19 +719,19 @@ func (c *Connection) GetTonInternalWithdrawalTasks(ctx context.Context, limit in
 		  AND type = $1
 		GROUP BY deposit_address, tw.subwallet_id
 		LIMIT $2
-	`, core.TonDepositWallet, limit)
+	`, core2.TonDepositWallet, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var task core.InternalWithdrawalTask
+		var task core2.InternalWithdrawalTask
 		err = rows.Scan(&task.From, &task.Lt, &task.SubwalletID)
 		if err != nil {
 			return nil, err
 		}
-		task.Currency = core.TonSymbol
+		task.Currency = core2.TonSymbol
 		tasks = append(tasks, task)
 	}
 	return tasks, nil
@@ -738,12 +739,12 @@ func (c *Connection) GetTonInternalWithdrawalTasks(ctx context.Context, limit in
 
 func (c *Connection) GetJettonInternalWithdrawalTasks(
 	ctx context.Context,
-	forbiddenAddresses []core.Address,
+	forbiddenAddresses []core2.Address,
 	limit int,
 ) (
-	[]core.InternalWithdrawalTask, error,
+	[]core2.InternalWithdrawalTask, error,
 ) {
-	var tasks []core.InternalWithdrawalTask
+	var tasks []core2.InternalWithdrawalTask
 	excludedAddr := make([][]byte, 0) // it is important for 'deposit_address = ANY($2)' sql constraint
 	for _, a := range forbiddenAddresses {
 		excludedAddr = append(excludedAddr, a[:]) // array of core.Address not supported by driver
@@ -766,13 +767,13 @@ func (c *Connection) GetJettonInternalWithdrawalTasks(
 		   OR (since_lt IS NULL)) AND jw.type = $1 AND NOT tw.address = ANY($2)
 		GROUP BY deposit_address, jw.subwallet_id, jw.currency
 		LIMIT $3
-	`, core.JettonDepositWallet, excludedAddr, limit)
+	`, core2.JettonDepositWallet, excludedAddr, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var task core.InternalWithdrawalTask
+		var task core2.InternalWithdrawalTask
 		err = rows.Scan(&task.From, &task.Lt, &task.SubwalletID, &task.Currency)
 		if err != nil {
 			return nil, err
@@ -785,7 +786,7 @@ func (c *Connection) GetJettonInternalWithdrawalTasks(
 func applyJettonWithdrawalConfirmation(
 	ctx context.Context,
 	tx pgx.Tx,
-	confirm core.JettonWithdrawalConfirmation,
+	confirm core2.JettonWithdrawalConfirmation,
 ) error {
 	_, err := tx.Exec(ctx, `
 			UPDATE payments.external_withdrawals
@@ -796,7 +797,7 @@ func applyJettonWithdrawalConfirmation(
 	return err
 }
 
-func updateExternalWithdrawal(ctx context.Context, tx pgx.Tx, w core.ExternalWithdrawal) error {
+func updateExternalWithdrawal(ctx context.Context, tx pgx.Tx, w core2.ExternalWithdrawal) error {
 	var queryID int64
 
 	var alreadyFailed bool
@@ -806,7 +807,7 @@ func updateExternalWithdrawal(ctx context.Context, tx pgx.Tx, w core.ExternalWit
 		WHERE  msg_uuid = $1 AND address = $2
 	`, w.ExtMsgUuid, w.To).Scan(&alreadyFailed)
 	if alreadyFailed {
-		audit.Log(audit.Error, "external withdrawal message", core.ExternalWithdrawalEvent,
+		audit.Log(audit.Error, "external withdrawal message", core2.ExternalWithdrawalEvent,
 			fmt.Sprintf("successful withdrawal for expired external withdrawal message. msg uuid: %v", w.ExtMsgUuid.String()))
 		return fmt.Errorf("invalid behavior of the expiration processor")
 	}
@@ -853,7 +854,7 @@ func updateExternalWithdrawal(ctx context.Context, tx pgx.Tx, w core.ExternalWit
 	return err
 }
 
-func applySendingConfirmations(ctx context.Context, tx pgx.Tx, w core.SendingConfirmation) error {
+func applySendingConfirmations(ctx context.Context, tx pgx.Tx, w core2.SendingConfirmation) error {
 	var alreadyFailed bool
 	memo, err := uuid.FromString(w.Memo)
 	if err != nil {
@@ -870,7 +871,7 @@ func applySendingConfirmations(ctx context.Context, tx pgx.Tx, w core.SendingCon
 		return err
 	}
 	if alreadyFailed {
-		audit.Log(audit.Error, "internal withdrawal message", core.InternalWithdrawalEvent,
+		audit.Log(audit.Error, "internal withdrawal message", core2.InternalWithdrawalEvent,
 			fmt.Sprintf("successful sending for expired internal withdrawal message. memo: %v", w.Memo))
 		return fmt.Errorf("invalid behavior of the expiration processor")
 	}
@@ -879,7 +880,7 @@ func applySendingConfirmations(ctx context.Context, tx pgx.Tx, w core.SendingCon
 
 func (c *Connection) CreateExternalWithdrawals(
 	ctx context.Context,
-	tasks []core.ExternalWithdrawalTask,
+	tasks []core2.ExternalWithdrawalTask,
 	extMsgUuid uuid.UUID,
 	expiredAt time.Time,
 ) error {
@@ -915,15 +916,15 @@ func (c *Connection) CreateExternalWithdrawals(
 	return tx.Commit(ctx)
 }
 
-func (c *Connection) GetTonHotWalletAddress(ctx context.Context) (core.Address, error) {
-	var addr core.Address
+func (c *Connection) GetTonHotWalletAddress(ctx context.Context) (core2.Address, error) {
+	var addr core2.Address
 	err := c.client.QueryRow(ctx, `
 		SELECT address 
 		FROM payments.ton_wallets
 		WHERE TYPE = $1
-	`, core.TonHotWallet).Scan(&addr)
+	`, core2.TonHotWallet).Scan(&addr)
 	if errors.Is(err, pgx.ErrNoRows) {
-		err = core.ErrNotFound
+		err = core2.ErrNotFound
 	}
 	return addr, err
 }
@@ -947,12 +948,12 @@ func (c *Connection) GetLastSavedBlockID(ctx context.Context) (*ton.BlockIDExt, 
 		&blockID.FileHash,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, core.ErrNotFound
+		return nil, core2.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
 	}
-	blockID.Workchain = core.MasterchainID
+	blockID.Workchain = core2.MasterchainID
 	return &blockID, nil
 }
 
@@ -1034,7 +1035,7 @@ func (c *Connection) IsActualBlockData(ctx context.Context) (bool, error) {
 
 func (c *Connection) IsInProgressInternalWithdrawalRequest(
 	ctx context.Context,
-	dest core.Address,
+	dest core2.Address,
 	currency string,
 ) (
 	bool,
@@ -1062,7 +1063,7 @@ func (c *Connection) IsInProgressInternalWithdrawalRequest(
 	return true, nil
 }
 
-func (c *Connection) GetExternalWithdrawalStatus(ctx context.Context, id int64) (core.WithdrawalStatus, error) {
+func (c *Connection) GetExternalWithdrawalStatus(ctx context.Context, id int64) (core2.WithdrawalStatus, error) {
 	var processing, processed bool
 	err := c.client.QueryRow(ctx, `
 		SELECT processing, processed
@@ -1071,17 +1072,17 @@ func (c *Connection) GetExternalWithdrawalStatus(ctx context.Context, id int64) 
 		LIMIT 1
 	`, id).Scan(&processing, &processed)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", core.ErrNotFound
+		return "", core2.ErrNotFound
 	}
 	if err != nil {
 		return "", err
 	}
 	if processing && processed {
-		return core.ProcessedStatus, nil
+		return core2.ProcessedStatus, nil
 	} else if processing && !processed {
-		return core.ProcessingStatus, nil
+		return core2.ProcessingStatus, nil
 	} else if !processing && !processed {
-		return core.PendingStatus, nil
+		return core2.PendingStatus, nil
 	}
 	return "", fmt.Errorf("bad status")
 }
@@ -1092,7 +1093,7 @@ func (c *Connection) GetIncome(
 	userID string,
 	isDepositSide bool,
 ) (
-	[]core.TotalIncome,
+	[]core2.TotalIncome,
 	error,
 ) {
 	var sqlStatement string
@@ -1119,18 +1120,18 @@ func (c *Connection) GetIncome(
 	rows, err := c.client.Query(
 		ctx,
 		sqlStatement,
-		core.TonSymbol,
+		core2.TonSymbol,
 		userID,
-		[]core.WalletType{core.TonDepositWallet, core.JettonOwner},
+		[]core2.WalletType{core2.TonDepositWallet, core2.JettonOwner},
 	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	res := make([]core.TotalIncome, 0)
+	res := make([]core2.TotalIncome, 0)
 	for rows.Next() {
-		var deposit core.TotalIncome
+		var deposit core2.TotalIncome
 		err = rows.Scan(&deposit.Deposit, &deposit.Amount, &deposit.Currency)
 		if err != nil {
 			return nil, err
@@ -1148,16 +1149,16 @@ func (c *Connection) GetIncomeHistory(
 	limit int,
 	offset int,
 ) (
-	[]core.ExternalIncome,
+	[]core2.ExternalIncome,
 	error,
 ) {
 	var (
-		res          []core.ExternalIncome
+		res          []core2.ExternalIncome
 		sqlStatement string
-		walletType   core.WalletType
+		walletType   core2.WalletType
 	)
 
-	if currency == core.TonSymbol {
+	if currency == core2.TonSymbol {
 		sqlStatement = `
 			SELECT utime, lt, payer_address, deposit_address, amount, comment, payer_workchain
 			FROM payments.external_incomes i
@@ -1167,7 +1168,7 @@ func (c *Connection) GetIncomeHistory(
 			LIMIT $4
 			OFFSET $5
 		`
-		walletType = core.TonDepositWallet
+		walletType = core2.TonDepositWallet
 	} else {
 		sqlStatement = `
 			SELECT utime, lt, payer_address, deposit_address, amount, comment, payer_workchain
@@ -1178,7 +1179,7 @@ func (c *Connection) GetIncomeHistory(
 			LIMIT $4
 			OFFSET $5
 		`
-		walletType = core.JettonDepositWallet
+		walletType = core2.JettonDepositWallet
 	}
 
 	rows, err := c.client.Query(ctx, sqlStatement, walletType, userID, currency, limit, offset)
@@ -1188,7 +1189,7 @@ func (c *Connection) GetIncomeHistory(
 	defer rows.Close()
 	for rows.Next() {
 		var (
-			income core.ExternalIncome
+			income core2.ExternalIncome
 			t      time.Time
 		)
 		err = rows.Scan(&t, &income.Lt, &income.From, &income.To, &income.Amount, &income.Comment, &income.FromWorkchain)

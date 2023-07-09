@@ -3,7 +3,7 @@ package db
 import (
 	"context"
 	"encoding/hex"
-	"github.com/gobicycle/bicycle/core"
+	"github.com/gobicycle/bicycle/internal/core"
 	"os"
 	"strings"
 	"testing"

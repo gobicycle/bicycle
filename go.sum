@@ -356,6 +356,8 @@ github.com/tonkeeper/tongo v1.0.9 h1:5BBsXKVHRCs3YxHH/30Qk47pO6zg5X5e59/ssLynnQM
 github.com/tonkeeper/tongo v1.0.9/go.mod h1:Nn/5t5MGQHBUuEm56O135FIYwk9WpPgDITjWPk+fPGc=
 github.com/tonkeeper/tongo v1.1.1 h1:y47SNvjUHi3GEj/KWOFKDzYMGF4f08fn9Smn2wBycJ0=
 github.com/tonkeeper/tongo v1.1.1/go.mod h1:LdOBjpUz6vLp1EdX3E0XLNks9YI5XMSqaQahfOMrBEY=
+github.com/tonkeeper/tongo v1.1.2 h1:TJNkm9KmyhnNJbUKOwiekgzjILcKWY7AzRs/sTYZXRQ=
+github.com/tonkeeper/tongo v1.1.2/go.mod h1:LdOBjpUz6vLp1EdX3E0XLNks9YI5XMSqaQahfOMrBEY=
 github.com/xssnick/tonutils-go v1.7.0 h1:Zhmupzicy3Hf8afCnhYj+ev9g+pR9nGc18a6fLd0NiI=
 github.com/xssnick/tonutils-go v1.7.0/go.mod h1:wH8ldhLueyfXW15r3MyaIq9YzA+8bzvL6UMU2BLp08g=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

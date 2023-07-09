@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/gobicycle/bicycle/config"
-	"github.com/gobicycle/bicycle/core"
+	"github.com/gobicycle/bicycle/internal/config"
+	core2 "github.com/gobicycle/bicycle/internal/core"
 	log "github.com/sirupsen/logrus"
 	"github.com/tonkeeper/tongo"
 	tongoConfig "github.com/tonkeeper/tongo/config"
@@ -54,14 +54,14 @@ func (c *Connection) GenerateDefaultWallet(seed string, isHighload bool) (
 	}
 
 	if isHighload {
-		hw, err := wallet.New(pk, wallet.HighLoadV2R2, core.DefaultWorkchain, nil, c.client)
+		hw, err := wallet.New(pk, wallet.HighLoadV2R2, core2.DefaultWorkchain, nil, c.client)
 		w = &hw
 		if err != nil {
 			return nil, 0, err
 		}
 		//w, err = wallet.FromSeed(c, words, wallet.HighloadV2R2)
 	} else {
-		ow, err := wallet.New(pk, wallet.V3R2, core.DefaultWorkchain, nil, c.client)
+		ow, err := wallet.New(pk, wallet.V3R2, core2.DefaultWorkchain, nil, c.client)
 		w = &ow
 		if err != nil {
 			return nil, 0, err
@@ -89,7 +89,7 @@ func (c *Connection) GenerateSubWallet(seed string, shard tongo.ShardID, startSu
 	for id := startSubWalletID; id < math.MaxUint32; id++ {
 		//subWallet, err := basic.GetSubwallet(id)
 		subwalletId := int(id)
-		subWallet, err := wallet.New(pk, wallet.V3R2, core.DefaultWorkchain, &subwalletId, c.client)
+		subWallet, err := wallet.New(pk, wallet.V3R2, core2.DefaultWorkchain, &subwalletId, c.client)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -136,7 +136,7 @@ func (c *Connection) GenerateDepositJettonWalletForProxy(
 	proxyOwner, jettonMaster tongo.AccountID,
 	startSubWalletID uint32,
 ) (
-	proxy *core.JettonProxy,
+	proxy *core2.JettonProxy,
 	addr *tongo.AccountID,
 	err error,
 ) {
@@ -150,7 +150,7 @@ func (c *Connection) GenerateDepositJettonWalletForProxy(
 	}
 
 	for id := startSubWalletID; id < math.MaxUint32; id++ {
-		proxy, err = core.NewJettonProxy(id, proxyOwner)
+		proxy, err = core2.NewJettonProxy(id, proxyOwner)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -225,7 +225,7 @@ func getJettonWalletAddressByTVM(
 		return nil, err
 	}
 
-	if addr.Workchain != core.DefaultWorkchain {
+	if addr.Workchain != core2.DefaultWorkchain {
 		return nil, fmt.Errorf("not default workchain for jetton wallet address")
 	}
 	if addr == nil {
@@ -326,7 +326,7 @@ func (c *Connection) lookupMasterchainBlock(ctx context.Context, seqno uint32) (
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, core.ErrTimeoutExceeded // TODO: maybe remove
+			return nil, core2.ErrTimeoutExceeded // TODO: maybe remove
 		default:
 			idExt, _, err := c.client.LookupBlock(ctx, id, 1, nil, nil) // TODO: check mode
 			if err != nil && isBlockNotReadyError(err) {
@@ -424,7 +424,7 @@ func (c *Connection) WaitStatus(ctx context.Context, addr tongo.AccountID, statu
 	for {
 		select {
 		case <-ctx.Done():
-			return core.ErrTimeoutExceeded
+			return core2.ErrTimeoutExceeded
 		default:
 			_, st, err := c.GetAccountCurrentState(ctx, addr)
 			if err != nil {

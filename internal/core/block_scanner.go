@@ -3,8 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
-	"github.com/gobicycle/bicycle/audit"
-	"github.com/gobicycle/bicycle/config"
+	"github.com/gobicycle/bicycle/internal/audit"
+	"github.com/gobicycle/bicycle/internal/config"
 	"github.com/gofrs/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/tonkeeper/tongo"
@@ -35,8 +35,8 @@ type transactions struct {
 }
 
 type jettonTransferNotificationMsg struct {
-	Amount  Coins
-	Sender  *address.Address
+	Amount Coins
+	Sender *address.Address
 	Comment string
 }
 

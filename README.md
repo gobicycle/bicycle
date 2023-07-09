@@ -19,10 +19,10 @@ Service is ADNL based and interacts directly with node and do not use any third 
   - [Configurable parameters](#Configurable-parameters)
   - [Service deploy](#Service-deploy)
 - [REST API](https://gobicycle.github.io/bicycle/)
-- [Technical notes](/technical_notes.md)
-- [Threat model](/threat_model.md)
+- [Technical notes](/docs/technical_notes.md)
+- [Threat model](/docs/threat_model.md)
 - [Manual migrations](/manual_migrations.md)
-- [TODO list](/todo_list.md)
+- [TODO list](/docs/todo_list.md)
 
 ![test_dashboard](https://user-images.githubusercontent.com/120649456/211955983-698b12b8-eccf-45c5-85bb-f8f6364c154e.png)
 ![db_dashboard](https://user-images.githubusercontent.com/120649456/211955998-749772a6-10d2-4594-96f1-be6ab6051be5.png)
@@ -65,7 +65,7 @@ The service provides the following functionality:
 - the Jetton wallet should not spontaneously change its balance, only with transfer.
 - fee for the withdrawal of Jettons from the wallet should not be too high and meet the internal setting of the service
 
-For more information on Jettons compatibility, see [Jettons compatibility](/jettons.md)
+For more information on Jettons compatibility, see [Jettons compatibility](/docs/jettons.md)
 
 ## Deployment
 
@@ -92,8 +92,8 @@ For more information on Jettons compatibility, see [Jettons compatibility](/jett
 
 **! Be careful with `IS_TESTNET` variable.** This does not guarantee that a testnet node is being used. It is only for address checking purposes.
 
-There are also internal service settings (fees and timeouts) that are specified in the source code in the [Config](/config/config.go) package.
-Calibration parameters recommendations in [Technical notes](/technical_notes.md).
+There are also internal service settings (fees and timeouts) that are specified in the source code in the [Config](/internal/config/config.go) package.
+Calibration parameters recommendations in [Technical notes](/docs/technical_notes.md).
 
 ### Service deploy
 

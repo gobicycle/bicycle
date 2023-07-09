@@ -3,8 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
-	"github.com/gobicycle/bicycle/audit"
-	"github.com/gobicycle/bicycle/config"
+	"github.com/gobicycle/bicycle/internal/audit"
+	"github.com/gobicycle/bicycle/internal/config"
 	"github.com/gofrs/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/xssnick/tonutils-go/address"

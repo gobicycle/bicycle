@@ -3,8 +3,8 @@ package blockchain
 import (
 	"bytes"
 	"context"
-	"github.com/gobicycle/bicycle/config"
-	"github.com/gobicycle/bicycle/core"
+	"github.com/gobicycle/bicycle/internal/config"
+	"github.com/gobicycle/bicycle/internal/core"
 	"github.com/tonkeeper/tongo/boc"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"

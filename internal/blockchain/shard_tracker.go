@@ -2,7 +2,7 @@ package blockchain
 
 import (
 	"context"
-	"github.com/gobicycle/bicycle/core"
+	"github.com/gobicycle/bicycle/internal/core"
 	"github.com/tonkeeper/tongo"
 	"github.com/tonkeeper/tongo/tlb"
 	"time"

@@ -8,18 +8,18 @@ RUN mkdir /output && cp build/emulator/libemulator.so /output
 
 FROM docker.io/library/golang:1.19.2 AS builder
 WORKDIR /build-dir
-COPY go.mod .
-COPY go.sum .
+COPY ../go.mod .
+COPY ../go.sum .
 RUN go mod download all
-COPY api api
-COPY blockchain blockchain
-COPY cmd cmd
-COPY config config
-COPY core core
-COPY db db
-COPY audit audit
-COPY queue queue
-COPY webhook webhook
+COPY ../api api
+COPY ../internal/blockchain blockchain
+COPY ../cmd cmd
+COPY ../internal/config config
+COPY ../internal/core core
+COPY ../internal/database db
+COPY ../internal/audit audit
+COPY ../internal/queue queue
+COPY ../internal/webhook webhook
 RUN go build -o /tmp/processor github.com/gobicycle/bicycle/cmd/processor
 RUN go build -o /tmp/testutil github.com/gobicycle/bicycle/cmd/testutil
 

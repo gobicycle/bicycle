@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/gobicycle/bicycle/config"
+	"github.com/gobicycle/bicycle/internal/config"
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/tonkeeper/tongo"

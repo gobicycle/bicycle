@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"github.com/gobicycle/bicycle/blockchain"
-	"github.com/gobicycle/bicycle/config"
+	"github.com/gobicycle/bicycle/internal/blockchain"
+	"github.com/gobicycle/bicycle/internal/config"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/xssnick/tonutils-go/address"
 	"log"

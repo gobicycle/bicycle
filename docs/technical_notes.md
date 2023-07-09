@@ -2,7 +2,7 @@
 
 - [Glossary](#Glossary)
 - [Limitations](#Limitations)
-- [API blueprint](/docs/api.apib)
+- [Openapi specification](/api/openapi.yml)
 - [Wallets generation](#Wallets-generation)
 - [Healthcheck](#Healthcheck)
 - [Transfers layouts](#Transfers-layouts)
@@ -275,7 +275,7 @@ If the shard prefix length is greater than the specified by configuration, then 
 * `0010 100000000000000000000000000000000000000000000000000000000000`  - invalid prefix
 
 ### Scheme for committing workchain blocks in the masterchain
-![Merge split](docs/src/merge_split.png)
+![Merge split](src/merge_split.png)
 
 ## Shard tracker algorithm
 

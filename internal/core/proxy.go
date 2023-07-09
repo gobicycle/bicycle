@@ -3,7 +3,7 @@ package core
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/gobicycle/bicycle/config"
+	"github.com/gobicycle/bicycle/internal/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/tonkeeper/tongo"
 	"github.com/xssnick/tonutils-go/address"
