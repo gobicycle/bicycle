@@ -68,3 +68,4 @@
 - [ ] Separate .env files for services
 - [ ] Automatic migrations
 - [ ] Time sync with two nodes
+- [ ] Both side income calculation

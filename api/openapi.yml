@@ -2,7 +2,7 @@ openapi: 3.0.2
 
 info:
   title: REST api to TON payment processor
-  version: 1.0.0
+  version: 2.0.0
   description: This API describes endpoints of payment processor
 
 servers:
@@ -99,7 +99,6 @@ paths:
           description: the maximum value of returned records
           schema:
             type: integer
-            format: int64
             default: 100
             example: 100
         - name: offset
@@ -107,7 +106,6 @@ paths:
           description: offset for returned records
           schema:
             type: integer
-            format: int64
             default: 0
             example: 10
       responses:

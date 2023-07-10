@@ -154,9 +154,9 @@ type GetIncomeHistoryParams struct {
 	// The text identifier of the currency specified in the processor configuration. `TON` for TON coin.
 	Currency string
 	// The maximum value of returned records.
-	Limit OptInt64
+	Limit OptInt
 	// Offset for returned records.
-	Offset OptInt64
+	Offset OptInt
 }
 
 func unpackGetIncomeHistoryParams(packed middleware.Parameters) (params GetIncomeHistoryParams) {
@@ -180,7 +180,7 @@ func unpackGetIncomeHistoryParams(packed middleware.Parameters) (params GetIncom
 			In:   "query",
 		}
 		if v, ok := packed[key]; ok {
-			params.Limit = v.(OptInt64)
+			params.Limit = v.(OptInt)
 		}
 	}
 	{
@@ -189,7 +189,7 @@ func unpackGetIncomeHistoryParams(packed middleware.Parameters) (params GetIncom
 			In:   "query",
 		}
 		if v, ok := packed[key]; ok {
-			params.Offset = v.(OptInt64)
+			params.Offset = v.(OptInt)
 		}
 	}
 	return params
@@ -280,7 +280,7 @@ func decodeGetIncomeHistoryParams(args [1]string, argsEscaped bool, r *http.Requ
 	}
 	// Set default value for query: limit.
 	{
-		val := int64(100)
+		val := int(100)
 		params.Limit.SetTo(val)
 	}
 	// Decode query: limit.
@@ -293,14 +293,14 @@ func decodeGetIncomeHistoryParams(args [1]string, argsEscaped bool, r *http.Requ
 
 		if err := q.HasParam(cfg); err == nil {
 			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotLimitVal int64
+				var paramsDotLimitVal int
 				if err := func() error {
 					val, err := d.DecodeValue()
 					if err != nil {
 						return err
 					}
 
-					c, err := conv.ToInt64(val)
+					c, err := conv.ToInt(val)
 					if err != nil {
 						return err
 					}
@@ -326,7 +326,7 @@ func decodeGetIncomeHistoryParams(args [1]string, argsEscaped bool, r *http.Requ
 	}
 	// Set default value for query: offset.
 	{
-		val := int64(0)
+		val := int(0)
 		params.Offset.SetTo(val)
 	}
 	// Decode query: offset.
@@ -339,14 +339,14 @@ func decodeGetIncomeHistoryParams(args [1]string, argsEscaped bool, r *http.Requ
 
 		if err := q.HasParam(cfg); err == nil {
 			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotOffsetVal int64
+				var paramsDotOffsetVal int
 				if err := func() error {
 					val, err := d.DecodeValue()
 					if err != nil {
 						return err
 					}
 
-					c, err := conv.ToInt64(val)
+					c, err := conv.ToInt(val)
 					if err != nil {
 						return err
 					}

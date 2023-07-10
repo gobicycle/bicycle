@@ -2,86 +2,12 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"github.com/go-faster/errors"
 	"github.com/gobicycle/bicycle/internal/config"
 	"github.com/gobicycle/bicycle/internal/core"
 	"github.com/gobicycle/bicycle/internal/oas"
-	"github.com/gofrs/uuid"
-	"github.com/shopspring/decimal"
-	log "github.com/sirupsen/logrus"
-	"github.com/tonkeeper/tongo"
-	"github.com/xssnick/tonutils-go/address"
-	"net/http"
-	"strconv"
 )
-
-//type Handler struct {
-//	storage          storage
-//	blockchain       blockchain
-//	token            string
-//	shard            tongo.ShardID
-//	mutex            sync.Mutex
-//	hotWalletAddress address.Address
-//}
-
-type WithdrawalRequest struct {
-	UserID      string     `json:"user_id"`
-	QueryID     string     `json:"query_id"`
-	Currency    string     `json:"currency"`
-	Amount      core.Coins `json:"amount"`
-	Destination string     `json:"destination"`
-	Comment     string     `json:"comment"`
-}
-
-type ServiceTonWithdrawalRequest struct {
-	From string `json:"from"`
-}
-
-type ServiceJettonWithdrawalRequest struct {
-	Owner        string `json:"owner"`
-	JettonMaster string `json:"jetton_master"`
-}
-
-type WalletAddress struct {
-	Address  string `json:"address"`
-	Currency string `json:"currency"`
-}
-
-type GetAddressesResponse struct {
-	Addresses []WalletAddress `json:"addresses"`
-}
-
-type WithdrawalResponse struct {
-	ID int64 `json:"ID"`
-}
-
-type WithdrawalStatusResponse struct {
-	Status core.WithdrawalStatus `json:"status"`
-}
-
-type GetIncomeResponse struct {
-	Side         string        `json:"counting_side"`
-	TotalIncomes []totalIncome `json:"total_income"`
-}
-
-type GetHistoryResponse struct {
-	Incomes []income `json:"incomes"`
-}
-
-type totalIncome struct {
-	Address  string `json:"deposit_address"`
-	Amount   string `json:"amount"`
-	Currency string `json:"currency"`
-}
-
-type income struct {
-	DepositAddress string `json:"deposit_address"`
-	Time           int64  `json:"time"`
-	SourceAddress  string `json:"source_address,omitempty"`
-	Amount         string `json:"amount"`
-	Comment        string `json:"comment,omitempty"`
-}
 
 func (h Handler) MakeNewDeposit(ctx context.Context, params oas.MakeNewDepositParams) (oas.MakeNewDepositRes, error) {
 	if !isValidCurrency(params.Currency) {
@@ -104,466 +30,91 @@ func (h Handler) GetDeposits(ctx context.Context, params oas.GetDepositsParams) 
 	return deposits, nil
 }
 
-func (h *Handler) sendWithdrawal(resp http.ResponseWriter, req *http.Request) {
-	var body WithdrawalRequest
-	err := json.NewDecoder(req.Body).Decode(&body)
+func (h Handler) SendWithdrawal(ctx context.Context, req *oas.SendWithdrawalReq) (oas.SendWithdrawalRes, error) {
+	w, err := convertWithdrawal(req)
 	if err != nil {
-		writeHttpError(resp, http.StatusBadRequest, fmt.Sprintf("decode payload err: %v", err))
-		return
+		return &oas.BadRequest{Error: fmt.Sprintf("convert withdrawal err: %v", err)}, nil
 	}
-	w, err := convertWithdrawal(body)
+	unique, err := h.storage.IsWithdrawalRequestUnique(ctx, w)
 	if err != nil {
-		writeHttpError(resp, http.StatusBadRequest, fmt.Sprintf("convert withdrawal err: %v", err))
-		return
-	}
-	unique, err := h.storage.IsWithdrawalRequestUnique(req.Context(), w)
-	if err != nil {
-		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("check withdrawal uniquess err: %v", err))
-		return
+		return &oas.InternalError{Error: fmt.Sprintf("check withdrawal uniquess err: %v", err)}, nil
 	} else if !unique {
-		writeHttpError(resp, http.StatusBadRequest, "(user_id,query_id) not unique")
-		return
+		return &oas.InternalError{Error: "(user_id,query_id) not unique"}, nil
 	}
 	_, ok := h.storage.GetWalletType(w.Destination)
 	if ok {
-		writeHttpError(resp, http.StatusBadRequest, "withdrawal to service internal addresses not supported")
-		return
+		return &oas.InternalError{Error: "withdrawal to service internal addresses not supported"}, nil
 	}
-	id, err := h.storage.SaveWithdrawalRequest(req.Context(), w)
+	id, err := h.storage.SaveWithdrawalRequest(ctx, w)
 	if err != nil {
-		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("save withdrawal request err: %v", err))
-		return
+		return &oas.InternalError{Error: fmt.Sprintf("save withdrawal request err: %v", err)}, nil
 	}
-	r := WithdrawalResponse{ID: id}
-	resp.Header().Add("Content-Type", "application/json")
-	resp.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(resp).Encode(r)
-	if err != nil {
-		log.Errorf("json encode error: %v", err)
-	}
+	return &oas.WithdrawalID{ID: id}, nil
 }
 
-func (h *Handler) getSync(resp http.ResponseWriter, req *http.Request) {
-	isSynced, err := h.storage.IsActualBlockData(req.Context())
+func (h Handler) GetSync(ctx context.Context) (oas.GetSyncRes, error) {
+	isSynced, err := h.storage.IsActualBlockData(ctx)
 	if err != nil {
-		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get sync from db err: %v", err))
-		return
+		return &oas.InternalError{Error: fmt.Sprintf("get sync from db err: %v", err)}, nil
 	}
-	getSyncResponse := struct {
-		IsSynced bool `json:"is_synced"`
-	}{
-		IsSynced: isSynced,
-	}
-	resp.Header().Add("Content-Type", "application/json")
-	resp.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(resp).Encode(getSyncResponse)
-	if err != nil {
-		log.Errorf("json encode error: %v", err)
-	}
+	return &oas.SyncStatus{IsSynced: isSynced}, nil
 }
 
-func (h *Handler) getWithdrawalStatus(resp http.ResponseWriter, req *http.Request) {
-	ids := req.URL.Query().Get("id")
-	if ids == "" {
-		writeHttpError(resp, http.StatusBadRequest, "need to provide request ID")
-		return
-	}
-	id, err := strconv.ParseInt(ids, 10, 64)
-	if err != nil {
-		writeHttpError(resp, http.StatusBadRequest, fmt.Sprintf("convert request ID err: %v", err))
-		return
-	}
-	status, err := h.storage.GetExternalWithdrawalStatus(req.Context(), id)
-	if err == core.ErrNotFound {
-		writeHttpError(resp, http.StatusBadRequest, "request ID not found")
-		return
+func (h Handler) GetWithdrawalStatus(ctx context.Context, params oas.GetWithdrawalStatusParams) (oas.GetWithdrawalStatusRes, error) {
+	status, err := h.storage.GetExternalWithdrawalStatus(ctx, params.ID)
+	if errors.Is(err, core.ErrNotFound) {
+		return &oas.BadRequest{Error: "request ID not found"}, nil
 	}
 	if err != nil {
-		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get external withdrawal status err: %v", err))
-		return
+		return &oas.InternalError{Error: fmt.Sprintf("get external withdrawal status err: %v", err)}, nil
 	}
-	resp.Header().Add("Content-Type", "application/json")
-	resp.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(resp).Encode(WithdrawalStatusResponse{Status: status})
-	if err != nil {
-		log.Errorf("json encode error: %v", err)
+	s := convertWithdrawalStatus(status)
+	if s == nil {
+		return &oas.InternalError{Error: "invalid withdrawal status"}, nil
 	}
+	return s, nil
 }
 
-func (h *Handler) getIncome(resp http.ResponseWriter, req *http.Request) {
-	id := req.URL.Query().Get("user_id")
-	if id == "" {
-		writeHttpError(resp, http.StatusBadRequest, "need to provide user ID")
-		return
-	}
-	totalIncomes, err := h.storage.GetIncome(req.Context(), id, config.Config.IsDepositSideCalculation)
+func (h Handler) GetIncome(ctx context.Context, params oas.GetIncomeParams) (oas.GetIncomeRes, error) {
+	totalIncomes, err := h.storage.GetIncome(ctx, params.UserID, config.Config.IsDepositSideCalculation)
 	if err != nil {
-		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get balances err: %v", err))
-		return
+		return &oas.InternalError{Error: fmt.Sprintf("get balances err: %v", err)}, nil
 	}
-	resp.Header().Add("Content-Type", "application/json")
-	resp.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(resp).Encode(convertIncome(h.storage, totalIncomes))
-	if err != nil {
-		log.Errorf("json encode error: %v", err)
-	}
+	return convertIncome(h.storage, totalIncomes), nil
 }
 
-func (h *Handler) getIncomeHistory(resp http.ResponseWriter, req *http.Request) {
-	id := req.URL.Query().Get("user_id")
-	if id == "" {
-		writeHttpError(resp, http.StatusBadRequest, "need to provide user ID")
-		return
+func (h Handler) GetIncomeHistory(ctx context.Context, params oas.GetIncomeHistoryParams) (oas.GetIncomeHistoryRes, error) {
+	if !isValidCurrency(params.Currency) {
+		return &oas.BadRequest{Error: "invalid currency type"}, nil
 	}
-	currency := req.URL.Query().Get("currency")
-	if currency == "" {
-		writeHttpError(resp, http.StatusBadRequest, "need to provide currency")
-		return
-	}
-	if !isValidCurrency(currency) {
-		writeHttpError(resp, http.StatusBadRequest, "invalid currency type")
-		return
-	}
-	limit, err := strconv.Atoi(req.URL.Query().Get("limit"))
+	// limit and offset must be with default values!
+	history, err := h.storage.GetIncomeHistory(ctx, params.UserID, params.Currency, params.Limit.Value, params.Offset.Value)
 	if err != nil {
-		writeHttpError(resp, http.StatusBadRequest, "invalid limit parameter")
-		return
+		return &oas.InternalError{Error: fmt.Sprintf("get history err: %v", err)}, nil
 	}
-	offset, err := strconv.Atoi(req.URL.Query().Get("offset"))
-	if err != nil {
-		writeHttpError(resp, http.StatusBadRequest, "invalid offset parameter")
-		return
-	}
-	history, err := h.storage.GetIncomeHistory(req.Context(), id, currency, limit, offset)
-	if err != nil {
-		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get history err: %v", err))
-		return
-	}
-	resp.Header().Add("Content-Type", "application/json")
-	resp.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(resp).Encode(convertHistory(h.storage, currency, history))
-	if err != nil {
-		log.Errorf("json encode error: %v", err)
-	}
+	return convertHistory(h.storage, params.Currency, history), nil
 }
 
-func (h *Handler) serviceTonWithdrawal(resp http.ResponseWriter, req *http.Request) {
-	var body ServiceTonWithdrawalRequest
-	err := json.NewDecoder(req.Body).Decode(&body)
+func (h Handler) ServiceTonWithdrawal(ctx context.Context, req *oas.ServiceTonWithdrawalReq) (oas.ServiceTonWithdrawalRes, error) {
+	w, err := convertTonServiceWithdrawal(h.storage, req)
 	if err != nil {
-		writeHttpError(resp, http.StatusBadRequest, fmt.Sprintf("decode payload err: %v", err))
-		return
+		return &oas.BadRequest{Error: fmt.Sprintf("convert service withdrawal err: %v", err)}, nil
 	}
-	w, err := convertTonServiceWithdrawal(h.storage, body)
+	memo, err := h.storage.SaveServiceWithdrawalRequest(ctx, w)
 	if err != nil {
-		writeHttpError(resp, http.StatusBadRequest, fmt.Sprintf("convert service withdrawal err: %v", err))
-		return
+		return &oas.InternalError{Error: fmt.Sprintf("save service withdrawal request err: %v", err)}, nil
 	}
-	memo, err := h.storage.SaveServiceWithdrawalRequest(req.Context(), w)
-	if err != nil {
-		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("save service withdrawal request err: %v", err))
-		return
-	}
-	var response = struct {
-		Memo uuid.UUID `json:"memo"`
-	}{
-		Memo: memo,
-	}
-	resp.Header().Add("Content-Type", "application/json")
-	resp.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(resp).Encode(response)
-	if err != nil {
-		log.Errorf("json encode error: %v", err)
-	}
+	return &oas.ServiceWithdrawalMemo{Memo: memo}, nil
 }
 
-func (h *Handler) serviceJettonWithdrawal(resp http.ResponseWriter, req *http.Request) {
-	var body ServiceJettonWithdrawalRequest
-	err := json.NewDecoder(req.Body).Decode(&body)
+func (h Handler) ServiceJettonWithdrawal(ctx context.Context, req *oas.ServiceJettonWithdrawalReq) (oas.ServiceJettonWithdrawalRes, error) {
+	w, err := convertJettonServiceWithdrawal(h.storage, req)
 	if err != nil {
-		writeHttpError(resp, http.StatusBadRequest, fmt.Sprintf("decode payload err: %v", err))
-		return
+		return &oas.BadRequest{Error: fmt.Sprintf("convert service withdrawal err: %v", err)}, nil
 	}
-	w, err := convertJettonServiceWithdrawal(h.storage, body)
+	memo, err := h.storage.SaveServiceWithdrawalRequest(ctx, w)
 	if err != nil {
-		writeHttpError(resp, http.StatusBadRequest, fmt.Sprintf("convert service withdrawal err: %v", err))
-		return
+		return &oas.InternalError{Error: fmt.Sprintf("save service withdrawal request err: %v", err)}, nil
 	}
-	memo, err := h.storage.SaveServiceWithdrawalRequest(req.Context(), w)
-	if err != nil {
-		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("save service withdrawal request err: %v", err))
-		return
-	}
-	var response = struct {
-		Memo uuid.UUID `json:"memo"`
-	}{
-		Memo: memo,
-	}
-	resp.Header().Add("Content-Type", "application/json")
-	resp.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(resp).Encode(response)
-	if err != nil {
-		log.Errorf("json encode error: %v", err)
-	}
-}
-
-func RegisterHandlers(mux *http.ServeMux, h *Handler) {
-	mux.HandleFunc("/v1/address/new", recoverMiddleware(authMiddleware(post(h.getNewAddress))))
-	mux.HandleFunc("/v1/address/all", recoverMiddleware(authMiddleware(get(h.getAddresses))))
-	mux.HandleFunc("/v1/withdrawal/send", recoverMiddleware(authMiddleware(post(h.sendWithdrawal))))
-	mux.HandleFunc("/v1/withdrawal/service/ton", recoverMiddleware(authMiddleware(post(h.serviceTonWithdrawal))))
-	mux.HandleFunc("/v1/withdrawal/service/jetton", recoverMiddleware(authMiddleware(post(h.serviceJettonWithdrawal))))
-	mux.HandleFunc("/v1/withdrawal/status", recoverMiddleware(authMiddleware(get(h.getWithdrawalStatus))))
-	mux.HandleFunc("/v1/system/sync", recoverMiddleware(get(h.getSync)))
-	mux.HandleFunc("/v1/income", recoverMiddleware(authMiddleware(get(h.getIncome))))
-	mux.HandleFunc("/v1/deposit/history", recoverMiddleware(authMiddleware(get(h.getIncomeHistory))))
-}
-
-func generateDeposit(
-	ctx context.Context,
-	userID string,
-	currency string,
-	shard tongo.ShardID,
-	dbConn storage,
-	bc blockchain,
-	hotWalletAddress address.Address,
-) (
-	*oas.Deposit,
-	error,
-) {
-	subwalletID, err := dbConn.GetLastSubwalletID(ctx)
-	if err != nil {
-		return "", err
-	}
-	var res string
-	if currency == core.TonSymbol {
-		w, id, err := bc.GenerateSubWallet(config.Config.Seed, shard, subwalletID+1)
-		if err != nil {
-			return "", err
-		}
-		a, err := core.AddressFromTonutilsAddress(w.Address())
-		if err != nil {
-			return "", err
-		}
-		err = dbConn.SaveTonWallet(ctx,
-			core.WalletData{
-				SubwalletID: id,
-				UserID:      userID,
-				Currency:    core.TonSymbol,
-				Type:        core.TonDepositWallet,
-				Address:     a,
-			},
-		)
-		if err != nil {
-			return "", err
-		}
-		res = a.ToUserFormat()
-	} else {
-		jetton, ok := config.Config.Jettons[currency]
-		if !ok {
-			return "", fmt.Errorf("jetton address not found")
-		}
-		proxy, addr, err := bc.GenerateDepositJettonWalletForProxy(ctx, shard, &hotWalletAddress, jetton.Master, subwalletID+1)
-		if err != nil {
-			return "", err
-		}
-		jettonWalletAddr, err := core.AddressFromTonutilsAddress(addr)
-		if err != nil {
-			return "", err
-		}
-		proxyAddr, err := core.AddressFromTonutilsAddress(proxy.Address())
-		if err != nil {
-			return "", err
-		}
-		err = dbConn.SaveJettonWallet(
-			ctx,
-			proxyAddr,
-			core.WalletData{
-				UserID:      userID,
-				SubwalletID: proxy.SubwalletID,
-				Currency:    currency,
-				Type:        core.JettonDepositWallet,
-				Address:     jettonWalletAddr,
-			},
-			false,
-		)
-		if err != nil {
-			return "", err
-		}
-		res = proxyAddr.ToUserFormat()
-	}
-	return res, nil
-}
-
-func getDeposits(ctx context.Context, userID string, dbConn storage) (*oas.Deposits, error) {
-	var res = GetAddressesResponse{
-		Addresses: []WalletAddress{},
-	}
-	tonAddr, err := dbConn.GetTonWalletsAddresses(ctx, userID, []core.WalletType{core.TonDepositWallet})
-	if err != nil {
-		return GetAddressesResponse{}, err
-	}
-	jettonAddr, err := dbConn.GetJettonOwnersAddresses(ctx, userID, []core.WalletType{core.JettonDepositWallet})
-	if err != nil {
-		return GetAddressesResponse{}, err
-	}
-	for _, a := range tonAddr {
-		res.Addresses = append(res.Addresses, WalletAddress{Address: a.ToUserFormat(), Currency: core.TonSymbol})
-	}
-	for _, a := range jettonAddr {
-		res.Addresses = append(res.Addresses, WalletAddress{Address: a.Address.ToUserFormat(), Currency: a.Currency})
-	}
-	return res, nil
-}
-
-func isValidCurrency(cur string) bool {
-	if _, ok := config.Config.Jettons[cur]; ok || cur == core.TonSymbol {
-		return true
-	}
-	return false
-}
-
-func convertWithdrawal(w WithdrawalRequest) (core.WithdrawalRequest, error) {
-	if !isValidCurrency(w.Currency) {
-		return core.WithdrawalRequest{}, fmt.Errorf("invalid currency")
-	}
-	addr, bounceable, err := validateAddress(w.Destination)
-	if err != nil {
-		return core.WithdrawalRequest{}, fmt.Errorf("invalid destination address: %v", err)
-	}
-	if !(w.Amount.Cmp(decimal.New(0, 0)) == 1) {
-		return core.WithdrawalRequest{}, fmt.Errorf("amount must be > 0")
-	}
-	return core.WithdrawalRequest{
-		UserID:      w.UserID,
-		QueryID:     w.QueryID,
-		Currency:    w.Currency,
-		Amount:      w.Amount,
-		Destination: addr,
-		Bounceable:  bounceable,
-		Comment:     w.Comment,
-		IsInternal:  false,
-	}, nil
-}
-
-func convertTonServiceWithdrawal(s storage, w ServiceTonWithdrawalRequest) (core.ServiceWithdrawalRequest, error) {
-	from, _, err := validateAddress(w.From)
-	if err != nil {
-		return core.ServiceWithdrawalRequest{}, fmt.Errorf("invalid from address: %v", err)
-	}
-	t, ok := s.GetWalletType(from)
-	if !ok {
-		return core.ServiceWithdrawalRequest{}, fmt.Errorf("unknown deposit address")
-	}
-	if t != core.JettonOwner {
-		return core.ServiceWithdrawalRequest{},
-			fmt.Errorf("service withdrawal allowed only for Jetton deposit owner")
-	}
-	return core.ServiceWithdrawalRequest{
-		From: from,
-	}, nil
-}
-
-func convertJettonServiceWithdrawal(s storage, w ServiceJettonWithdrawalRequest) (core.ServiceWithdrawalRequest, error) {
-	from, _, err := validateAddress(w.Owner)
-	if err != nil {
-		return core.ServiceWithdrawalRequest{}, fmt.Errorf("invalid from address: %v", err)
-	}
-	t, ok := s.GetWalletType(from)
-	if !ok {
-		return core.ServiceWithdrawalRequest{}, fmt.Errorf("unknown deposit address")
-	}
-	if t != core.JettonOwner && t != core.TonDepositWallet {
-		return core.ServiceWithdrawalRequest{},
-			fmt.Errorf("service withdrawal allowed only for Jetton deposit owner or TON deposit")
-	}
-	jetton, _, err := validateAddress(w.JettonMaster)
-	if err != nil {
-		return core.ServiceWithdrawalRequest{}, fmt.Errorf("invalid jetton master address: %v", err)
-	}
-	// currency type checks by withdrawal processor
-	return core.ServiceWithdrawalRequest{
-		From:         from,
-		JettonMaster: &jetton,
-	}, nil
-}
-
-func convertIncome(dbConn storage, totalIncomes []core.TotalIncome) GetIncomeResponse {
-	var res = GetIncomeResponse{
-		TotalIncomes: []totalIncome{},
-	}
-	if config.Config.IsDepositSideCalculation {
-		res.Side = core.SideDeposit
-	} else {
-		res.Side = core.SideHotWallet
-	}
-
-	for _, b := range totalIncomes {
-		totIncome := totalIncome{
-			Amount:   b.Amount.String(),
-			Currency: b.Currency,
-		}
-		if b.Currency == core.TonSymbol {
-			totIncome.Address = b.Deposit.ToUserFormat()
-		} else {
-			owner := dbConn.GetOwner(b.Deposit)
-			if owner == nil {
-				// TODO: remove fatal
-				log.Fatalf("can not find owner for deposit: %s", b.Deposit.ToUserFormat())
-			}
-			totIncome.Address = owner.ToUserFormat()
-		}
-		res.TotalIncomes = append(res.TotalIncomes, totIncome)
-	}
-	return res
-}
-
-func convertHistory(dbConn storage, currency string, incomes []core.ExternalIncome) GetHistoryResponse {
-	var res = GetHistoryResponse{
-		Incomes: []income{},
-	}
-	for _, i := range incomes {
-		inc := income{
-			Time:    int64(i.Utime),
-			Amount:  i.Amount.String(),
-			Comment: i.Comment,
-		}
-		if currency == core.TonSymbol {
-			inc.DepositAddress = i.To.ToUserFormat()
-		} else {
-			owner := dbConn.GetOwner(i.To)
-			if owner == nil {
-				// TODO: remove fatal
-				log.Fatalf("can not find owner for deposit: %s", i.To.ToUserFormat())
-			}
-			inc.DepositAddress = owner.ToUserFormat()
-		}
-		// show only std address
-		if len(i.From) == 32 && i.FromWorkchain != nil {
-			addr := address.NewAddress(0, byte(*i.FromWorkchain), i.From)
-			addr.SetTestnetOnly(config.Config.Testnet)
-			inc.SourceAddress = addr.String()
-		}
-		res.Incomes = append(res.Incomes, inc)
-	}
-	return res
-}
-
-func validateAddress(addr string) (core.Address, bool, error) {
-	if addr == "" {
-		return core.Address{}, false, fmt.Errorf("empty address")
-	}
-	a, err := address.ParseAddr(addr)
-	if err != nil {
-		return core.Address{}, false, fmt.Errorf("invalid address: %v", err)
-	}
-	if a.IsTestnetOnly() && !config.Config.Testnet {
-		return core.Address{}, false, fmt.Errorf("address for testnet only")
-	}
-	if a.Workchain() != core.DefaultWorkchain {
-		return core.Address{}, false, fmt.Errorf("address must be in %d workchain",
-			core.DefaultWorkchain)
-	}
-	res, err := core.AddressFromTonutilsAddress(a)
-	return res, a.IsBounceable(), err
+	return &oas.ServiceWithdrawalMemo{Memo: memo}, nil
 }

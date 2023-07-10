@@ -415,7 +415,7 @@ func (c *Client) sendGetIncomeHistory(ctx context.Context, params GetIncomeHisto
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Limit.Get(); ok {
-				return e.EncodeValue(conv.Int64ToString(val))
+				return e.EncodeValue(conv.IntToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -432,7 +432,7 @@ func (c *Client) sendGetIncomeHistory(ctx context.Context, params GetIncomeHisto
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Offset.Get(); ok {
-				return e.EncodeValue(conv.Int64ToString(val))
+				return e.EncodeValue(conv.IntToString(val))
 			}
 			return nil
 		}); err != nil {
