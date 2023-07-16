@@ -9,20 +9,20 @@ import (
 	"github.com/gobicycle/bicycle/internal/oas"
 )
 
-func (h Handler) MakeNewDeposit(ctx context.Context, params oas.MakeNewDepositParams) (oas.MakeNewDepositRes, error) {
+func (h *Handler) MakeNewDeposit(ctx context.Context, params oas.MakeNewDepositParams) (oas.MakeNewDepositRes, error) {
 	if !isValidCurrency(params.Currency) {
 		return &oas.BadRequest{Error: "invalid currency type"}, nil
 	}
 	h.mutex.Lock()
 	defer h.mutex.Unlock() // To prevent data race
-	deposit, err := generateDeposit(ctx, params.UserID, params.Currency, h.shard, h.storage, h.executor, h.hotWalletAddress)
+	deposit, err := generateDeposit(ctx, params.UserID, params.Currency, h.shard, h.storage, h.blockchain, h.hotWalletAddress)
 	if err != nil {
 		return &oas.InternalError{Error: err.Error()}, nil
 	}
 	return deposit, nil
 }
 
-func (h Handler) GetDeposits(ctx context.Context, params oas.GetDepositsParams) (oas.GetDepositsRes, error) {
+func (h *Handler) GetDeposits(ctx context.Context, params oas.GetDepositsParams) (oas.GetDepositsRes, error) {
 	deposits, err := getDeposits(ctx, params.UserID, h.storage)
 	if err != nil {
 		return &oas.InternalError{Error: err.Error()}, nil
@@ -30,7 +30,7 @@ func (h Handler) GetDeposits(ctx context.Context, params oas.GetDepositsParams) 
 	return deposits, nil
 }
 
-func (h Handler) SendWithdrawal(ctx context.Context, req *oas.SendWithdrawalReq) (oas.SendWithdrawalRes, error) {
+func (h *Handler) SendWithdrawal(ctx context.Context, req *oas.SendWithdrawalReq) (oas.SendWithdrawalRes, error) {
 	w, err := convertWithdrawal(req)
 	if err != nil {
 		return &oas.BadRequest{Error: fmt.Sprintf("convert withdrawal err: %v", err)}, nil
@@ -52,7 +52,7 @@ func (h Handler) SendWithdrawal(ctx context.Context, req *oas.SendWithdrawalReq)
 	return &oas.WithdrawalID{ID: id}, nil
 }
 
-func (h Handler) GetSync(ctx context.Context) (oas.GetSyncRes, error) {
+func (h *Handler) GetSync(ctx context.Context) (oas.GetSyncRes, error) {
 	isSynced, err := h.storage.IsActualBlockData(ctx)
 	if err != nil {
 		return &oas.InternalError{Error: fmt.Sprintf("get sync from db err: %v", err)}, nil
@@ -60,7 +60,7 @@ func (h Handler) GetSync(ctx context.Context) (oas.GetSyncRes, error) {
 	return &oas.SyncStatus{IsSynced: isSynced}, nil
 }
 
-func (h Handler) GetWithdrawalStatus(ctx context.Context, params oas.GetWithdrawalStatusParams) (oas.GetWithdrawalStatusRes, error) {
+func (h *Handler) GetWithdrawalStatus(ctx context.Context, params oas.GetWithdrawalStatusParams) (oas.GetWithdrawalStatusRes, error) {
 	status, err := h.storage.GetExternalWithdrawalStatus(ctx, params.ID)
 	if errors.Is(err, core.ErrNotFound) {
 		return &oas.BadRequest{Error: "request ID not found"}, nil
@@ -75,7 +75,7 @@ func (h Handler) GetWithdrawalStatus(ctx context.Context, params oas.GetWithdraw
 	return s, nil
 }
 
-func (h Handler) GetIncome(ctx context.Context, params oas.GetIncomeParams) (oas.GetIncomeRes, error) {
+func (h *Handler) GetIncome(ctx context.Context, params oas.GetIncomeParams) (oas.GetIncomeRes, error) {
 	totalIncomes, err := h.storage.GetIncome(ctx, params.UserID, config.Config.IsDepositSideCalculation)
 	if err != nil {
 		return &oas.InternalError{Error: fmt.Sprintf("get balances err: %v", err)}, nil
@@ -83,7 +83,7 @@ func (h Handler) GetIncome(ctx context.Context, params oas.GetIncomeParams) (oas
 	return convertIncome(h.storage, totalIncomes), nil
 }
 
-func (h Handler) GetIncomeHistory(ctx context.Context, params oas.GetIncomeHistoryParams) (oas.GetIncomeHistoryRes, error) {
+func (h *Handler) GetIncomeHistory(ctx context.Context, params oas.GetIncomeHistoryParams) (oas.GetIncomeHistoryRes, error) {
 	if !isValidCurrency(params.Currency) {
 		return &oas.BadRequest{Error: "invalid currency type"}, nil
 	}
@@ -95,7 +95,7 @@ func (h Handler) GetIncomeHistory(ctx context.Context, params oas.GetIncomeHisto
 	return convertHistory(h.storage, params.Currency, history), nil
 }
 
-func (h Handler) ServiceTonWithdrawal(ctx context.Context, req *oas.ServiceTonWithdrawalReq) (oas.ServiceTonWithdrawalRes, error) {
+func (h *Handler) ServiceTonWithdrawal(ctx context.Context, req *oas.ServiceTonWithdrawalReq) (oas.ServiceTonWithdrawalRes, error) {
 	w, err := convertTonServiceWithdrawal(h.storage, req)
 	if err != nil {
 		return &oas.BadRequest{Error: fmt.Sprintf("convert service withdrawal err: %v", err)}, nil
@@ -107,7 +107,7 @@ func (h Handler) ServiceTonWithdrawal(ctx context.Context, req *oas.ServiceTonWi
 	return &oas.ServiceWithdrawalMemo{Memo: memo}, nil
 }
 
-func (h Handler) ServiceJettonWithdrawal(ctx context.Context, req *oas.ServiceJettonWithdrawalReq) (oas.ServiceJettonWithdrawalRes, error) {
+func (h *Handler) ServiceJettonWithdrawal(ctx context.Context, req *oas.ServiceJettonWithdrawalReq) (oas.ServiceJettonWithdrawalRes, error) {
 	w, err := convertJettonServiceWithdrawal(h.storage, req)
 	if err != nil {
 		return &oas.BadRequest{Error: fmt.Sprintf("convert service withdrawal err: %v", err)}, nil

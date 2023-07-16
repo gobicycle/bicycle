@@ -8,6 +8,7 @@ import (
 	"github.com/gobicycle/bicycle/internal/config"
 	"github.com/gofrs/uuid"
 	log "github.com/sirupsen/logrus"
+	"github.com/tonkeeper/tongo"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -17,7 +18,7 @@ import (
 )
 
 type Wallets struct {
-	Shard            ShardID
+	Shard            tongo.ShardID
 	TonHotWallet     *wallet.Wallet
 	TonBasicWallet   *wallet.Wallet // basic V3 wallet to make other wallets with different subwallet_id
 	JettonHotWallets map[string]JettonWallet
@@ -70,7 +71,7 @@ func initTonHotWallet(
 	shardPrefixLen int,
 ) (
 	tonHotWallet *wallet.Wallet,
-	shard ShardID,
+	shard tongo.ShardID,
 	subwalletId uint32,
 	err error,
 ) {

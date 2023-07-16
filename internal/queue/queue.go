@@ -15,7 +15,7 @@ type AmqpClient struct {
 }
 
 // NewAmqpClient creates new AMQP client and declare new exchange
-func NewAmqpClient(uri string, enabled bool, queueName string) (*AmqpClient, error) {
+func NewAmqpClient(uri string, queueName string) (*AmqpClient, error) {
 	if !enabled {
 		return &AmqpClient{enabled: false}, nil
 	}

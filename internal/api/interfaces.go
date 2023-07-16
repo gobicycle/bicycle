@@ -25,7 +25,7 @@ type storage interface {
 	GetOwner(address core.Address) *core.Address
 }
 
-type blockchainExecutor interface {
+type blockchain interface {
 	GenerateSubWallet(seed string, shard tongo.ShardID, startSubWalletID uint32) (*wallet.Wallet, uint32, error)
 	GenerateDepositJettonWalletForProxy(
 		ctx context.Context,

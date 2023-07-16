@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"github.com/gobicycle/bicycle/internal/core"
 	"github.com/gobicycle/bicycle/internal/oas"
@@ -161,7 +162,7 @@ func generateDeposit(
 ) {
 	subwalletID, err := dbConn.GetLastSubwalletID(ctx)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	var res string
 	if currency == core.TonSymbol {

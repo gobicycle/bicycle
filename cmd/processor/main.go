@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 	"github.com/gobicycle/bicycle/internal/api"
+	"github.com/gobicycle/bicycle/internal/app"
 	"github.com/gobicycle/bicycle/internal/blockchain"
 	"github.com/gobicycle/bicycle/internal/config"
 	"github.com/gobicycle/bicycle/internal/core"
 	"github.com/gobicycle/bicycle/internal/database"
 	"github.com/gobicycle/bicycle/internal/queue"
 	"github.com/gobicycle/bicycle/internal/webhook"
-	log "github.com/sirupsen/logrus"
-	"net/http"
+	"go.uber.org/zap"
 	"os"
 	"os/signal"
 	"sync"
@@ -20,20 +20,21 @@ import (
 )
 
 func main() {
-	config.GetConfig()
+	cfg := config.Load()
+	log := app.Logger(cfg.App.LogLevel)
 
 	sigChannel := make(chan os.Signal, 1)
 	signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
 	wg := new(sync.WaitGroup)
 
-	bcClient, err := blockchain.NewConnection(config.Config.LiteServer, config.Config.LiteServerKey)
+	bcClient, err := blockchain.NewConnection(cfg.Blockchain)
 	if err != nil {
-		log.Fatalf("blockchain connection error: %v", err)
+		log.Fatal("blockchain connection error", zap.Error(err))
 	}
 
-	dbClient, err := db.NewConnection(config.Config.DatabaseURI)
+	dbClient, err := db.NewConnection(cfg.DB.URI)
 	if err != nil {
-		log.Fatalf("DB connection error: %v", err)
+		log.Fatal("DB connection error", zap.Error(err))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
@@ -41,36 +42,36 @@ func main() {
 
 	err = dbClient.LoadAddressBook(ctx)
 	if err != nil {
-		log.Fatalf("address book loading error: %v", err)
+		log.Fatal("address book loading error", zap.Error(err))
 	}
 
 	isTimeSynced, err := bcClient.CheckTime(ctx, config.AllowableServiceToNodeTimeDiff)
 	if err != nil {
-		log.Fatalf("get node time err: %v", err)
+		log.Fatal("get node time err", zap.Error(err))
 	}
 	if !isTimeSynced {
-		log.Fatalf("Service and Node time not synced")
+		log.Fatal("Service and Node time not synced")
 	}
 
-	wallets, err := core.InitWallets(ctx, dbClient, bcClient, config.Config.Seed, config.Config.Jettons, config.Config.ShardDepth)
+	wallets, err := core.InitWallets(ctx, dbClient, bcClient, cfg.Processor.Seed, cfg.Processor.Jettons, cfg.Blockchain.ShardDepth)
 	if err != nil {
-		log.Fatalf("Hot wallets initialization error: %v", err)
+		log.Fatal("Hot wallets initialization error", zap.Error(err))
 	}
 
 	var notificators []core.Notificator
 
-	if config.Config.QueueEnabled {
-		queueClient, err := queue.NewAmqpClient(config.Config.QueueURI, config.Config.QueueEnabled, config.Config.QueueName)
+	if cfg.Queue.URI != "" {
+		queueClient, err := queue.NewAmqpClient(cfg.Queue.URI, cfg.Queue.Name)
 		if err != nil {
-			log.Fatalf("new queue client creating error: %v", err)
+			log.Fatal("new queue client creating error", zap.Error(err))
 		}
 		notificators = append(notificators, queueClient)
 	}
 
-	if config.Config.WebhookEndpoint != "" {
-		webhookClient, err := webhook.NewWebhookClient(config.Config.WebhookEndpoint, config.Config.WebhookToken)
+	if cfg.Webhook.Endpoint != "" {
+		webhookClient, err := webhook.NewWebhookClient(cfg.Webhook.Endpoint, cfg.Webhook.Token)
 		if err != nil {
-			log.Fatalf("new webhook client creating error: %v", err)
+			log.Fatal("new webhook client creating error", zap.Error(err))
 		}
 		notificators = append(notificators, webhookClient)
 	}
@@ -78,35 +79,42 @@ func main() {
 	var tracker *blockchain.ShardTracker
 	block, err := dbClient.GetLastSavedBlockID(ctx)
 	if !errors.Is(err, core.ErrNotFound) && err != nil {
-		log.Fatalf("Get last saved block error: %v", err)
+		log.Fatal("Get last saved block error", zap.Error(err))
 	} else if errors.Is(err, core.ErrNotFound) {
 		tracker, err = blockchain.NewShardTracker(bcClient, blockchain.WithShard(wallets.Shard))
 	} else {
-		tracker, err = blockchain.NewShardTracker(bcClient, blockchain.WithShard(wallets.Shard), blockchain.WithStartBlock(block))
+		tracker, err = blockchain.NewShardTracker(bcClient, blockchain.WithShard(wallets.Shard), blockchain.WithStartBlockSeqno(block))
 	}
 	if err != nil {
-		log.Fatalf("shard tracker creating error: %v", err)
+		log.Fatal("shard tracker creating error", zap.Error(err))
 	}
 
 	blockScanner := core.NewBlockScanner(wg, dbClient, bcClient, wallets.Shard, tracker, notificators)
 
 	withdrawalsProcessor := core.NewWithdrawalsProcessor(
-		wg, dbClient, bcClient, wallets, config.Config.ColdWallet)
+		wg, dbClient, bcClient, wallets, cfg.Processor.ColdWallet)
 	withdrawalsProcessor.Start()
 
-	apiMux := http.NewServeMux()
-	h := api.NewHandler(dbClient, bcClient, config.Config.APIToken, wallets.Shard, *wallets.TonHotWallet.Address())
-	api.RegisterHandlers(apiMux, h)
-	go func() {
-		err := http.ListenAndServe(config.Config.APIHost, apiMux)
-		if err != nil {
-			log.Fatalf("api error: %v", err)
-		}
-	}()
+	h, err := api.NewHandler(log,
+		api.WithStorage(dbClient),
+		api.WithBlockchain(bcClient),
+		api.WithShard(wallets.Shard),
+	)
+	if err != nil {
+		log.Fatal("failed to create api handler", zap.Error(err))
+	}
+
+	server, err := api.NewServer(log, h, cfg.API.Token, cfg.API.Host)
+	if err != nil {
+		log.Fatal("failed to create server", zap.Error(err))
+	}
+
+	log.Info("start server", zap.String("host", cfg.API.Host))
+	server.Run()
 
 	go func() {
 		<-sigChannel
-		log.Printf("SIGTERM received")
+		log.Info("SIGTERM received")
 		blockScanner.Stop()
 		withdrawalsProcessor.Stop()
 	}()
