@@ -241,20 +241,20 @@ Template:
 
 26. -[x] Checked
 - TEST    : Replenish the TON deposit from the masterchain wallet and check it by
-            `/v1/history{?user_id,currency,limit,offset}` method.
+            `/v1/deposit/history{?user_id,currency,limit,offset}` method.
 - RESULT  : The sender's address must be displayed correctly in the history.
 - COMMENT :
 
 27. -[x] Checked
 - TEST    : Replenish the TON deposit (when it in nonexist status) with a bounceable message and check it by
-            `/v1/history{?user_id,currency,limit,offset}` method. Also check logs.
+            `/v1/deposit/history{?user_id,currency,limit,offset}` method. Also check logs.
 - RESULT  : The bounced payment should not be in the history. There should be no errors in the logs, only a warning
             about a bounced message.
 - COMMENT :
 
 28. -[x] Checked
 - TEST    : Replenish the Jetton deposit with zero forward amount and check it by
-            `/v1/history{?user_id,currency,limit,offset}` method.
+            `/v1/deposit/history{?user_id,currency,limit,offset}` method.
 - RESULT  : The sender's address must be not presented in the history.
 - COMMENT :
 
