@@ -1299,58 +1299,15 @@
                                     <div style="height: 1px;"></div>
                                     <h5>Body</h5><pre><code>{
   "<span class="hljs-attribute">error</span>": <span class="hljs-value"><span class="hljs-string">"error text"</span>
-</span>}</code></pre>
-                                    <div style="height: 1px;"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="get-history" class="resource">
-                        <h3 class="resource-heading">Get history <a href="#get-history" class="permalink">&nbsp;&para;</a></h3>
-                        <div id="get-history-get" class="action get">
-                            <h4 class="action-heading">
-                                <div class="name">Get history</div><a href="#get-history-get" class="method get">GET</a><code class="uri">/v1/deposit/history{?user_id,currency,limit,offset}</code></h4>
-                            <p>Get history for deposits by <code>user_id</code> and <code>currency</code>. Returns the history of all deposits replenishments with the sender’s address as <code>source_address</code> (if it could be determined).</p>
-                            <h4>Example URI</h4>
-                            <div class="definition"><span class="method get">GET</span>&nbsp;<span class="uri"><span class="hostname"></span>/v1/deposit/history?<span class="hljs-attribute">user_id=</span><span class="hljs-literal"></span>&<span class="hljs-attribute">currency=</span>
-                                <span class="hljs-literal"></span>&<span class="hljs-attribute">limit=</span><span class="hljs-literal"></span>&<span class="hljs-attribute">offset=</span><span class="hljs-literal"></span></span>
-                            </div>
-                            <div class="title"><strong>URI Parameters</strong>
-                                <div class="collapse-button show"><span class="close">Hide</span><span class="open">Show</span></div>
-                            </div>
-                            <div class="collapse-content">
-                                <dl class="inner"><dt>user_id</dt>
-                                    <dd><code>string</code>&nbsp;<span class="required">(required)</span>&nbsp;
-                                        <p>an unique identifier of the user</p>
-                                    </dd><dt>currency</dt>
-                                    <dd><code>string</code>&nbsp;<span class="required">(required)</span>&nbsp;
-                                        <p>the text identifier of the currency specified in the processor configuration. <code>TON</code> for TON coin.</p>
-                                    </dd><dt>limit</dt>
-                                    <dd><code>number</code>&nbsp;<span class="required">(required)</span>&nbsp;
-                                        <p>the maximum value of returned records</p>
-                                    </dd><dt>offset</dt>
-                                    <dd><code>number</code>&nbsp;<span class="required">(required)</span>&nbsp;
-                                        <p>offset for returned records</p>
-                                    </dd>
-                                </dl>
-                            </div>
-                            <div class="title"><strong>Request</strong>
-                                <div class="collapse-button"><span class="close">Hide</span><span class="open">Show</span></div>
-                            </div>
-                            <div class="collapse-content">
-                                <div class="inner">
-                                    <h5>Headers</h5><pre><code><span class="hljs-attribute">Authorization</span>: <span class="hljs-string">Bearer</span></code></pre>
-                                    <div style="height: 1px;"></div>
-                                </div>
-                            </div>
-                            <div class="title"><strong>Response&nbsp;&nbsp;<code>200</code></strong>
-                                <div class="collapse-button"><span class="close">Hide</span><span class="open">Show</span></div>
-                            </div>
-                            <div class="collapse-content">
-                                <div class="inner">
-                                    <h5>Headers</h5><pre><code><span class="hljs-attribute">Content-Type</span>: <span class="hljs-string">application/json</span></code></pre>
-                                    <div style="height: 1px;"></div>
-                                    <h5>Body</h5><pre><code>{
+
+</span>}</code></pre><div style="height: 1px;"></div></div></div></div></div><div id="get-history" class="resource"><h3 class="resource-heading">Get history <a href="#get-history" class="permalink">&nbsp;&para;</a></h3><div id="get-history-get" class="action get"><h4 class="action-heading"><div class="name">Get history</div><a href="#get-history-get" class="method get">GET</a><code class="uri">/v1/deposit/history{?user_id,currency,limit,offset}</code></h4><p>Get history for deposits by <code>user_id</code> and <code>currency</code>. Returns the history of all deposits replenishments with the
+sender’s address as <code>source_address</code> (if it could be determined).</p>
+<h4>Example URI</h4><div class="definition"><span class="method get">GET</span>&nbsp;<span class="uri"><span class="hostname"></span>/v1/deposit/history?<span class="hljs-attribute">user_id=</span><span class="hljs-literal"></span>&<span class="hljs-attribute">currency=</span><span class="hljs-literal"></span>&<span class="hljs-attribute">limit=</span><span class="hljs-literal"></span>&<span class="hljs-attribute">offset=</span><span class="hljs-literal"></span></span></div><div class="title"><strong>URI Parameters</strong><div class="collapse-button show"><span class="close">Hide</span><span class="open">Show</span></div></div><div class="collapse-content"><dl class="inner"><dt>user_id</dt><dd><code>string</code>&nbsp;<span class="required">(required)</span>&nbsp;<p>an unique identifier of the user</p>
+</dd><dt>currency</dt><dd><code>string</code>&nbsp;<span class="required">(required)</span>&nbsp;<p>the text identifier of the currency specified in the processor configuration. <code>TON</code> for TON coin.</p>
+</dd><dt>limit</dt><dd><code>number</code>&nbsp;<span class="required">(required)</span>&nbsp;<p>the maximum value of returned records</p>
+</dd><dt>offset</dt><dd><code>number</code>&nbsp;<span class="required">(required)</span>&nbsp;<p>offset for returned records</p>
+</dd></dl></div><div class="title"><strong>Request</strong><div class="collapse-button"><span class="close">Hide</span><span class="open">Show</span></div></div><div class="collapse-content"><div class="inner"><h5>Headers</h5><pre><code><span class="hljs-attribute">Authorization</span>: <span class="hljs-string">Bearer</span></code></pre><div style="height: 1px;"></div></div></div><div class="title"><strong>Response&nbsp;&nbsp;<code>200</code></strong><div class="collapse-button"><span class="close">Hide</span><span class="open">Show</span></div></div><div class="collapse-content"><div class="inner"><h5>Headers</h5><pre><code><span class="hljs-attribute">Content-Type</span>: <span class="hljs-string">application/json</span></code></pre><div style="height: 1px;"></div><h5>Body</h5><pre><code>{
+
   "<span class="hljs-attribute">incomes</span>": <span class="hljs-value">[
     {
       "<span class="hljs-attribute">deposit_address</span>": <span class="hljs-value"><span class="hljs-string">"0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR"</span></span>,
@@ -1699,192 +1656,209 @@
                                     <div style="height: 1px;"></div>
                                     <h5>Body</h5><pre><code>{
   "<span class="hljs-attribute">error</span>": <span class="hljs-value"><span class="hljs-string">"error text"</span>
-</span>}</code></pre>
-                                    <div style="height: 1px;"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            </div>
-        </div>
-    </div>
-    <p style="text-align: center;" class="text-muted">Generated by&nbsp;<a href="https://github.com/danielgtaylor/aglio" class="aglio">aglio</a>&nbsp;on 16 Apr 2023</p>
-    <script>
-        /* eslint-env browser */
-        /* eslint quotes: [2, "single"] */
-        'use strict';
 
-        /*
-          Determine if a string ends with another string.
-        */
-        function endsWith(str, suffix) {
-            return str.indexOf(suffix, str.length - suffix.length) !== -1;
+</span>}</code></pre><div style="height: 1px;"></div></div></div></div></div></section></div></div></div><p style="text-align: center;" class="text-muted">Generated by&nbsp;<a href="https://github.com/danielgtaylor/aglio" class="aglio">aglio</a>&nbsp;on 26 Sep 2023</p><script>/* eslint-env browser */
+/* eslint quotes: [2, "single"] */
+'use strict';
+
+/*
+  Determine if a string ends with another string.
+*/
+function endsWith(str, suffix) {
+    return str.indexOf(suffix, str.length - suffix.length) !== -1;
+}
+
+/*
+  Get a list of direct child elements by class name.
+*/
+function childrenByClass(element, name) {
+  var filtered = [];
+
+  for (var i = 0; i < element.children.length; i++) {
+    var child = element.children[i];
+    var classNames = child.className.split(' ');
+    if (classNames.indexOf(name) !== -1) {
+      filtered.push(child);
+    }
+  }
+
+  return filtered;
+}
+
+/*
+  Get an array [width, height] of the window.
+*/
+function getWindowDimensions() {
+  var w = window,
+      d = document,
+      e = d.documentElement,
+      g = d.body,
+      x = w.innerWidth || e.clientWidth || g.clientWidth,
+      y = w.innerHeight || e.clientHeight || g.clientHeight;
+
+  return [x, y];
+}
+
+/*
+  Collapse or show a request/response example.
+*/
+function toggleCollapseButton(event) {
+    var button = event.target.parentNode;
+    var content = button.parentNode.nextSibling;
+    var inner = content.children[0];
+
+    if (button.className.indexOf('collapse-button') === -1) {
+      // Clicked without hitting the right element?
+      return;
+    }
+
+    if (content.style.maxHeight && content.style.maxHeight !== '0px') {
+        // Currently showing, so let's hide it
+        button.className = 'collapse-button';
+        content.style.maxHeight = '0px';
+    } else {
+        // Currently hidden, so let's show it
+        button.className = 'collapse-button show';
+        content.style.maxHeight = inner.offsetHeight + 12 + 'px';
+    }
+}
+
+function toggleTabButton(event) {
+    var i, index;
+    var button = event.target;
+
+    // Get index of the current button.
+    var buttons = childrenByClass(button.parentNode, 'tab-button');
+    for (i = 0; i < buttons.length; i++) {
+        if (buttons[i] === button) {
+            index = i;
+            button.className = 'tab-button active';
+        } else {
+            buttons[i].className = 'tab-button';
         }
+    }
 
-        /*
-          Get a list of direct child elements by class name.
-        */
-        function childrenByClass(element, name) {
-            var filtered = [];
-
-            for (var i = 0; i < element.children.length; i++) {
-                var child = element.children[i];
-                var classNames = child.className.split(' ');
-                if (classNames.indexOf(name) !== -1) {
-                    filtered.push(child);
-                }
-            }
-
-            return filtered;
+    // Hide other tabs and show this one.
+    var tabs = childrenByClass(button.parentNode.parentNode, 'tab');
+    for (i = 0; i < tabs.length; i++) {
+        if (i === index) {
+            tabs[i].style.display = 'block';
+        } else {
+            tabs[i].style.display = 'none';
         }
+    }
+}
 
-        /*
-          Get an array [width, height] of the window.
-        */
-        function getWindowDimensions() {
-            var w = window,
-                d = document,
-                e = d.documentElement,
-                g = d.body,
-                x = w.innerWidth || e.clientWidth || g.clientWidth,
-                y = w.innerHeight || e.clientHeight || g.clientHeight;
+/*
+  Collapse or show a navigation menu. It will not be hidden unless it
+  is currently selected or `force` has been passed.
+*/
+function toggleCollapseNav(event, force) {
+    var heading = event.target.parentNode;
+    var content = heading.nextSibling;
+    var inner = content.children[0];
 
-            return [x, y];
+    if (heading.className.indexOf('heading') === -1) {
+      // Clicked without hitting the right element?
+      return;
+    }
+
+    if (content.style.maxHeight && content.style.maxHeight !== '0px') {
+      // Currently showing, so let's hide it, but only if this nav item
+      // is already selected. This prevents newly selected items from
+      // collapsing in an annoying fashion.
+      if (force || window.location.hash && endsWith(event.target.href, window.location.hash)) {
+        content.style.maxHeight = '0px';
+      }
+    } else {
+      // Currently hidden, so let's show it
+      content.style.maxHeight = inner.offsetHeight + 12 + 'px';
+    }
+}
+
+/*
+  Refresh the page after a live update from the server. This only
+  works in live preview mode (using the `--server` parameter).
+*/
+function refresh(body) {
+    document.querySelector('body').className = 'preload';
+    document.body.innerHTML = body;
+
+    // Re-initialize the page
+    init();
+    autoCollapse();
+
+    document.querySelector('body').className = '';
+}
+
+/*
+  Determine which navigation items should be auto-collapsed to show as many
+  as possible on the screen, based on the current window height. This also
+  collapses them.
+*/
+function autoCollapse() {
+  var windowHeight = getWindowDimensions()[1];
+  var itemsHeight = 64; /* Account for some padding */
+  var itemsArray = Array.prototype.slice.call(
+    document.querySelectorAll('nav .resource-group .heading'));
+
+  // Get the total height of the navigation items
+  itemsArray.forEach(function (item) {
+    itemsHeight += item.parentNode.offsetHeight;
+  });
+
+  // Should we auto-collapse any nav items? Try to find the smallest item
+  // that can be collapsed to show all items on the screen. If not possible,
+  // then collapse the largest item and do it again. First, sort the items
+  // by height from smallest to largest.
+  var sortedItems = itemsArray.sort(function (a, b) {
+    return a.parentNode.offsetHeight - b.parentNode.offsetHeight;
+  });
+
+  while (sortedItems.length && itemsHeight > windowHeight) {
+    for (var i = 0; i < sortedItems.length; i++) {
+      // Will collapsing this item help?
+      var itemHeight = sortedItems[i].nextSibling.offsetHeight;
+      if ((itemsHeight - itemHeight <= windowHeight) || i === sortedItems.length - 1) {
+        // It will, so let's collapse it, remove its content height from
+        // our total and then remove it from our list of candidates
+        // that can be collapsed.
+        itemsHeight -= itemHeight;
+        toggleCollapseNav({target: sortedItems[i].children[0]}, true);
+        sortedItems.splice(i, 1);
+        break;
+      }
+    }
+  }
+}
+
+/*
+  Initialize the interactive functionality of the page.
+*/
+function init() {
+    var i, j;
+
+    // Make collapse buttons clickable
+    var buttons = document.querySelectorAll('.collapse-button');
+    for (i = 0; i < buttons.length; i++) {
+        buttons[i].onclick = toggleCollapseButton;
+
+        // Show by default? Then toggle now.
+        if (buttons[i].className.indexOf('show') !== -1) {
+            toggleCollapseButton({target: buttons[i].children[0]});
         }
+    }
 
-        /*
-          Collapse or show a request/response example.
-        */
-        function toggleCollapseButton(event) {
-            var button = event.target.parentNode;
-            var content = button.parentNode.nextSibling;
-            var inner = content.children[0];
+    var responseCodes = document.querySelectorAll('.example-names');
+    for (i = 0; i < responseCodes.length; i++) {
+        var tabButtons = childrenByClass(responseCodes[i], 'tab-button');
+        for (j = 0; j < tabButtons.length; j++) {
+            tabButtons[j].onclick = toggleTabButton;
 
-            if (button.className.indexOf('collapse-button') === -1) {
-                // Clicked without hitting the right element?
-                return;
-            }
+            // Show by default?
+            if (j === 0) {
+                toggleTabButton({target: tabButtons[j]});
 
-            if (content.style.maxHeight && content.style.maxHeight !== '0px') {
-                // Currently showing, so let's hide it
-                button.className = 'collapse-button';
-                content.style.maxHeight = '0px';
-            } else {
-                // Currently hidden, so let's show it
-                button.className = 'collapse-button show';
-                content.style.maxHeight = inner.offsetHeight + 12 + 'px';
-            }
-        }
-
-        function toggleTabButton(event) {
-            var i, index;
-            var button = event.target;
-
-            // Get index of the current button.
-            var buttons = childrenByClass(button.parentNode, 'tab-button');
-            for (i = 0; i < buttons.length; i++) {
-                if (buttons[i] === button) {
-                    index = i;
-                    button.className = 'tab-button active';
-                } else {
-                    buttons[i].className = 'tab-button';
-                }
-            }
-
-            // Hide other tabs and show this one.
-            var tabs = childrenByClass(button.parentNode.parentNode, 'tab');
-            for (i = 0; i < tabs.length; i++) {
-                if (i === index) {
-                    tabs[i].style.display = 'block';
-                } else {
-                    tabs[i].style.display = 'none';
-                }
-            }
-        }
-
-        /*
-          Collapse or show a navigation menu. It will not be hidden unless it
-          is currently selected or `force` has been passed.
-        */
-        function toggleCollapseNav(event, force) {
-            var heading = event.target.parentNode;
-            var content = heading.nextSibling;
-            var inner = content.children[0];
-
-            if (heading.className.indexOf('heading') === -1) {
-                // Clicked without hitting the right element?
-                return;
-            }
-
-            if (content.style.maxHeight && content.style.maxHeight !== '0px') {
-                // Currently showing, so let's hide it, but only if this nav item
-                // is already selected. This prevents newly selected items from
-                // collapsing in an annoying fashion.
-                if (force || window.location.hash && endsWith(event.target.href, window.location.hash)) {
-                    content.style.maxHeight = '0px';
-                }
-            } else {
-                // Currently hidden, so let's show it
-                content.style.maxHeight = inner.offsetHeight + 12 + 'px';
-            }
-        }
-
-        /*
-          Refresh the page after a live update from the server. This only
-          works in live preview mode (using the `--server` parameter).
-        */
-        function refresh(body) {
-            document.querySelector('body').className = 'preload';
-            document.body.innerHTML = body;
-
-            // Re-initialize the page
-            init();
-            autoCollapse();
-
-            document.querySelector('body').className = '';
-        }
-
-        /*
-          Determine which navigation items should be auto-collapsed to show as many
-          as possible on the screen, based on the current window height. This also
-          collapses them.
-        */
-        function autoCollapse() {
-            var windowHeight = getWindowDimensions()[1];
-            var itemsHeight = 64; /* Account for some padding */
-            var itemsArray = Array.prototype.slice.call(
-                document.querySelectorAll('nav .resource-group .heading'));
-
-            // Get the total height of the navigation items
-            itemsArray.forEach(function(item) {
-                itemsHeight += item.parentNode.offsetHeight;
-            });
-
-            // Should we auto-collapse any nav items? Try to find the smallest item
-            // that can be collapsed to show all items on the screen. If not possible,
-            // then collapse the largest item and do it again. First, sort the items
-            // by height from smallest to largest.
-            var sortedItems = itemsArray.sort(function(a, b) {
-                return a.parentNode.offsetHeight - b.parentNode.offsetHeight;
-            });
-
-            while (sortedItems.length && itemsHeight > windowHeight) {
-                for (var i = 0; i < sortedItems.length; i++) {
-                    // Will collapsing this item help?
-                    var itemHeight = sortedItems[i].nextSibling.offsetHeight;
-                    if ((itemsHeight - itemHeight <= windowHeight) || i === sortedItems.length - 1) {
-                        // It will, so let's collapse it, remove its content height from
-                        // our total and then remove it from our list of candidates
-                        // that can be collapsed.
-                        itemsHeight -= itemHeight;
-                        toggleCollapseNav({
-                            target: sortedItems[i].children[0]
-                        }, true);
-                        sortedItems.splice(i, 1);
-                        break;
-                    }
-                }
             }
         }
 
