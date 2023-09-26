@@ -147,6 +147,12 @@ func (s *ShardTracker) getShardBlocksRecursively(i *ton.BlockIDExt, batch []core
 		return batch, false, nil
 	}
 
+	// compare seqno with filtered shard block
+	// handle the case when a node may reference an old block
+	if s.lastKnownShardBlock.SeqNo > i.SeqNo {
+		return []core.ShardBlockHeader{}, false, nil
+	}
+
 	seqnoDiff := int(i.SeqNo - s.lastKnownShardBlock.SeqNo)
 	if seqnoDiff > s.infoStep {
 		if s.infoCounter%s.infoStep == 0 {
@@ -197,7 +203,7 @@ func filterByShard(headers []*ton.BlockIDExt, shard byte) *ton.BlockIDExt {
 func convertBlockToShardHeader(block *tlb.Block, info *ton.BlockIDExt, shard byte) (core.ShardBlockHeader, error) {
 	parents, err := block.BlockInfo.GetParentBlocks()
 	if err != nil {
-		return core.ShardBlockHeader{}, nil
+		return core.ShardBlockHeader{}, err
 	}
 	parent := filterByShard(parents, shard)
 	return core.ShardBlockHeader{
