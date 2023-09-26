@@ -240,7 +240,8 @@ func Test_DeployTonWallet(t *testing.T) {
 		t.Fatal("get acc current state err: ", err)
 	}
 	if st != tlb.AccountStatusNonExist {
-		t.Fatal("wallet not empty")
+		t.Log("wallet not empty")
+		t.Skip()
 	}
 	err = mainWallet.TransferNoBounce(
 		ctx,
