@@ -6,12 +6,12 @@ services:
     image: postgres:14
     container_name: payment_processor_db
     volumes:
-    - ./deploy/db/01_init.up.sql:/docker-entrypoint-initdb.d/init.sql
+    - ./db/01_init.up.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
     restart: always
     env_file:
-      - ../.env
+      - .env
     environment:
       POSTGRES_DB: "payment_processor"
       POSTGRES_USER: "pp_user"
@@ -26,7 +26,7 @@ services:
       - "8081:8081"
     restart: unless-stopped
     env_file:
-      - ../.env
+      - .env
     environment:
       DB_URI: "postgres://pp_user:${POSTGRES_PASSWORD}@payment_processor_db:5432/payment_processor"
       API_TOKEN: ${API_TOKEN}
@@ -51,7 +51,7 @@ services:
       - ./deploy/grafana/main/provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./deploy/grafana/main/dashboards:/etc/dashboards
     env_file:
-      - ../.env
+      - .env
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin

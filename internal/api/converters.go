@@ -168,11 +168,11 @@ func generateDeposit(
 	if currency == core.TonSymbol {
 		w, id, err := bc.GenerateSubWallet(config.Config.Seed, shard, subwalletID+1)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		a, err := core.AddressFromTonutilsAddress(w.Address())
+		a, err := core.AddressFromTonutilsAddress(w.GetAddress())
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		err = dbConn.SaveTonWallet(ctx,
 			core.WalletData{

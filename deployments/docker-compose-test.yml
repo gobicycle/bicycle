@@ -11,7 +11,7 @@ services:
       - "5433:5432"
     restart: always
     env_file:
-      - ../.env
+      - .env
     environment:
       POSTGRES_DB: "payment_processor"
       POSTGRES_USER: "pp_user"
@@ -28,7 +28,7 @@ services:
       - "5434:5432"
     restart: always
     env_file:
-      - ../.env
+      - .env
     environment:
       POSTGRES_DB: "payment_processor"
       POSTGRES_USER: "pp_user"
@@ -43,7 +43,7 @@ services:
       - "8082:8081"
     restart: unless-stopped
     env_file:
-      - ../.env
+      - .env
     environment:
       DB_URI: "postgres://pp_user:${POSTGRES_PASSWORD}@payment_processor_db_a:5432/payment_processor"
       API_TOKEN: ${API_TOKEN}
@@ -64,7 +64,7 @@ services:
       - "8083:8081"
     restart: unless-stopped
     env_file:
-      - ../.env
+      - .env
     environment:
       DB_URI: "postgres://pp_user:${POSTGRES_PASSWORD}@payment_processor_db_b:5432/payment_processor"
       API_TOKEN: ${API_TOKEN}
@@ -89,7 +89,7 @@ services:
       - ./deploy/grafana/test/provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./deploy/grafana/test/dashboards:/etc/dashboards
     env_file:
-      - ../.env
+      - .env
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
@@ -117,7 +117,7 @@ services:
     container_name: payment_test
     restart: unless-stopped
     env_file:
-      - ../.env
+      - .env
     environment:
       DB_URI: "postgres://pp_user:${POSTGRES_PASSWORD}@payment_processor_db:5432/payment_processor"
       API_TOKEN: ${API_TOKEN}

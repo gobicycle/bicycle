@@ -7,7 +7,7 @@ import (
 	"github.com/gobicycle/bicycle/internal/blockchain"
 	"github.com/gobicycle/bicycle/internal/config"
 	"github.com/gobicycle/bicycle/internal/core"
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/gobicycle/bicycle/internal/audit"
 	"github.com/gobicycle/bicycle/internal/config"
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/tonkeeper/tongo"
 	"github.com/tonkeeper/tongo/boc"

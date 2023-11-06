@@ -91,7 +91,7 @@ func NewShardTracker(connection *Connection, opts ...Option) (*ShardTracker, err
 
 // NextBatch returns last scanned master block and batch of workchain blocks, committed to the next master blocks and
 // all intermediate blocks before those committed to the last known master block and filtered by shard parameter.
-func (s *ShardTracker) NextBatch() ([]*core.ShardBlock, *tlb.BlockInfo, error) {
+func (s *ShardTracker) NextBatch() ([]*core.ShardBlock, *tlb.Block, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60) // timeout between master blocks may be up tp 60 sec
 	defer cancel()
 
@@ -120,7 +120,7 @@ func (s *ShardTracker) NextBatch() ([]*core.ShardBlock, *tlb.BlockInfo, error) {
 	s.lastKnownShardBlocks = shards
 	s.lastMasterBlock = *masterID
 
-	return batch, &masterBlock.Info, nil
+	return batch, &masterBlock, nil
 }
 
 func (s *ShardTracker) getShardBlocksRecursively(blockID tongo.BlockIDExt, batch []*core.ShardBlock) ([]*core.ShardBlock, error) {
@@ -179,7 +179,7 @@ func convertBlockToShardHeader(block *tlb.Block, id tongo.BlockIDExt) (*core.Sha
 
 	return &core.ShardBlock{
 		//IsMaster:   !block.BlockInfo.NotMaster,
-		//GenUtime:   block.BlockInfo.GenUtime,
+		GenUtime: block.Info.GenUtime,
 		//StartLt:    block.BlockInfo.StartLt,
 		//EndLt:      block.BlockInfo.EndLt,
 		BlockIDExt:   id,

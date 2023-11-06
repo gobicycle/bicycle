@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-faster/errors"
-	"github.com/gobicycle/bicycle/internal/config"
 	"github.com/gobicycle/bicycle/internal/core"
 	"github.com/gobicycle/bicycle/internal/oas"
 )
@@ -35,7 +34,7 @@ func (h *Handler) SendWithdrawal(ctx context.Context, req *oas.SendWithdrawalReq
 	if err != nil {
 		return &oas.BadRequest{Error: fmt.Sprintf("convert withdrawal err: %v", err)}, nil
 	}
-	unique, err := h.storage.IsWithdrawalRequestUnique(ctx, w)
+	unique, err := h.storage.IsWithdrawalRequestUnique(ctx, *w)
 	if err != nil {
 		return &oas.InternalError{Error: fmt.Sprintf("check withdrawal uniquess err: %v", err)}, nil
 	} else if !unique {
@@ -45,7 +44,7 @@ func (h *Handler) SendWithdrawal(ctx context.Context, req *oas.SendWithdrawalReq
 	if ok {
 		return &oas.InternalError{Error: "withdrawal to service internal addresses not supported"}, nil
 	}
-	id, err := h.storage.SaveWithdrawalRequest(ctx, w)
+	id, err := h.storage.SaveWithdrawalRequest(ctx, *w)
 	if err != nil {
 		return &oas.InternalError{Error: fmt.Sprintf("save withdrawal request err: %v", err)}, nil
 	}
@@ -76,7 +75,7 @@ func (h *Handler) GetWithdrawalStatus(ctx context.Context, params oas.GetWithdra
 }
 
 func (h *Handler) GetIncome(ctx context.Context, params oas.GetIncomeParams) (oas.GetIncomeRes, error) {
-	totalIncomes, err := h.storage.GetIncome(ctx, params.UserID, config.Config.IsDepositSideCalculation)
+	totalIncomes, err := h.storage.GetIncome(ctx, params.UserID, h.isDepositSideCalculation)
 	if err != nil {
 		return &oas.InternalError{Error: fmt.Sprintf("get balances err: %v", err)}, nil
 	}
@@ -100,11 +99,11 @@ func (h *Handler) ServiceTonWithdrawal(ctx context.Context, req *oas.ServiceTonW
 	if err != nil {
 		return &oas.BadRequest{Error: fmt.Sprintf("convert service withdrawal err: %v", err)}, nil
 	}
-	memo, err := h.storage.SaveServiceWithdrawalRequest(ctx, w)
+	memo, err := h.storage.SaveServiceWithdrawalRequest(ctx, *w)
 	if err != nil {
 		return &oas.InternalError{Error: fmt.Sprintf("save service withdrawal request err: %v", err)}, nil
 	}
-	return &oas.ServiceWithdrawalMemo{Memo: memo}, nil
+	return &oas.ServiceWithdrawalMemo{Memo: memo.String()}, nil
 }
 
 func (h *Handler) ServiceJettonWithdrawal(ctx context.Context, req *oas.ServiceJettonWithdrawalReq) (oas.ServiceJettonWithdrawalRes, error) {
@@ -112,9 +111,9 @@ func (h *Handler) ServiceJettonWithdrawal(ctx context.Context, req *oas.ServiceJ
 	if err != nil {
 		return &oas.BadRequest{Error: fmt.Sprintf("convert service withdrawal err: %v", err)}, nil
 	}
-	memo, err := h.storage.SaveServiceWithdrawalRequest(ctx, w)
+	memo, err := h.storage.SaveServiceWithdrawalRequest(ctx, *w)
 	if err != nil {
 		return &oas.InternalError{Error: fmt.Sprintf("save service withdrawal request err: %v", err)}, nil
 	}
-	return &oas.ServiceWithdrawalMemo{Memo: memo}, nil
+	return &oas.ServiceWithdrawalMemo{Memo: memo.String()}, nil
 }

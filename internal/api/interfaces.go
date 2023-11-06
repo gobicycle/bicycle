@@ -3,9 +3,11 @@ package api
 import (
 	"context"
 	"github.com/gobicycle/bicycle/internal/core"
+	"github.com/google/uuid"
 	"github.com/tonkeeper/tongo"
 	"github.com/tonkeeper/tongo/tlb"
-	"github.com/xssnick/tonutils-go/address"
+	"github.com/tonkeeper/tongo/ton"
+	"github.com/tonkeeper/tongo/wallet"
 )
 
 type storage interface {
@@ -30,14 +32,14 @@ type blockchain interface {
 	GenerateDepositJettonWalletForProxy(
 		ctx context.Context,
 		shard tongo.ShardID,
-		proxyOwner, jettonMaster *address.Address,
+		proxyOwner, jettonMaster tongo.AccountID,
 		startSubWalletID uint32,
 	) (
 		proxy *core.JettonProxy,
-		addr *address.Address,
+		addr *tongo.AccountID,
 		err error,
 	)
 	GenerateDefaultWallet(seed string, isHighload bool) (*wallet.Wallet, uint32, error)
-	RunSmcMethod(context.Context, tongo.AccountID, string, tlb.VmStack) (uint32, tlb.VmStack, error)
-	RunSmcMethodByID(context.Context, tongo.AccountID, int, tlb.VmStack) (uint32, tlb.VmStack, error)
+	RunSmcMethod(ctx context.Context, accountID ton.AccountID, method string, params tlb.VmStack) (uint32, tlb.VmStack, error)
+	RunSmcMethodByID(ctx context.Context, accountID ton.AccountID, methodID int, params tlb.VmStack) (uint32, tlb.VmStack, error)
 }

@@ -2,15 +2,15 @@ package blockchain
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-	"github.com/gobicycle/bicycle/internal/config"
 	core2 "github.com/gobicycle/bicycle/internal/core"
 	log "github.com/sirupsen/logrus"
 	"github.com/tonkeeper/tongo"
+	"github.com/tonkeeper/tongo/boc"
 	tongoConfig "github.com/tonkeeper/tongo/config"
 	"github.com/tonkeeper/tongo/liteapi"
 	"github.com/tonkeeper/tongo/tlb"
+	"github.com/tonkeeper/tongo/ton"
 	"github.com/tonkeeper/tongo/tvm"
 	"github.com/tonkeeper/tongo/wallet"
 	"math"
@@ -22,7 +22,8 @@ import (
 const ErrBlockNotApplied = "block is not applied"
 
 type Connection struct {
-	client *liteapi.Client
+	client           *liteapi.Client
+	blockchainConfig string
 }
 
 type contract struct {
@@ -32,14 +33,34 @@ type contract struct {
 }
 
 // NewConnection creates new Blockchain connection
-func NewConnection(addr, key string) (*Connection, error) {
+func NewConnection(ctx context.Context, cfg []tongoConfig.LiteServer) (*Connection, error) {
+	// TODO: use all config.Blockchain struct!
 	// TODO: parse in config
-	liteserver := tongoConfig.LiteServer{Host: addr, Key: key}
-	client, err := liteapi.NewClient(liteapi.WithLiteServers([]tongoConfig.LiteServer{liteserver}))
+	//liteserver := tongoConfig.LiteServer{cfg.Blockchain.GlobalLiteservers}
+	client, err := liteapi.NewClient(liteapi.WithLiteServers(cfg))
 	if err != nil {
 		return nil, fmt.Errorf("liteapi creating err: %v", err.Error())
 	}
-	return &Connection{client}, nil
+
+	// TODO: or get config before emulation?
+	configParams, err := client.GetConfigAll(ctx, liteapi.NeedStateRoot) // TODO: clarify flag!
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: save config as cell (careful with pointers)
+
+	configCell := boc.NewCell()
+	err = tlb.Marshal(configCell, configParams)
+	if err != nil {
+		return nil, err
+	}
+	blockchainConfig, err := configCell.ToBocBase64()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Connection{client: client, blockchainConfig: blockchainConfig}, nil
 }
 
 // GenerateDefaultWallet generates HighloadV2R2 or V3R2 TON wallet with
@@ -53,22 +74,24 @@ func (c *Connection) GenerateDefaultWallet(seed string, isHighload bool) (
 		return nil, 0, err
 	}
 
+	subWalletID := wallet.DefaultSubWallet
+
 	if isHighload {
-		hw, err := wallet.New(pk, wallet.HighLoadV2R2, core2.DefaultWorkchain, nil, c.client)
+		hw, err := wallet.New(pk, wallet.HighLoadV2R2, core2.DefaultWorkchain, &subWalletID, c.client)
 		w = &hw
 		if err != nil {
 			return nil, 0, err
 		}
 		//w, err = wallet.FromSeed(c, words, wallet.HighloadV2R2)
 	} else {
-		ow, err := wallet.New(pk, wallet.V3R2, core2.DefaultWorkchain, nil, c.client)
+		ow, err := wallet.New(pk, wallet.V3R2, core2.DefaultWorkchain, &subWalletID, c.client)
 		w = &ow
 		if err != nil {
 			return nil, 0, err
 		}
 		//w, err = wallet.FromSeed(c, words, wallet.V3)
 	}
-	return w, uint32(wallet.DefaultSubWalletIdV3V4), nil
+	return w, uint32(subWalletID), nil
 }
 
 // GenerateSubWallet generates subwallet for custom shard and
@@ -114,7 +137,7 @@ func (c *Connection) GetJettonWalletAddress(
 	if err != nil {
 		return nil, err
 	}
-	emulator, err := newEmulator(contr.Code, contr.Data)
+	emulator, err := newEmulator(contr.Code, contr.Data, c.blockchainConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +167,7 @@ func (c *Connection) GenerateDepositJettonWalletForProxy(
 	if err != nil {
 		return nil, nil, err
 	}
-	emulator, err := newEmulator(contr.Code, contr.Data)
+	emulator, err := newEmulator(contr.Code, contr.Data, c.blockchainConfig)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -170,24 +193,38 @@ func (c *Connection) GenerateDepositJettonWalletForProxy(
 
 func (c *Connection) getContract(ctx context.Context, addr tongo.AccountID) (contract, error) {
 
-	sa, err := c.client.GetAccountState(ctx, addr)
+	as, err := c.client.GetAccountState(ctx, addr)
 	if err != nil {
 		return contract{}, err
 	}
 
-	ai, err := tongo.GetAccountInfo(sa.Account)
+	//ai, err := tongo.GetAccountInfo(sa.Account)
+	//if err != nil {
+	//	return contract{}, err
+	//}
+
+	if as.Account.Status() != tlb.AccountActive {
+		return contract{}, fmt.Errorf("account is not active")
+	} else if !as.Account.Account.Storage.State.AccountActive.StateInit.Code.Exists {
+		return contract{}, fmt.Errorf("empty account code")
+	} else if !as.Account.Account.Storage.State.AccountActive.StateInit.Data.Exists {
+		return contract{}, fmt.Errorf("empty account data")
+	}
+
+	code, err := as.Account.Account.Storage.State.AccountActive.StateInit.Code.Value.Value.ToBocBase64()
 	if err != nil {
 		return contract{}, err
 	}
 
-	if ai.Status != tlb.AccountActive || len(ai.Code) == 0 || len(ai.Data) == 0 {
-		return contract{}, fmt.Errorf("empty account code or data or account is not active")
+	data, err := as.Account.Account.Storage.State.AccountActive.StateInit.Data.Value.Value.ToBocBase64()
+	if err != nil {
+		return contract{}, err
 	}
 
 	return contract{
 		Address: addr,
-		Code:    base64.StdEncoding.EncodeToString(ai.Code),
-		Data:    base64.StdEncoding.EncodeToString(ai.Data),
+		Code:    code,
+		Data:    data,
 	}, nil
 }
 
@@ -234,16 +271,17 @@ func getJettonWalletAddressByTVM(
 	return addr, nil
 }
 
-func newEmulator(code, data string) (*tvm.Emulator, error) {
-	emulator, err := tvm.NewEmulatorFromBOCsBase64(code, data, config.Config.BlockchainConfig, tvm.WithBalance(1_000_000_000))
+func newEmulator(code, data, cfg string) (*tvm.Emulator, error) {
+	// TODO: maybe use Cell instead strings (careful with pointers)
+	emulator, err := tvm.NewEmulatorFromBOCsBase64(code, data, cfg, tvm.WithBalance(1_000_000_000))
 	if err != nil {
 		return nil, err
 	}
 	// TODO: try tvm.WithLazyC7Optimization()
-	err = emulator.SetVerbosityLevel(1)
-	if err != nil {
-		return nil, err
-	}
+	//err = emulator.SetVerbosityLevel(1)
+	//if err != nil {
+	//	return nil, err
+	//}
 	return emulator, nil
 }
 
@@ -268,12 +306,16 @@ func (c *Connection) GetAccountCurrentState(ctx context.Context, address tongo.A
 		return 0, "", err
 	}
 
-	ai, err := tongo.GetAccountInfo(as.Account)
-	if err != nil {
-		return 0, "", err
+	//ai, err := tongo.GetAccountInfo(as.Account)
+	//if err != nil {
+	//	return 0, "", err
+	//}
+
+	if as.Account.Status() == tlb.AccountNone {
+		return 0, tlb.AccountNone, nil
 	}
 
-	return ai.Balance, ai.Status, nil
+	return uint64(as.Account.Account.Storage.Balance.Grams), as.Account.Status(), nil // TODO: use Grams
 
 	//account, err := c.GetAccount(ctx, masterID, address)
 	//if err != nil {
@@ -503,3 +545,10 @@ func (c *Connection) WaitStatus(ctx context.Context, addr tongo.AccountID, statu
 //func (c *Connection) WaitForBlock(seqno uint32) ton.APIClientWaiter {
 //	return c.client.WaitForBlock(seqno)
 //}
+
+func (c *Connection) RunSmcMethod(ctx context.Context, accountID ton.AccountID, method string, params tlb.VmStack) (uint32, tlb.VmStack, error) {
+	return c.client.RunSmcMethod(ctx, accountID, method, params)
+}
+func (c *Connection) RunSmcMethodByID(ctx context.Context, accountID ton.AccountID, methodID int, params tlb.VmStack) (uint32, tlb.VmStack, error) {
+	return c.client.RunSmcMethodByID(ctx, accountID, methodID, params)
+}

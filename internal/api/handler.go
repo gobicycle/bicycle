@@ -20,13 +20,15 @@ type Handler struct {
 	dns                      *dns.DNS
 	mutex                    sync.Mutex
 	shard                    tongo.ShardID
+	isDepositSideCalculation bool // TODO: make special type instead of bool
 }
 
 // Options configures behavior of a Handler instance.
 type Options struct {
-	storage    storage
-	blockchain blockchain
-	shard      tongo.ShardID
+	storage                  storage
+	blockchain               blockchain
+	shard                    tongo.ShardID
+	isDepositSideCalculation bool
 }
 
 type Option func(o *Options)
@@ -49,6 +51,12 @@ func WithShard(s tongo.ShardID) Option {
 	}
 }
 
+func WithDepositSide(isDepositSideCalculation bool) Option {
+	return func(o *Options) {
+		o.isDepositSideCalculation = isDepositSideCalculation
+	}
+}
+
 func NewHandler(logger *zap.Logger, opts ...Option) (*Handler, error) {
 	options := &Options{}
 	for _, o := range opts {
@@ -60,11 +68,14 @@ func NewHandler(logger *zap.Logger, opts ...Option) (*Handler, error) {
 	if options.blockchain == nil {
 		return nil, fmt.Errorf("blockchain is not configured")
 	}
+	// TODO: check other options
 	dnsClient := dns.NewDNS(tongo.MustParseAccountID("-1:e56754f83426f69b09267bd876ac97c44821345b7e266bd956a7bfbfb98df35c"), options.blockchain) //todo: move to chain config
 
 	return &Handler{
-		storage:    options.storage,
-		blockchain: options.blockchain,
-		dns:        dnsClient,
+		storage:                  options.storage,
+		blockchain:               options.blockchain,
+		shard:                    options.shard,
+		isDepositSideCalculation: options.isDepositSideCalculation,
+		dns:                      dnsClient,
 	}, nil
 }

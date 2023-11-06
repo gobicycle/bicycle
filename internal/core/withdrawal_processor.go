@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"github.com/gobicycle/bicycle/internal/audit"
 	"github.com/gobicycle/bicycle/internal/config"
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
+	"github.com/tonkeeper/tongo"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -48,7 +49,7 @@ func NewWithdrawalsProcessor(
 	db storage,
 	bc blockchain,
 	wallets Wallets,
-	coldWallet *address.Address,
+	coldWallet tongo.AccountID,
 ) *WithdrawalsProcessor {
 	w := &WithdrawalsProcessor{
 		db:         db,

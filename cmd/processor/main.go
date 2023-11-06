@@ -27,7 +27,10 @@ func main() {
 	signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
 	wg := new(sync.WaitGroup)
 
-	bcClient, err := blockchain.NewConnection(cfg.Blockchain)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
+	defer cancel()
+
+	bcClient, err := blockchain.NewConnection(ctx, cfg.Blockchain.GlobalLiteservers)
 	if err != nil {
 		log.Fatal("blockchain connection error", zap.Error(err))
 	}
@@ -36,9 +39,6 @@ func main() {
 	if err != nil {
 		log.Fatal("DB connection error", zap.Error(err))
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
-	defer cancel()
 
 	err = dbClient.LoadAddressBook(ctx)
 	if err != nil {
@@ -77,13 +77,13 @@ func main() {
 	}
 
 	var tracker *blockchain.ShardTracker
-	block, err := dbClient.GetLastSavedBlockID(ctx)
+	lastSeqno, err := dbClient.GetLastSavedMasterBlockSeqno(ctx)
 	if !errors.Is(err, core.ErrNotFound) && err != nil {
 		log.Fatal("Get last saved block error", zap.Error(err))
 	} else if errors.Is(err, core.ErrNotFound) {
 		tracker, err = blockchain.NewShardTracker(bcClient, blockchain.WithShard(wallets.Shard))
 	} else {
-		tracker, err = blockchain.NewShardTracker(bcClient, blockchain.WithShard(wallets.Shard), blockchain.WithStartBlockSeqno(block))
+		tracker, err = blockchain.NewShardTracker(bcClient, blockchain.WithShard(wallets.Shard), blockchain.WithStartBlockSeqno(lastSeqno))
 	}
 	if err != nil {
 		log.Fatal("shard tracker creating error", zap.Error(err))
@@ -99,6 +99,7 @@ func main() {
 		api.WithStorage(dbClient),
 		api.WithBlockchain(bcClient),
 		api.WithShard(wallets.Shard),
+		api.WithDepositSide(cfg.Processor.IsDepositSideCalculation),
 	)
 	if err != nil {
 		log.Fatal("failed to create api handler", zap.Error(err))

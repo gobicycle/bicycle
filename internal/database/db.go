@@ -7,12 +7,12 @@ import (
 	"github.com/gobicycle/bicycle/internal/audit"
 	"github.com/gobicycle/bicycle/internal/config"
 	"github.com/gobicycle/bicycle/internal/core"
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	log "github.com/sirupsen/logrus"
+	"github.com/tonkeeper/tongo/tlb"
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"sync"
 	"time"
@@ -325,7 +325,7 @@ func saveExternalIncome(ctx context.Context, tx pgx.Tx, inc core.ExternalIncome)
 }
 
 func (c *Connection) saveInternalIncome(ctx context.Context, tx pgx.Tx, inc core.InternalIncome) error {
-	memo, err := uuid.FromString(inc.Memo)
+	memo, err := uuid.Parse(inc.Memo)
 	if err != nil {
 		return err
 	}
@@ -538,29 +538,45 @@ func (c *Connection) GetServiceDepositWithdrawalTasks(ctx context.Context, limit
 	return tasks, nil
 }
 
-func saveBlock(ctx context.Context, tx pgx.Tx, block *core.ShardBlockHeader) error {
+func saveBlocks(ctx context.Context, tx pgx.Tx, shardBlocks []*core.ShardBlock, masterBlock tlb.Block) error {
+
+	for _, sb := range shardBlocks {
+		_, err := tx.Exec(ctx, `
+		INSERT INTO payments.block_data (
+		shard,
+		seqno,
+		gen_utime,
+		is_master
+		) VALUES ($1, $2, $3, $4)                                               
+		`,
+			sb.Shard,
+			sb.Seqno,
+			time.Unix(int64(sb.GenUtime), 0),
+			false, // shard block
+		)
+		if err != nil {
+			return err
+		}
+	}
+
 	_, err := tx.Exec(ctx, `
 		INSERT INTO payments.block_data (
 		shard,
 		seqno,
-		root_hash,
-		file_hash,
 		gen_utime,
 		is_master
-		) VALUES ($1, $2, $3, $4, $5, $6)                                               
-	`,
-		block.Shard,
-		block.SeqNo,
-		block.RootHash,
-		block.FileHash,
-		time.Unix(int64(block.GenUtime), 0),
-		block.IsMaster,
+		) VALUES ($1, $2, $3, $4)                                               
+		`,
+		masterBlock.Info.Shard,
+		masterBlock.Info.SeqNo, time.Unix(int64(masterBlock.Info.GenUtime), 0),
+		true, // master block
 	)
+
 	return err
 }
 
 func updateInternalWithdrawal(ctx context.Context, tx pgx.Tx, w core.InternalWithdrawal) error {
-	memo, err := uuid.FromString(w.Memo)
+	memo, err := uuid.Parse(w.Memo)
 	if err != nil {
 		return err
 	}
@@ -668,14 +684,20 @@ func (c *Connection) saveParsedBlockData(ctx context.Context, tx pgx.Tx, events 
 			return err
 		}
 	}
-	err = saveBlock(ctx, tx, events.Block)
-	if err != nil {
-		return err
-	}
+	// TODO: duplicates? Or save only shard blocks here.
+	//err = saveBlocks(ctx, tx, events.Block)
+	//if err != nil {
+	//	return err
+	//}
 	return nil
 }
 
-func (c *Connection) SaveParsedBlocksData(ctx context.Context, events []core.BlockEvents, masterBlockID *core.ShardBlockHeader) error {
+func (c *Connection) SaveParsedBlocksData(
+	ctx context.Context,
+	events []core.BlockEvents,
+	shardBlocks []*core.ShardBlock,
+	masterBlock tlb.Block,
+) error {
 	tx, err := c.client.Begin(ctx)
 	if err != nil {
 		return err
@@ -689,7 +711,7 @@ func (c *Connection) SaveParsedBlocksData(ctx context.Context, events []core.Blo
 		}
 	}
 
-	err = saveBlock(ctx, tx, masterBlockID)
+	err = saveBlocks(ctx, tx, shardBlocks, masterBlock) // TODO: or save only master block here
 	if err != nil {
 		return err
 	}
@@ -855,7 +877,7 @@ func updateExternalWithdrawal(ctx context.Context, tx pgx.Tx, w core.ExternalWit
 
 func applySendingConfirmations(ctx context.Context, tx pgx.Tx, w core.SendingConfirmation) error {
 	var alreadyFailed bool
-	memo, err := uuid.FromString(w.Memo)
+	memo, err := uuid.Parse(w.Memo)
 	if err != nil {
 		return err
 	}
@@ -928,32 +950,25 @@ func (c *Connection) GetTonHotWalletAddress(ctx context.Context) (core.Address, 
 	return addr, err
 }
 
-func (c *Connection) GetLastSavedBlockID(ctx context.Context) (*ton.BlockIDExt, error) {
-	var blockID ton.BlockIDExt
+func (c *Connection) GetLastSavedMasterBlockSeqno(ctx context.Context) (uint32, error) {
+	var seqno uint32
 	err := c.client.QueryRow(ctx, `
 		SELECT 
-		    seqno, 
-		    shard, 
-		    root_hash, 
-		    file_hash
+		    seqno
 		FROM payments.block_data
 		WHERE is_master = true
 		ORDER BY seqno DESC		
 		LIMIT 1
 	`).Scan(
-		&blockID.SeqNo,
-		&blockID.Shard,
-		&blockID.RootHash,
-		&blockID.FileHash,
+		seqno,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, core.ErrNotFound
+		return 0, core.ErrNotFound
 	}
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	blockID.Workchain = core.MasterchainID
-	return &blockID, nil
+	return seqno, nil
 }
 
 // SetExpired TODO: maybe add block related expiration

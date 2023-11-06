@@ -120,8 +120,6 @@ CREATE TABLE IF NOT EXISTS payments.block_data
         saved_at                timestamptz not null default now(),
         gen_utime               timestamptz not null,
         is_master               bool not null,
-        root_hash               bytea not null,
-        file_hash               bytea not null,
         unique (shard, seqno, is_master)
 );
 

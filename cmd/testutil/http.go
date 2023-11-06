@@ -7,7 +7,7 @@ import (
 	"github.com/gobicycle/bicycle/internal/api"
 	"github.com/gobicycle/bicycle/internal/config"
 	"github.com/gobicycle/bicycle/internal/core"
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"io"
 	"log"

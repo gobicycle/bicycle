@@ -1,23 +1,17 @@
 package core
 
 import (
-	"context"
 	"database/sql/driver"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/gobicycle/bicycle/internal/config"
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/tonkeeper/tongo"
 	"github.com/tonkeeper/tongo/tlb"
 	"github.com/xssnick/tonutils-go/address"
-	//"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton"
-	"github.com/xssnick/tonutils-go/ton/wallet"
+
 	"math/big"
-	"math/bits"
-	"time"
 )
 
 const (
@@ -261,7 +255,7 @@ func (e *Events) Append(ae Events) {
 
 type BlockEvents struct {
 	Events
-	Block *ShardBlockHeader
+	Block *ShardBlock // TODO: remove
 }
 
 type InternalWithdrawalTask struct {
@@ -294,107 +288,63 @@ func ZeroCoins() Coins {
 //	mask   int64
 //}
 
-func ParseShardID(m int64) (ShardID, error) {
-	if m == 0 {
-		return ShardID{}, errors.New("at least one non-zero bit required in shard id")
-	}
-	trailingZeros := bits.TrailingZeros64(uint64(m))
-	return ShardID{
-		prefix: m ^ (1 << trailingZeros),
-		mask:   -1 << (trailingZeros + 1),
-	}, nil
-}
+//func ParseShardID(m int64) (ShardID, error) {
+//	if m == 0 {
+//		return ShardID{}, errors.New("at least one non-zero bit required in shard id")
+//	}
+//	trailingZeros := bits.TrailingZeros64(uint64(m))
+//	return ShardID{
+//		prefix: m ^ (1 << trailingZeros),
+//		mask:   -1 << (trailingZeros + 1),
+//	}, nil
+//}
 
-func ShardIdFromAddress(a Address, shardPrefixLen int) ShardID {
-	return ShardID{
-		prefix: int64(binary.BigEndian.Uint64(a[:8])),
-		mask:   -1 << (64 - shardPrefixLen),
-	}
-	// TODO: check for correctness with full prefix
-}
-
-func (s ShardID) MatchAddress(a Address) bool {
-	aPrefix := binary.BigEndian.Uint64(a[:8])
-	return (int64(aPrefix) & s.mask) == s.prefix
-}
-
-func (s ShardID) MatchBlockID(block *ton.BlockIDExt) bool {
-	sub, err := ParseShardID(block.Shard)
-	if err != nil {
-		// TODO: log error
-		return false
-	}
-	if bits.TrailingZeros64(uint64(s.mask)) < bits.TrailingZeros64(uint64(sub.mask)) {
-		return s.prefix&sub.mask == sub.prefix
-	}
-	return sub.prefix&s.mask == s.prefix
-}
+//func ShardIdFromAddress(a Address, shardPrefixLen int) ShardID {
+//	return ShardID{
+//		prefix: int64(binary.BigEndian.Uint64(a[:8])),
+//		mask:   -1 << (64 - shardPrefixLen),
+//	}
+//	// TODO: check for correctness with full prefix
+//}
+//
+//func (s ShardID) MatchAddress(a Address) bool {
+//	aPrefix := binary.BigEndian.Uint64(a[:8])
+//	return (int64(aPrefix) & s.mask) == s.prefix
+//}
+//
+//func (s ShardID) MatchBlockID(block *ton.BlockIDExt) bool {
+//	sub, err := ParseShardID(block.Shard)
+//	if err != nil {
+//		// TODO: log error
+//		return false
+//	}
+//	if bits.TrailingZeros64(uint64(s.mask)) < bits.TrailingZeros64(uint64(sub.mask)) {
+//		return s.prefix&sub.mask == sub.prefix
+//	}
+//	return sub.prefix&s.mask == s.prefix
+//}
 
 // ShardBlock
 // Block data for a specific shard mask attribute.
 type ShardBlock struct {
 	tongo.BlockIDExt
 	//IsMaster bool
-	//GenUtime uint32
+	GenUtime uint32
 	//StartLt  uint64
 	//EndLt    uint64
 	Transactions []*tlb.Transaction
 	Parents      []tongo.BlockIDExt
 }
 
-func (s ShardBlockHeader) MatchParentBlockByAddress(a Address) (*ton.BlockIDExt, error) {
-	for _, p := range s.Parents {
-		shardID, err := ParseShardID(p.Shard)
-		if err != nil {
-			return nil, err
-		}
-		if shardID.MatchAddress(a) {
-			return p, nil
-		}
-	}
-	return nil, fmt.Errorf("must be at least one suitable block for this address")
-}
-
-type storage interface {
-	GetExternalWithdrawalTasks(ctx context.Context, limit int) ([]ExternalWithdrawalTask, error)
-	SaveTonWallet(ctx context.Context, walletData WalletData) error
-	SaveJettonWallet(ctx context.Context, ownerAddress Address, walletData WalletData, notSaveOwner bool) error
-	GetWalletType(address Address) (WalletType, bool)
-	GetOwner(address Address) *Address
-	GetWalletTypeByTonutilsAddress(address *address.Address) (WalletType, bool)
-	SaveParsedBlocksData(ctx context.Context, events []BlockEvents, masterBlockID *ShardBlockHeader) error
-	GetTonInternalWithdrawalTasks(ctx context.Context, limit int) ([]InternalWithdrawalTask, error)
-	GetJettonInternalWithdrawalTasks(ctx context.Context, forbiddenAddresses []Address, limit int) ([]InternalWithdrawalTask, error)
-	CreateExternalWithdrawals(ctx context.Context, tasks []ExternalWithdrawalTask, extMsgUuid uuid.UUID, expiredAt time.Time) error
-	GetTonHotWalletAddress(ctx context.Context) (Address, error)
-	SetExpired(ctx context.Context) error
-	SaveInternalWithdrawalTask(ctx context.Context, task InternalWithdrawalTask, expiredAt time.Time, memo uuid.UUID) error
-	IsActualBlockData(ctx context.Context) (bool, error)
-	SaveWithdrawalRequest(ctx context.Context, w WithdrawalRequest) (int64, error)
-	IsInProgressInternalWithdrawalRequest(ctx context.Context, dest Address, currency string) (bool, error)
-	GetServiceHotWithdrawalTasks(ctx context.Context, limit int) ([]ServiceWithdrawalTask, error)
-	UpdateServiceWithdrawalRequest(ctx context.Context, t ServiceWithdrawalTask, tonAmount Coins,
-		expiredAt time.Time, filled bool) error
-	GetServiceDepositWithdrawalTasks(ctx context.Context, limit int) ([]ServiceWithdrawalTask, error)
-	GetJettonWallet(ctx context.Context, address Address) (*WalletData, bool, error)
-}
-
-type blockchain interface {
-	GetJettonWalletAddress(ctx context.Context, ownerWallet *address.Address, jettonMaster *address.Address) (*address.Address, error)
-	GetTransactionIDsFromBlock(ctx context.Context, blockID *ton.BlockIDExt) ([]ton.TransactionShortInfo, error)
-	GetTransactionFromBlock(ctx context.Context, blockID *ton.BlockIDExt, txID ton.TransactionShortInfo) (*tlb.Transaction, error)
-	GenerateDefaultWallet(seed string, isHighload bool) (*wallet.Wallet, uint32, error)
-	GetJettonBalance(ctx context.Context, address Address, blockID *ton.BlockIDExt) (*big.Int, error)
-	SendExternalMessage(ctx context.Context, msg *tlb.ExternalMessage) error
-	GetAccountCurrentState(ctx context.Context, address *address.Address) (*big.Int, tlb.AccountStatus, error)
-	GetLastJettonBalance(ctx context.Context, address *address.Address) (*big.Int, error)
-	DeployTonWallet(ctx context.Context, wallet *wallet.Wallet) error
-}
-
-type blocksTracker interface {
-	NextBatch() ([]*ShardBlockHeader, *ShardBlockHeader, error)
-}
-
-type Notificator interface {
-	Publish(payload any) error
-}
+//func (s ShardBlockHeader) MatchParentBlockByAddress(a Address) (*ton.BlockIDExt, error) {
+//	for _, p := range s.Parents {
+//		shardID, err := ParseShardID(p.Shard)
+//		if err != nil {
+//			return nil, err
+//		}
+//		if shardID.MatchAddress(a) {
+//			return p, nil
+//		}
+//	}
+//	return nil, fmt.Errorf("must be at least one suitable block for this address")
+//}
