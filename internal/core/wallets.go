@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"github.com/gobicycle/bicycle/internal/audit"
@@ -9,9 +10,12 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/tonkeeper/tongo"
+	"github.com/tonkeeper/tongo/wallet"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton/wallet"
+	"math"
+
+	//"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"math/big"
 	"math/rand"
@@ -405,4 +409,25 @@ func buildTonFillMessage(
 			Body:        buildComment(memo.String()),
 		},
 	}
+}
+
+// GenerateTonDepositWallet generates V3R2 subwallet for DefaultWorkchain, custom shard and
+// subWalletID >= startSubWalletID and returns wallet address and new subWalletID
+func GenerateTonDepositWallet(pubKey ed25519.PublicKey, shard tongo.ShardID, startSubWalletID uint32) (
+	*tongo.AccountID,
+	uint32,
+	error,
+) {
+	for id := startSubWalletID; id < math.MaxUint32; id++ {
+		subWalletID := int(id) // TODO: check for max value
+		// TODO: check for testnet or mainnet subwallet IDs
+		addr, err := wallet.GenerateWalletAddress(pubKey, wallet.V3R2, DefaultWorkchain, &subWalletID)
+		if err != nil {
+			return nil, 0, err
+		}
+		if shard.MatchAccountID(addr) {
+			return &addr, id, nil
+		}
+	}
+	return nil, 0, ErrSubwalletNotFound
 }

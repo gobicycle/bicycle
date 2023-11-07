@@ -94,39 +94,6 @@ func (c *Connection) GenerateDefaultWallet(seed string, isHighload bool) (
 	return w, uint32(subWalletID), nil
 }
 
-// GenerateSubWallet generates subwallet for custom shard and
-// subwallet_id >= startSubWalletId and returns wallet and new subwallet_id
-func (c *Connection) GenerateSubWallet(seed string, shard tongo.ShardID, startSubWalletID uint32) (*wallet.Wallet, uint32, error) {
-
-	pk, err := wallet.SeedToPrivateKey(seed)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	//words := strings.Split(seed, " ")
-	//basic, err := wallet.FromSeed(c, words, wallet.V3)
-	//if err != nil {
-	//	return nil, 0, err
-	//}
-
-	for id := startSubWalletID; id < math.MaxUint32; id++ {
-		//subWallet, err := basic.GetSubwallet(id)
-		subwalletId := int(id)
-		subWallet, err := wallet.New(pk, wallet.V3R2, core2.DefaultWorkchain, &subwalletId, c.client)
-		if err != nil {
-			return nil, 0, err
-		}
-		//addr, err := core.AddressFromTonutilsAddress(subWallet.Address())
-		//if err != nil {
-		//	return nil, 0, err
-		//}
-		if shard.MatchAccountID(subWallet.GetAddress()) {
-			return &subWallet, id, nil
-		}
-	}
-	return nil, 0, fmt.Errorf("subwallet not found")
-}
-
 // GetJettonWalletAddress generates jetton wallet address from owner and jetton master addresses
 func (c *Connection) GetJettonWalletAddress(
 	ctx context.Context,

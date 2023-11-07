@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/ed25519"
 	"fmt"
 	"github.com/gobicycle/bicycle/internal/core"
 	"github.com/gobicycle/bicycle/internal/oas"
@@ -155,72 +156,81 @@ func generateDeposit(
 	shard tongo.ShardID,
 	dbConn storage,
 	bc blockchain,
+	publicKey ed25519.PublicKey,
 	hotWalletAddress address.Address,
+	isTestnet bool,
 ) (
 	*oas.Deposit,
 	error,
 ) {
-	subwalletID, err := dbConn.GetLastSubwalletID(ctx)
+
+	lastSubWalletID, err := dbConn.GetLastSubwalletID(ctx)
 	if err != nil {
 		return nil, err
 	}
 	var res string
+
 	if currency == core.TonSymbol {
-		w, id, err := bc.GenerateSubWallet(config.Config.Seed, shard, subwalletID+1)
-		if err != nil {
-			return nil, err
-		}
-		a, err := core.AddressFromTonutilsAddress(w.GetAddress())
+
+		depositAddress, subWalletID, err := core.GenerateTonDepositWallet(publicKey, shard, lastSubWalletID+1)
 		if err != nil {
 			return nil, err
 		}
 		err = dbConn.SaveTonWallet(ctx,
 			core.WalletData{
-				SubwalletID: id,
+				SubwalletID: subWalletID,
 				UserID:      userID,
 				Currency:    core.TonSymbol,
 				Type:        core.TonDepositWallet,
-				Address:     a,
+				Address:     depositAddress.Address, // TODO: use tongo Address
 			},
 		)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		res = a.ToUserFormat()
-	} else {
-		jetton, ok := config.Config.Jettons[currency]
-		if !ok {
-			return "", fmt.Errorf("jetton address not found")
-		}
-		proxy, addr, err := bc.GenerateDepositJettonWalletForProxy(ctx, shard, &hotWalletAddress, jetton.Master, subwalletID+1)
-		if err != nil {
-			return "", err
-		}
-		jettonWalletAddr, err := core.AddressFromTonutilsAddress(addr)
-		if err != nil {
-			return "", err
-		}
-		proxyAddr, err := core.AddressFromTonutilsAddress(proxy.Address())
-		if err != nil {
-			return "", err
-		}
-		err = dbConn.SaveJettonWallet(
-			ctx,
-			proxyAddr,
-			core.WalletData{
-				UserID:      userID,
-				SubwalletID: proxy.SubwalletID,
-				Currency:    currency,
-				Type:        core.JettonDepositWallet,
-				Address:     jettonWalletAddr,
-			},
-			false,
-		)
-		if err != nil {
-			return "", err
-		}
-		res = proxyAddr.ToUserFormat()
+
+		return &oas.Deposit{
+			Address:  core.TongoAccountIDToUserFormat(*depositAddress, isTestnet),
+			Currency: core.TonSymbol,
+		}, nil
+
 	}
+
+	// else if (currency != core.TonSymbol)
+
+	jetton, ok := config.Config.Jettons[currency]
+	if !ok {
+		return "", fmt.Errorf("jetton address not found")
+	}
+	proxy, addr, err := bc.GenerateDepositJettonWalletForProxy(ctx, shard, &hotWalletAddress, jetton.Master, subwalletID+1)
+	if err != nil {
+		return "", err
+	}
+	jettonWalletAddr, err := core.AddressFromTonutilsAddress(addr)
+	if err != nil {
+		return "", err
+	}
+	proxyAddr, err := core.AddressFromTonutilsAddress(proxy.Address())
+	if err != nil {
+		return "", err
+	}
+	err = dbConn.SaveJettonWallet(
+		ctx,
+		proxyAddr,
+		core.WalletData{
+			UserID:      userID,
+			SubwalletID: proxy.SubwalletID,
+			Currency:    currency,
+			Type:        core.JettonDepositWallet,
+			Address:     jettonWalletAddr,
+		},
+		false,
+	)
+	if err != nil {
+		return "", err
+	}
+	res = proxyAddr.ToUserFormat()
+
 	return res, nil
 }
 

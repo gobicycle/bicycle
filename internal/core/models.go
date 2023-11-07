@@ -86,12 +86,17 @@ func (a Address) ToTonutilsAddressStd(flags byte) *address.Address {
 	return address.NewAddress(flags, DefaultWorkchain, a[:])
 }
 
-// ToUserFormat converts to user-friendly text format with testnet and bounce flags
-func (a Address) ToUserFormat() string {
-	addr := a.ToTonutilsAddressStd(0)
-	addr.SetTestnetOnly(config.Config.Testnet)
-	addr.SetBounce(false)
-	return addr.String()
+//// ToUserFormat converts to user-friendly text format with testnet and bounce flags
+//func (a Address) ToUserFormat() string {
+//	addr := a.ToTonutilsAddressStd(0)
+//	addr.SetTestnetOnly(config.Config.Testnet)
+//	addr.SetBounce(false)
+//	return addr.String()
+//}
+
+// TongoAccountIDToUserFormat converts to user-friendly text format with testnet and bounce = false flags
+func TongoAccountIDToUserFormat(addr tongo.AccountID, isTestnet bool) string { // TODO: check user format type
+	return addr.ToHuman(false, isTestnet) // TODO: or use non bounceable for Jetton wallets
 }
 
 func (a Address) ToBytes() []byte {
