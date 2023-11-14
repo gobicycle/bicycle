@@ -12,13 +12,27 @@ func (h *Handler) MakeNewDeposit(ctx context.Context, params oas.MakeNewDepositP
 	if !isValidCurrency(params.Currency) {
 		return &oas.BadRequest{Error: "invalid currency type"}, nil
 	}
-	h.mutex.Lock()
-	defer h.mutex.Unlock() // To prevent data race
-	deposit, err := generateDeposit(ctx, params.UserID, params.Currency, h.shard, h.storage, h.blockchain, h.hotWalletAddress)
+
+	if params.Currency == core.TonSymbol {
+		addr, err := h.generator.GenerateTonDeposit(ctx, params.UserID)
+		if err != nil {
+			return &oas.InternalError{Error: err.Error()}, nil
+		}
+		return &oas.Deposit{
+			Address:  core.TongoAccountIDToUserFormat(*addr, h.isTestnet),
+			Currency: core.TonSymbol,
+		}, nil
+	}
+
+	addr, err := h.generator.GenerateJettonDeposit(ctx, params.UserID, params.Currency)
 	if err != nil {
 		return &oas.InternalError{Error: err.Error()}, nil
 	}
-	return deposit, nil
+
+	return &oas.Deposit{
+		Address:  core.TongoAccountIDToUserFormat(*addr, h.isTestnet),
+		Currency: core.TonSymbol,
+	}, nil
 }
 
 func (h *Handler) GetDeposits(ctx context.Context, params oas.GetDepositsParams) (oas.GetDepositsRes, error) {
@@ -30,7 +44,7 @@ func (h *Handler) GetDeposits(ctx context.Context, params oas.GetDepositsParams)
 }
 
 func (h *Handler) SendWithdrawal(ctx context.Context, req *oas.SendWithdrawalReq) (oas.SendWithdrawalRes, error) {
-	w, err := convertWithdrawal(req)
+	w, err := convertWithdrawal(req, h.isTestnet)
 	if err != nil {
 		return &oas.BadRequest{Error: fmt.Sprintf("convert withdrawal err: %v", err)}, nil
 	}
@@ -79,7 +93,7 @@ func (h *Handler) GetIncome(ctx context.Context, params oas.GetIncomeParams) (oa
 	if err != nil {
 		return &oas.InternalError{Error: fmt.Sprintf("get balances err: %v", err)}, nil
 	}
-	return convertIncome(h.storage, totalIncomes), nil
+	return convertIncome(h.storage, totalIncomes, h.isDepositSideCalculation), nil
 }
 
 func (h *Handler) GetIncomeHistory(ctx context.Context, params oas.GetIncomeHistoryParams) (oas.GetIncomeHistoryRes, error) {
@@ -91,11 +105,11 @@ func (h *Handler) GetIncomeHistory(ctx context.Context, params oas.GetIncomeHist
 	if err != nil {
 		return &oas.InternalError{Error: fmt.Sprintf("get history err: %v", err)}, nil
 	}
-	return convertHistory(h.storage, params.Currency, history), nil
+	return convertHistory(h.storage, params.Currency, history, h.isTestnet), nil
 }
 
 func (h *Handler) ServiceTonWithdrawal(ctx context.Context, req *oas.ServiceTonWithdrawalReq) (oas.ServiceTonWithdrawalRes, error) {
-	w, err := convertTonServiceWithdrawal(h.storage, req)
+	w, err := convertTonServiceWithdrawal(h.storage, req, h.isTestnet)
 	if err != nil {
 		return &oas.BadRequest{Error: fmt.Sprintf("convert service withdrawal err: %v", err)}, nil
 	}
@@ -107,7 +121,7 @@ func (h *Handler) ServiceTonWithdrawal(ctx context.Context, req *oas.ServiceTonW
 }
 
 func (h *Handler) ServiceJettonWithdrawal(ctx context.Context, req *oas.ServiceJettonWithdrawalReq) (oas.ServiceJettonWithdrawalRes, error) {
-	w, err := convertJettonServiceWithdrawal(h.storage, req)
+	w, err := convertJettonServiceWithdrawal(h.storage, req, h.isTestnet)
 	if err != nil {
 		return &oas.BadRequest{Error: fmt.Sprintf("convert service withdrawal err: %v", err)}, nil
 	}

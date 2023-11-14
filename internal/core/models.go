@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"github.com/gobicycle/bicycle/internal/config"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/tonkeeper/tongo"
@@ -81,18 +80,19 @@ func (a Address) Value() (driver.Value, error) {
 	return a[:], nil
 }
 
-// ToTonutilsAddressStd implements converter to ton-utils std Address type for default workchain !
-func (a Address) ToTonutilsAddressStd(flags byte) *address.Address {
-	return address.NewAddress(flags, DefaultWorkchain, a[:])
-}
-
-//// ToUserFormat converts to user-friendly text format with testnet and bounce flags
-//func (a Address) ToUserFormat() string {
-//	addr := a.ToTonutilsAddressStd(0)
-//	addr.SetTestnetOnly(config.Config.Testnet)
-//	addr.SetBounce(false)
-//	return addr.String()
+//// ToTonutilsAddressStd implements converter to ton-utils std Address type for default workchain !
+//func (a Address) ToTonutilsAddressStd(flags byte) *address.Address {
+//	return address.NewAddress(flags, DefaultWorkchain, a[:])
 //}
+
+// TODO: remove
+// ToUserFormat converts to user-friendly text format with testnet and bounce flags
+func (a Address) ToUserFormat() string {
+	addr := a.ToTonutilsAddressStd(0)
+	addr.SetTestnetOnly(config.Config.Testnet)
+	addr.SetBounce(false)
+	return addr.String()
+}
 
 // TongoAccountIDToUserFormat converts to user-friendly text format with testnet and bounce = false flags
 func TongoAccountIDToUserFormat(addr tongo.AccountID, isTestnet bool) string { // TODO: check user format type
@@ -103,11 +103,11 @@ func (a Address) ToBytes() []byte {
 	return a[:]
 }
 
-func TonutilsAddressToUserFormat(addr *address.Address) string {
-	addr.SetTestnetOnly(config.Config.Testnet)
-	addr.SetBounce(false)
-	return addr.String()
-}
+//func TonutilsAddressToUserFormat(addr *address.Address) string {
+//	addr.SetTestnetOnly(config.Config.Testnet)
+//	addr.SetBounce(false)
+//	return addr.String()
+//}
 
 func AddressFromBytes(data []byte) (Address, error) {
 	if len(data) != 32 {
@@ -118,23 +118,23 @@ func AddressFromBytes(data []byte) (Address, error) {
 	return res, nil
 }
 
-func AddressFromTonutilsAddress(addr *address.Address) (Address, error) {
-	if addr == nil {
-		return Address{}, fmt.Errorf("nil tonutils address")
-	}
-	if addr.Type() != address.StdAddress {
-		return Address{}, fmt.Errorf("only std address supported")
-	}
-	return AddressFromBytes(addr.Data())
-}
+//func AddressFromTonutilsAddress(addr *address.Address) (Address, error) {
+//	if addr == nil {
+//		return Address{}, fmt.Errorf("nil tonutils address")
+//	}
+//	if addr.Type() != address.StdAddress {
+//		return Address{}, fmt.Errorf("only std address supported")
+//	}
+//	return AddressFromBytes(addr.Data())
+//}
 
-func AddressMustFromTonutilsAddress(addr *address.Address) Address {
-	res, err := AddressFromTonutilsAddress(addr)
-	if err != nil {
-		panic(err)
-	}
-	return res
-}
+//func AddressMustFromTonutilsAddress(addr *address.Address) Address {
+//	res, err := AddressFromTonutilsAddress(addr)
+//	if err != nil {
+//		panic(err)
+//	}
+//	return res
+//}
 
 type AddressInfo struct {
 	Type  WalletType

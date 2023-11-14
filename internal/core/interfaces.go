@@ -33,6 +33,7 @@ type storage interface {
 		expiredAt time.Time, filled bool) error
 	GetServiceDepositWithdrawalTasks(ctx context.Context, limit int) ([]ServiceWithdrawalTask, error)
 	GetJettonWallet(ctx context.Context, address Address) (*WalletData, bool, error)
+	GetLastSubwalletID(ctx context.Context) (uint32, error)
 }
 
 type blockchain interface {
@@ -45,6 +46,16 @@ type blockchain interface {
 	GetAccountCurrentState(ctx context.Context, address tongo.AccountID) (uint64, tlb.AccountStatus, error)
 	GetLastJettonBalance(ctx context.Context, jettonWallet tongo.AccountID) (*big.Int, error)
 	DeployTonWallet(ctx context.Context, wallet *wallet.Wallet) error
+	GenerateDepositJettonWalletForProxy(
+		ctx context.Context,
+		shard tongo.ShardID,
+		proxyOwner, jettonMaster tongo.AccountID,
+		startSubWalletID uint32,
+	) (
+		proxy *JettonProxy,
+		addr *tongo.AccountID,
+		err error,
+	)
 }
 
 type blocksTracker interface {

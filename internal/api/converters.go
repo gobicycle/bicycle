@@ -2,36 +2,48 @@ package api
 
 import (
 	"context"
-	"crypto/ed25519"
 	"fmt"
 	"github.com/gobicycle/bicycle/internal/core"
 	"github.com/gobicycle/bicycle/internal/oas"
 	"github.com/shopspring/decimal"
 	"github.com/tonkeeper/tongo"
-	"github.com/xssnick/tonutils-go/address"
 )
 
-func convertWithdrawal(w *oas.SendWithdrawalReq) (*core.WithdrawalRequest, error) {
+func convertWithdrawal(w *oas.SendWithdrawalReq, isTestnet bool) (*core.WithdrawalRequest, error) {
+
 	if !isValidCurrency(w.Currency) {
 		return nil, fmt.Errorf("invalid currency")
 	}
-	addr, bounceable, err := validateAddress(w.Destination)
+
+	addr, bounceable, err := validateAddress(w.Destination, isTestnet)
 	if err != nil {
 		return nil, fmt.Errorf("invalid destination address: %w", err)
 	}
-	if !(w.Amount.Cmp(decimal.New(0, 0)) == 1) {
+
+	amount, err := decimal.NewFromString(w.Amount)
+	if err != nil {
+		return nil, fmt.Errorf("invalid amount string: %w", err)
+	}
+
+	if !(amount.Cmp(decimal.New(0, 0)) == 1) {
 		return nil, fmt.Errorf("amount must be > 0")
 	}
-	return &core.WithdrawalRequest{
+
+	res := core.WithdrawalRequest{
 		UserID:      w.UserID,
 		QueryID:     w.QueryID,
 		Currency:    w.Currency,
-		Amount:      w.Amount,
+		Amount:      amount,
 		Destination: addr,
 		Bounceable:  bounceable,
-		Comment:     w.Comment,
 		IsInternal:  false,
-	}, nil
+	}
+
+	if w.Comment.IsSet() {
+		res.Comment = w.Comment.Value
+	}
+
+	return &res, nil
 }
 
 func convertWithdrawalStatus(status core.WithdrawalStatus) *oas.WithdrawalStatus {
@@ -46,8 +58,8 @@ func convertWithdrawalStatus(status core.WithdrawalStatus) *oas.WithdrawalStatus
 	return nil
 }
 
-func convertTonServiceWithdrawal(s storage, w *oas.ServiceTonWithdrawalReq) (*core.ServiceWithdrawalRequest, error) {
-	from, _, err := validateAddress(w.From)
+func convertTonServiceWithdrawal(s storage, w *oas.ServiceTonWithdrawalReq, isTestnet bool) (*core.ServiceWithdrawalRequest, error) {
+	from, _, err := validateAddress(w.From, isTestnet)
 	if err != nil {
 		return nil, fmt.Errorf("invalid from address: %w", err)
 	}
@@ -64,8 +76,8 @@ func convertTonServiceWithdrawal(s storage, w *oas.ServiceTonWithdrawalReq) (*co
 	}, nil
 }
 
-func convertJettonServiceWithdrawal(s storage, w *oas.ServiceJettonWithdrawalReq) (*core.ServiceWithdrawalRequest, error) {
-	from, _, err := validateAddress(w.Owner)
+func convertJettonServiceWithdrawal(s storage, w *oas.ServiceJettonWithdrawalReq, isTestnet bool) (*core.ServiceWithdrawalRequest, error) {
+	from, _, err := validateAddress(w.Owner, isTestnet)
 	if err != nil {
 		return nil, fmt.Errorf("invalid from address: %v", err)
 	}
@@ -77,7 +89,7 @@ func convertJettonServiceWithdrawal(s storage, w *oas.ServiceJettonWithdrawalReq
 		return nil,
 			fmt.Errorf("service withdrawal allowed only for Jetton deposit owner or TON deposit")
 	}
-	jetton, _, err := validateAddress(w.JettonMaster)
+	jetton, _, err := validateAddress(w.JettonMaster, isTestnet)
 	if err != nil {
 		return nil, fmt.Errorf("invalid jetton master address: %v", err)
 	}
@@ -88,171 +100,92 @@ func convertJettonServiceWithdrawal(s storage, w *oas.ServiceJettonWithdrawalReq
 	}, nil
 }
 
-func convertIncome(dbConn storage, totalIncomes []core.TotalIncome) *oas.CalculatedIncome {
-	var res = GetIncomeResponse{
-		TotalIncomes: []totalIncome{},
+func convertIncome(dbConn storage, totalIncomes []core.TotalIncome, isDepositSideCalculation bool) *oas.CalculatedIncome {
+	var res = oas.CalculatedIncome{
+		TotalIncome: []oas.TotalIncome{},
 	}
-	if config.Config.IsDepositSideCalculation {
-		res.Side = core.SideDeposit
+
+	if isDepositSideCalculation {
+		res.CountingSide = oas.CalculatedIncomeCountingSideDeposit
 	} else {
-		res.Side = core.SideHotWallet
+		res.CountingSide = oas.CalculatedIncomeCountingSideHotWallet
 	}
 
 	for _, b := range totalIncomes {
-		totIncome := totalIncome{
+		totIncome := oas.TotalIncome{
 			Amount:   b.Amount.String(),
 			Currency: b.Currency,
 		}
 		if b.Currency == core.TonSymbol {
-			totIncome.Address = b.Deposit.ToUserFormat()
+			totIncome.DepositAddress = b.Deposit.ToUserFormat()
 		} else {
 			owner := dbConn.GetOwner(b.Deposit)
 			if owner == nil {
-				// TODO: remove fatal
-				log.Fatalf("can not find owner for deposit: %s", b.Deposit.ToUserFormat())
+				// TODO: remove panic
+				panic("can not find owner for deposit: " + b.Deposit.ToUserFormat())
 			}
-			totIncome.Address = owner.ToUserFormat()
+			totIncome.DepositAddress = owner.ToUserFormat()
 		}
-		res.TotalIncomes = append(res.TotalIncomes, totIncome)
+		res.TotalIncome = append(res.TotalIncome, totIncome)
 	}
-	return res
+	return &res
 }
 
-func convertHistory(dbConn storage, currency string, incomes []core.ExternalIncome) *oas.Incomes {
-	var res = GetHistoryResponse{
-		Incomes: []income{},
+func convertHistory(dbConn storage, currency string, incomes []core.ExternalIncome, isTestnet bool) *oas.Incomes {
+	var res = oas.Incomes{
+		Incomes: []oas.Income{},
 	}
 	for _, i := range incomes {
-		inc := income{
-			Time:    int64(i.Utime),
-			Amount:  i.Amount.String(),
-			Comment: i.Comment,
+		inc := oas.Income{
+			Time:   int64(i.Utime),
+			Amount: i.Amount.String(),
 		}
+		if i.Comment != "" { // TODO: diff between empty sting and no comment
+			inc.Comment.SetTo(i.Comment)
+		}
+
 		if currency == core.TonSymbol {
 			inc.DepositAddress = i.To.ToUserFormat()
 		} else {
 			owner := dbConn.GetOwner(i.To)
 			if owner == nil {
-				// TODO: remove fatal
-				log.Fatalf("can not find owner for deposit: %s", i.To.ToUserFormat())
+				// TODO: remove panic
+				panic("can not find owner for deposit: " + i.To.ToUserFormat())
 			}
 			inc.DepositAddress = owner.ToUserFormat()
 		}
 		// show only std address
-		if len(i.From) == 32 && i.FromWorkchain != nil {
-			addr := address.NewAddress(0, byte(*i.FromWorkchain), i.From)
-			addr.SetTestnetOnly(config.Config.Testnet)
-			inc.SourceAddress = addr.String()
+		if len(i.From) == 32 && i.FromWorkchain != nil { // TODO: maybe masterchain too
+			//addr := address.NewAddress(0, byte(*i.FromWorkchain), i.From)
+			var a [32]byte
+			copy(a[:], i.From)
+			addr := tongo.NewAccountId(*i.FromWorkchain, a)
+			inc.SourceAddress = addr.ToHuman(true, isTestnet)
 		}
 		res.Incomes = append(res.Incomes, inc)
 	}
-	return res
-}
-
-func generateDeposit(
-	ctx context.Context,
-	userID string,
-	currency string,
-	shard tongo.ShardID,
-	dbConn storage,
-	bc blockchain,
-	publicKey ed25519.PublicKey,
-	hotWalletAddress address.Address,
-	isTestnet bool,
-) (
-	*oas.Deposit,
-	error,
-) {
-
-	lastSubWalletID, err := dbConn.GetLastSubwalletID(ctx)
-	if err != nil {
-		return nil, err
-	}
-	var res string
-
-	if currency == core.TonSymbol {
-
-		depositAddress, subWalletID, err := core.GenerateTonDepositWallet(publicKey, shard, lastSubWalletID+1)
-		if err != nil {
-			return nil, err
-		}
-		err = dbConn.SaveTonWallet(ctx,
-			core.WalletData{
-				SubwalletID: subWalletID,
-				UserID:      userID,
-				Currency:    core.TonSymbol,
-				Type:        core.TonDepositWallet,
-				Address:     depositAddress.Address, // TODO: use tongo Address
-			},
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		return &oas.Deposit{
-			Address:  core.TongoAccountIDToUserFormat(*depositAddress, isTestnet),
-			Currency: core.TonSymbol,
-		}, nil
-
-	}
-
-	// else if (currency != core.TonSymbol)
-
-	jetton, ok := config.Config.Jettons[currency]
-	if !ok {
-		return "", fmt.Errorf("jetton address not found")
-	}
-	proxy, addr, err := bc.GenerateDepositJettonWalletForProxy(ctx, shard, &hotWalletAddress, jetton.Master, subwalletID+1)
-	if err != nil {
-		return "", err
-	}
-	jettonWalletAddr, err := core.AddressFromTonutilsAddress(addr)
-	if err != nil {
-		return "", err
-	}
-	proxyAddr, err := core.AddressFromTonutilsAddress(proxy.Address())
-	if err != nil {
-		return "", err
-	}
-	err = dbConn.SaveJettonWallet(
-		ctx,
-		proxyAddr,
-		core.WalletData{
-			UserID:      userID,
-			SubwalletID: proxy.SubwalletID,
-			Currency:    currency,
-			Type:        core.JettonDepositWallet,
-			Address:     jettonWalletAddr,
-		},
-		false,
-	)
-	if err != nil {
-		return "", err
-	}
-	res = proxyAddr.ToUserFormat()
-
-	return res, nil
+	return &res
 }
 
 func getDeposits(ctx context.Context, userID string, dbConn storage) (*oas.Deposits, error) {
-	var res = GetAddressesResponse{
-		Addresses: []WalletAddress{},
+	var res = oas.Deposits{
+		Deposits: []oas.Deposit{},
 	}
 	tonAddr, err := dbConn.GetTonWalletsAddresses(ctx, userID, []core.WalletType{core.TonDepositWallet})
 	if err != nil {
-		return GetAddressesResponse{}, err
+		return nil, err
 	}
 	jettonAddr, err := dbConn.GetJettonOwnersAddresses(ctx, userID, []core.WalletType{core.JettonDepositWallet})
 	if err != nil {
-		return GetAddressesResponse{}, err
+		return nil, err
 	}
 	for _, a := range tonAddr {
-		res.Addresses = append(res.Addresses, WalletAddress{Address: a.ToUserFormat(), Currency: core.TonSymbol})
+		res.Deposits = append(res.Deposits, oas.Deposit{Address: a.ToUserFormat(), Currency: core.TonSymbol})
 	}
 	for _, a := range jettonAddr {
-		res.Addresses = append(res.Addresses, WalletAddress{Address: a.Address.ToUserFormat(), Currency: a.Currency})
+		res.Deposits = append(res.Deposits, oas.Deposit{Address: a.Address.ToUserFormat(), Currency: a.Currency})
 	}
-	return res, nil
+	return &res, nil
 }
 
 func isValidCurrency(cur string) bool {
@@ -262,18 +195,18 @@ func isValidCurrency(cur string) bool {
 	return false
 }
 
-func validateAddress(addr string) (core.Address, bool, error) {
+func validateAddress(addr string, isTestnet bool) (core.Address, bool, error) {
 	if addr == "" {
 		return core.Address{}, false, fmt.Errorf("empty address")
 	}
-	a, err := address.ParseAddr(addr)
+	a, err := tongo.ParseAddress(addr)
 	if err != nil {
 		return core.Address{}, false, fmt.Errorf("invalid address: %v", err)
 	}
-	if a.IsTestnetOnly() && !config.Config.Testnet {
+	if a.IsTestnetOnly() && !isTestnet {
 		return core.Address{}, false, fmt.Errorf("address for testnet only")
 	}
-	if a.Workchain() != core.DefaultWorkchain {
+	if int(a.ID.Workchain) != core.DefaultWorkchain {
 		return core.Address{}, false, fmt.Errorf("address must be in %d workchain",
 			core.DefaultWorkchain)
 	}

@@ -4,14 +4,11 @@ import (
 	"context"
 	"github.com/gobicycle/bicycle/internal/core"
 	"github.com/google/uuid"
-	"github.com/tonkeeper/tongo"
 	"github.com/tonkeeper/tongo/tlb"
 	"github.com/tonkeeper/tongo/ton"
-	"github.com/tonkeeper/tongo/wallet"
 )
 
 type storage interface {
-	GetLastSubwalletID(ctx context.Context) (uint32, error)
 	SaveTonWallet(ctx context.Context, walletData core.WalletData) error
 	SaveJettonWallet(ctx context.Context, ownerAddress core.Address, walletData core.WalletData, notSaveOwner bool) error
 	GetTonWalletsAddresses(ctx context.Context, userID string, types []core.WalletType) ([]core.Address, error)
@@ -28,18 +25,6 @@ type storage interface {
 }
 
 type blockchain interface {
-	GenerateSubWallet(seed string, shard tongo.ShardID, startSubWalletID uint32) (*wallet.Wallet, uint32, error)
-	GenerateDepositJettonWalletForProxy(
-		ctx context.Context,
-		shard tongo.ShardID,
-		proxyOwner, jettonMaster tongo.AccountID,
-		startSubWalletID uint32,
-	) (
-		proxy *core.JettonProxy,
-		addr *tongo.AccountID,
-		err error,
-	)
-	GenerateDefaultWallet(seed string, isHighload bool) (*wallet.Wallet, uint32, error)
 	RunSmcMethod(ctx context.Context, accountID ton.AccountID, method string, params tlb.VmStack) (uint32, tlb.VmStack, error)
 	RunSmcMethodByID(ctx context.Context, accountID ton.AccountID, methodID int, params tlb.VmStack) (uint32, tlb.VmStack, error)
 }
