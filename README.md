@@ -90,6 +90,7 @@ For more information on Jettons compatibility, see [Jettons compatibility](/docs
 | `WEBHOOK_TOKEN`        | Bearer token for webhook request. If not set then not used.                                                                                                                                                                                                                                                           |
 | `SHARD_DEPTH`          | Shard prefix length for tracking blocks. All tracked addresses are grouped in one shard so that a node can be used to track a specific shard. 0 - tracking all blocks of the workchain. Default: 0. Do not change this setting on an already initialized processor.                                                   |
 
+**! Do not use the same seed phrase for testnet and mainnet.**
 **! Be careful with `IS_TESTNET` variable.** This does not guarantee that a testnet node is being used. It is only for address checking purposes.
 
 There are also internal service settings (fees and timeouts) that are specified in the source code in the [Config](/internal/config/config.go) package.

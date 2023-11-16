@@ -122,8 +122,17 @@ If TONs arrive at the wallet address at this time, the message will be applied a
 - D: warning about this behavior in technical_notes file for method description
 
 #### Setting the value to "expired" without taking into account the allowable delay
-- P: It is impossible to absolutely precisely synchronize in time with the blockchain, so there is an 
+- P: it is impossible to absolutely precisely synchronize in time with the blockchain, so there is an 
      allowable time delay value. If you get into this gap, the "expired" may be incorrectly set.
 - T: double spending for external withdrawals or unnecessary internal withdrawals
 - S: check expiration taking into account time delay
 - D: check expiration taking into account time delay
+
+#### Equal subwalletIDs for testnet and mainnet
+[//]: # (TODO: clarify)
+- P: when using the same subwalletID (and seed) in the testnet and in the mainnet simultaneously, 
+     it is possible to reply the external messages
+- T: replaying a message from the testnet on the mainnet
+- S: division of subwalletID ranges between testnet and mainnet, short message lifetime, do not use the same 
+     seed phrase on the testnet and mainnet
+- D: note in the readme not to use the same seed phrase in the testnet and mainnet

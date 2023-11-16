@@ -2,7 +2,6 @@ package core
 
 import (
 	"database/sql/driver"
-	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -13,17 +12,13 @@ import (
 	"math/big"
 )
 
-const (
-	TonSymbol        = "TON"
-	DefaultWorkchain = 0 // use only 0 workchain
-	MasterchainID    = -1
-)
+// TODO: align all structures
 
 type IncomeSide = string
 
 const (
-	SideHotWallet IncomeSide = "hot_wallet"
-	SideDeposit   IncomeSide = "deposit"
+	HotWalletSide IncomeSide = "hot_wallet"
+	DepositSide   IncomeSide = "deposit"
 )
 
 type EventName = string
@@ -53,14 +48,7 @@ const (
 	ProcessedStatus  WithdrawalStatus = "processed"
 )
 
-const DefaultShard = -9223372036854775808 // 0x8000000000000000 include all shards
-
-var (
-	ErrNotFound        = errors.New("not found")
-	ErrTimeoutExceeded = errors.New("timeout exceeded")
-)
-
-type Address [32]byte // supports only MsgAddressInt addr_std$10 without anycast and 0 workchain
+type Address [32]byte // supports only MsgAddressInt addr_std$10 without anycast and DefaultWorkchain workchain
 
 // Scan implements Scanner for database/sql.
 func (a *Address) Scan(src interface{}) error {
@@ -87,11 +75,9 @@ func (a Address) Value() (driver.Value, error) {
 
 // TODO: remove
 // ToUserFormat converts to user-friendly text format with testnet and bounce flags
-func (a Address) ToUserFormat() string {
-	addr := a.ToTonutilsAddressStd(0)
-	addr.SetTestnetOnly(config.Config.Testnet)
-	addr.SetBounce(false)
-	return addr.String()
+func (a Address) ToUserFormat(isTestnet bool) string {
+	addr := tongo.NewAccountId(DefaultWorkchainID, a)
+	return addr.ToHuman(false, isTestnet)
 }
 
 // TongoAccountIDToUserFormat converts to user-friendly text format with testnet and bounce = false flags

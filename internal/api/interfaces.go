@@ -4,8 +4,7 @@ import (
 	"context"
 	"github.com/gobicycle/bicycle/internal/core"
 	"github.com/google/uuid"
-	"github.com/tonkeeper/tongo/tlb"
-	"github.com/tonkeeper/tongo/ton"
+	"github.com/tonkeeper/tongo"
 )
 
 type storage interface {
@@ -18,13 +17,13 @@ type storage interface {
 	IsActualBlockData(ctx context.Context) (bool, error)
 	GetExternalWithdrawalStatus(ctx context.Context, id int64) (core.WithdrawalStatus, error)
 	GetWalletType(address core.Address) (core.WalletType, bool)
-	GetIncome(ctx context.Context, userID string, isDepositSide bool) ([]core.TotalIncome, error)
+	GetIncome(ctx context.Context, userID string, incomeCountingSide core.IncomeSide) ([]core.TotalIncome, error)
 	SaveServiceWithdrawalRequest(ctx context.Context, w core.ServiceWithdrawalRequest) (uuid.UUID, error)
 	GetIncomeHistory(ctx context.Context, userID string, currency string, limit int, offset int) ([]core.ExternalIncome, error)
 	GetOwner(address core.Address) *core.Address
 }
 
-type blockchain interface {
-	RunSmcMethod(ctx context.Context, accountID ton.AccountID, method string, params tlb.VmStack) (uint32, tlb.VmStack, error)
-	RunSmcMethodByID(ctx context.Context, accountID ton.AccountID, methodID int, params tlb.VmStack) (uint32, tlb.VmStack, error)
+type depositGenerator interface {
+	GenerateTonDeposit(ctx context.Context, userID string) (*tongo.AccountID, error)
+	GenerateJettonDeposit(ctx context.Context, userID string, currency string) (*tongo.AccountID, error)
 }

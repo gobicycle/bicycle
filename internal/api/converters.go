@@ -9,9 +9,9 @@ import (
 	"github.com/tonkeeper/tongo"
 )
 
-func convertWithdrawal(w *oas.SendWithdrawalReq, isTestnet bool) (*core.WithdrawalRequest, error) {
+func convertWithdrawal(w *oas.SendWithdrawalReq, isTestnet bool, jettons map[string]struct{}) (*core.WithdrawalRequest, error) {
 
-	if !isValidCurrency(w.Currency) {
+	if !isValidCurrency(w.Currency, jettons) {
 		return nil, fmt.Errorf("invalid currency")
 	}
 
@@ -100,12 +100,12 @@ func convertJettonServiceWithdrawal(s storage, w *oas.ServiceJettonWithdrawalReq
 	}, nil
 }
 
-func convertIncome(dbConn storage, totalIncomes []core.TotalIncome, isDepositSideCalculation bool) *oas.CalculatedIncome {
+func convertIncome(dbConn storage, totalIncomes []core.TotalIncome, incomeCountingSide core.IncomeSide, isTestnet bool) *oas.CalculatedIncome {
 	var res = oas.CalculatedIncome{
 		TotalIncome: []oas.TotalIncome{},
 	}
 
-	if isDepositSideCalculation {
+	if incomeCountingSide == core.DepositSide {
 		res.CountingSide = oas.CalculatedIncomeCountingSideDeposit
 	} else {
 		res.CountingSide = oas.CalculatedIncomeCountingSideHotWallet
@@ -117,14 +117,14 @@ func convertIncome(dbConn storage, totalIncomes []core.TotalIncome, isDepositSid
 			Currency: b.Currency,
 		}
 		if b.Currency == core.TonSymbol {
-			totIncome.DepositAddress = b.Deposit.ToUserFormat()
+			totIncome.DepositAddress = b.Deposit.ToUserFormat(isTestnet)
 		} else {
 			owner := dbConn.GetOwner(b.Deposit)
 			if owner == nil {
 				// TODO: remove panic
-				panic("can not find owner for deposit: " + b.Deposit.ToUserFormat())
+				panic("can not find owner for deposit: " + b.Deposit.ToUserFormat(isTestnet))
 			}
-			totIncome.DepositAddress = owner.ToUserFormat()
+			totIncome.DepositAddress = owner.ToUserFormat(isTestnet)
 		}
 		res.TotalIncome = append(res.TotalIncome, totIncome)
 	}
@@ -145,14 +145,14 @@ func convertHistory(dbConn storage, currency string, incomes []core.ExternalInco
 		}
 
 		if currency == core.TonSymbol {
-			inc.DepositAddress = i.To.ToUserFormat()
+			inc.DepositAddress = i.To.ToUserFormat(isTestnet)
 		} else {
 			owner := dbConn.GetOwner(i.To)
 			if owner == nil {
 				// TODO: remove panic
-				panic("can not find owner for deposit: " + i.To.ToUserFormat())
+				panic("can not find owner for deposit: " + i.To.ToUserFormat(isTestnet))
 			}
-			inc.DepositAddress = owner.ToUserFormat()
+			inc.DepositAddress = owner.ToUserFormat(isTestnet)
 		}
 		// show only std address
 		if len(i.From) == 32 && i.FromWorkchain != nil { // TODO: maybe masterchain too
@@ -167,7 +167,7 @@ func convertHistory(dbConn storage, currency string, incomes []core.ExternalInco
 	return &res
 }
 
-func getDeposits(ctx context.Context, userID string, dbConn storage) (*oas.Deposits, error) {
+func getDeposits(ctx context.Context, userID string, dbConn storage, isTestnet bool) (*oas.Deposits, error) {
 	var res = oas.Deposits{
 		Deposits: []oas.Deposit{},
 	}
@@ -180,21 +180,23 @@ func getDeposits(ctx context.Context, userID string, dbConn storage) (*oas.Depos
 		return nil, err
 	}
 	for _, a := range tonAddr {
-		res.Deposits = append(res.Deposits, oas.Deposit{Address: a.ToUserFormat(), Currency: core.TonSymbol})
+		res.Deposits = append(res.Deposits, oas.Deposit{Address: a.ToUserFormat(isTestnet), Currency: core.TonSymbol})
 	}
 	for _, a := range jettonAddr {
-		res.Deposits = append(res.Deposits, oas.Deposit{Address: a.Address.ToUserFormat(), Currency: a.Currency})
+		res.Deposits = append(res.Deposits, oas.Deposit{Address: a.Address.ToUserFormat(isTestnet), Currency: a.Currency})
 	}
 	return &res, nil
 }
 
-func isValidCurrency(cur string) bool {
-	if _, ok := config.Config.Jettons[cur]; ok || cur == core.TonSymbol {
+func isValidCurrency(cur string, jettons map[string]struct{}) bool {
+	if _, ok := jettons[cur]; ok || cur == core.TonSymbol {
 		return true
 	}
 	return false
 }
 
+// TODO: be careful with ParseAddress - it may connect to bc
+// TODO: maybe resolve address on withdrawal processor side
 func validateAddress(addr string, isTestnet bool) (core.Address, bool, error) {
 	if addr == "" {
 		return core.Address{}, false, fmt.Errorf("empty address")
@@ -203,13 +205,16 @@ func validateAddress(addr string, isTestnet bool) (core.Address, bool, error) {
 	if err != nil {
 		return core.Address{}, false, fmt.Errorf("invalid address: %v", err)
 	}
-	if a.IsTestnetOnly() && !isTestnet {
-		return core.Address{}, false, fmt.Errorf("address for testnet only")
-	}
-	if int(a.ID.Workchain) != core.DefaultWorkchain {
+
+	// TODO: check testnet flag
+	//if a.IsTestnetOnly() && !isTestnet {
+	//	return core.Address{}, false, fmt.Errorf("address for testnet only")
+	//}
+
+	if int(a.ID.Workchain) != core.DefaultWorkchainID {
 		return core.Address{}, false, fmt.Errorf("address must be in %d workchain",
-			core.DefaultWorkchain)
+			core.DefaultWorkchainID)
 	}
-	res, err := core.AddressFromTonutilsAddress(a)
-	return res, a.IsBounceable(), err
+
+	return a.ID.Address, a.Bounce, err
 }

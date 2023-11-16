@@ -12,8 +12,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	log "github.com/sirupsen/logrus"
 	"github.com/tonkeeper/tongo/tlb"
-	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/tonkeeper/tongo/wallet"
 	"sync"
 	"time"
 )
@@ -66,13 +65,13 @@ func (c *Connection) GetOwner(address core.Address) *core.Address {
 	return info.Owner
 }
 
-func (c *Connection) GetWalletTypeByTonutilsAddress(address *address.Address) (core.WalletType, bool) {
-	a, err := core.AddressFromTonutilsAddress(address)
-	if err != nil {
-		return "", false
-	}
-	return c.GetWalletType(a)
-}
+//func (c *Connection) GetWalletTypeByTonutilsAddress(address *address.Address) (core.WalletType, bool) {
+//	a, err := core.AddressFromTonutilsAddress(address)
+//	if err != nil {
+//		return "", false
+//	}
+//	return c.GetWalletType(a)
+//}
 
 // GetLastSubwalletID returns last (greatest) used subwallet_id from DB
 // numeration starts from wallet.DefaultSubwallet (this number reserved for main hot wallet)
@@ -82,7 +81,7 @@ func (c *Connection) GetLastSubwalletID(ctx context.Context) (uint32, error) {
 	err := c.client.QueryRow(ctx, `
 		SELECT COALESCE(MAX(subwallet_id), $1)
 		FROM payments.ton_wallets
-	`, wallet.DefaultSubwallet).Scan(&id)
+	`, wallet.DefaultSubWallet).Scan(&id) // TODO: clarify
 	return id, err
 }
 
@@ -1105,13 +1104,13 @@ func (c *Connection) GetExternalWithdrawalStatus(ctx context.Context, id int64) 
 func (c *Connection) GetIncome(
 	ctx context.Context,
 	userID string,
-	isDepositSide bool,
+	incomeCountingSide core.IncomeSide,
 ) (
 	[]core.TotalIncome,
 	error,
 ) {
 	var sqlStatement string
-	if isDepositSide {
+	if incomeCountingSide == core.DepositSide {
 		sqlStatement = `
 			SELECT COALESCE(jw.address,tw.address) as deposit, COALESCE(SUM(i.amount),0) as balance, COALESCE(jw.currency,$1) as currency
 			FROM payments.ton_wallets tw

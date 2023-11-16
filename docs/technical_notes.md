@@ -54,6 +54,8 @@ bit prefix in the address.
 - maximum qty of subwallets: `(max(uint32) - default_subwallet_id)/256 = 14_046_812`
 
 ## Wallets generation
+
+[//]: # ( TOOD: preload Jetton code and data at start)
 1. Generates `hot_ton_wallet` (if needed) from seed phrase as Highload V2 wallet. The first byte of the address define the shard.
 2. Generates `hot_jetton_wallet` for each Jetton. (not in shard) `hot_ton_wallet` - owner for all of this jetton wallets.
 3. Generates `deposit_ton_wallet` as V3R2 from hot wallet seed phrase and subwallet_id to set the desired shard.

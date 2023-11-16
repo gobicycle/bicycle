@@ -27,7 +27,7 @@ func NewJettonProxy(subwalletId uint32, owner tongo.AccountID) (*JettonProxy, er
 	if err != nil {
 		return nil, fmt.Errorf("failed to get state cell: %w", err)
 	}
-	addr := address.NewAddress(0, DefaultWorkchain, stateCell.Hash())
+	addr := address.NewAddress(0, DefaultWorkchainID, stateCell.Hash())
 
 	return &JettonProxy{
 		Owner:       owner,

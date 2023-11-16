@@ -3,7 +3,7 @@ package blockchain
 import (
 	"context"
 	"fmt"
-	core2 "github.com/gobicycle/bicycle/internal/core"
+	core "github.com/gobicycle/bicycle/internal/core"
 	log "github.com/sirupsen/logrus"
 	"github.com/tonkeeper/tongo"
 	"github.com/tonkeeper/tongo/boc"
@@ -11,9 +11,7 @@ import (
 	"github.com/tonkeeper/tongo/liteapi"
 	"github.com/tonkeeper/tongo/tlb"
 	"github.com/tonkeeper/tongo/ton"
-	"github.com/tonkeeper/tongo/tvm"
 	"github.com/tonkeeper/tongo/wallet"
-	"math"
 	"math/big"
 	"strings"
 	"time"
@@ -22,15 +20,15 @@ import (
 const ErrBlockNotApplied = "block is not applied"
 
 type Connection struct {
-	client           *liteapi.Client
-	blockchainConfig string
+	client *liteapi.Client
+	//	blockchainConfig string
 }
 
-type contract struct {
-	Address tongo.AccountID
-	Code    string
-	Data    string
-}
+//type contract struct {
+//	Address tongo.AccountID
+//	Code    string
+//	Data    string
+//}
 
 // NewConnection creates new Blockchain connection
 func NewConnection(ctx context.Context, cfg []tongoConfig.LiteServer) (*Connection, error) {
@@ -55,12 +53,12 @@ func NewConnection(ctx context.Context, cfg []tongoConfig.LiteServer) (*Connecti
 	if err != nil {
 		return nil, err
 	}
-	blockchainConfig, err := configCell.ToBocBase64()
-	if err != nil {
-		return nil, err
-	}
+	//blockchainConfig, err := configCell.ToBocBase64()
+	//if err != nil {
+	//	return nil, err
+	//}
 
-	return &Connection{client: client, blockchainConfig: blockchainConfig}, nil
+	return &Connection{client: client}, nil
 }
 
 // GenerateDefaultWallet generates HighloadV2R2 or V3R2 TON wallet with
@@ -77,14 +75,14 @@ func (c *Connection) GenerateDefaultWallet(seed string, isHighload bool) (
 	subWalletID := wallet.DefaultSubWallet
 
 	if isHighload {
-		hw, err := wallet.New(pk, wallet.HighLoadV2R2, core2.DefaultWorkchain, &subWalletID, c.client)
+		hw, err := wallet.New(pk, wallet.HighLoadV2R2, core.DefaultWorkchainID, &subWalletID, c.client)
 		w = &hw
 		if err != nil {
 			return nil, 0, err
 		}
 		//w, err = wallet.FromSeed(c, words, wallet.HighloadV2R2)
 	} else {
-		ow, err := wallet.New(pk, wallet.V3R2, core2.DefaultWorkchain, &subWalletID, c.client)
+		ow, err := wallet.New(pk, wallet.V3R2, core.DefaultWorkchainID, &subWalletID, c.client)
 		w = &ow
 		if err != nil {
 			return nil, 0, err
@@ -99,158 +97,46 @@ func (c *Connection) GetJettonWalletAddress(
 	ctx context.Context,
 	owner tongo.AccountID,
 	jettonMaster tongo.AccountID,
-) (*tongo.AccountID, error) {
-	contr, err := c.getContract(ctx, jettonMaster)
-	if err != nil {
-		return nil, err
-	}
-	emulator, err := newEmulator(contr.Code, contr.Data, c.blockchainConfig)
-	if err != nil {
-		return nil, err
-	}
-	addr, err := getJettonWalletAddressByTVM(owner, contr.Address, emulator)
-	if err != nil {
-		return nil, err
-	}
-	//res := addr.ToTonutilsAddressStd(0)
-	//res.SetTestnetOnly(config.Config.Testnet)
-	// TODO: add testnet flag
-	return addr, nil
+) (tongo.AccountID, error) {
+	return c.client.GetJettonWallet(ctx, jettonMaster, owner)
 }
 
-// GenerateDepositJettonWalletForProxy
-// Generates jetton wallet address for custom shard and proxy contract as owner with subwallet_id >= startSubWalletId
-func (c *Connection) GenerateDepositJettonWalletForProxy(
-	ctx context.Context,
-	shard tongo.ShardID,
-	proxyOwner, jettonMaster tongo.AccountID,
-	startSubWalletID uint32,
-) (
-	proxy *core2.JettonProxy,
-	addr *tongo.AccountID,
-	err error,
-) {
-	contr, err := c.getContract(ctx, jettonMaster)
-	if err != nil {
-		return nil, nil, err
-	}
-	emulator, err := newEmulator(contr.Code, contr.Data, c.blockchainConfig)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	for id := startSubWalletID; id < math.MaxUint32; id++ {
-		proxy, err = core2.NewJettonProxy(id, proxyOwner)
-		if err != nil {
-			return nil, nil, err
-		}
-		jettonWalletAddress, err := getJettonWalletAddressByTVM(proxy.Address(), contr.Address, emulator)
-		if err != nil {
-			return nil, nil, err
-		}
-		if shard.MatchAccountID(*jettonWalletAddress) {
-			// TODO: testnet flag
-			//addr = jettonWalletAddress.ToTonutilsAddressStd(0)
-			//addr.SetTestnetOnly(config.Config.Testnet)
-			return proxy, jettonWalletAddress, nil
-		}
-	}
-	return nil, nil, fmt.Errorf("jetton wallet address not found")
-}
-
-func (c *Connection) getContract(ctx context.Context, addr tongo.AccountID) (contract, error) {
-
-	as, err := c.client.GetAccountState(ctx, addr)
-	if err != nil {
-		return contract{}, err
-	}
-
-	//ai, err := tongo.GetAccountInfo(sa.Account)
-	//if err != nil {
-	//	return contract{}, err
-	//}
-
-	if as.Account.Status() != tlb.AccountActive {
-		return contract{}, fmt.Errorf("account is not active")
-	} else if !as.Account.Account.Storage.State.AccountActive.StateInit.Code.Exists {
-		return contract{}, fmt.Errorf("empty account code")
-	} else if !as.Account.Account.Storage.State.AccountActive.StateInit.Data.Exists {
-		return contract{}, fmt.Errorf("empty account data")
-	}
-
-	code, err := as.Account.Account.Storage.State.AccountActive.StateInit.Code.Value.Value.ToBocBase64()
-	if err != nil {
-		return contract{}, err
-	}
-
-	data, err := as.Account.Account.Storage.State.AccountActive.StateInit.Data.Value.Value.ToBocBase64()
-	if err != nil {
-		return contract{}, err
-	}
-
-	return contract{
-		Address: addr,
-		Code:    code,
-		Data:    data,
-	}, nil
-}
-
-func getJettonWalletAddressByTVM(
-	owner tongo.AccountID,
-	jettonMaster tongo.AccountID,
-	emulator *tvm.Emulator,
-) (*tongo.AccountID, error) {
-
-	slice, err := tlb.TlbStructToVmCellSlice(owner.ToMsgAddress())
-	if err != nil {
-		return nil, err
-	}
-
-	errCode, stack, err := emulator.RunSmcMethod(context.Background(), jettonMaster, "get_wallet_address", tlb.VmStack{slice})
-	if err != nil {
-		return nil, err
-	}
-
-	if errCode != 0 && errCode != 1 {
-		return nil, fmt.Errorf("method execution failed with code: %v", errCode)
-	}
-	if len(stack) != 1 || stack[0].SumType != "VmStkSlice" {
-		return nil, fmt.Errorf("ivalid stack value")
-	}
-
-	var msgAddress tlb.MsgAddress
-	err = stack[0].VmStkSlice.UnmarshalToTlbStruct(&msgAddress)
-	if err != nil {
-		return nil, err
-	}
-
-	addr, err := tongo.AccountIDFromTlb(msgAddress)
-	if err != nil {
-		return nil, err
-	}
-
-	if addr.Workchain != core2.DefaultWorkchain {
-		return nil, fmt.Errorf("not default workchain for jetton wallet address")
-	}
-	if addr == nil {
-		return nil, fmt.Errorf("addres none")
-	}
-	return addr, nil
-}
-
-func newEmulator(code, data, cfg string) (*tvm.Emulator, error) {
-	// TODO: maybe use Cell instead strings (careful with pointers)
-	emulator, err := tvm.NewEmulatorFromBOCsBase64(code, data, cfg, tvm.WithBalance(1_000_000_000))
-	if err != nil {
-		return nil, err
-	}
-	// TODO: try tvm.WithLazyC7Optimization()
-	//err = emulator.SetVerbosityLevel(1)
-	//if err != nil {
-	//	return nil, err
-	//}
-	return emulator, nil
-}
+//func (c *Connection) getContract(ctx context.Context, addr tongo.AccountID) (contract, error) {
+//
+//	as, err := c.client.GetAccountState(ctx, addr)
+//	if err != nil {
+//		return contract{}, err
+//	}
+//
+//	//ai, err := tongo.GetAccountInfo(sa.Account)
+//	//if err != nil {
+//	//	return contract{}, err
+//	//}
+//
+//	if as.Account.Status() != tlb.AccountActive {
+//		return contract{}, fmt.Errorf("account is not active")
+//	} else if !as.Account.Account.Storage.State.AccountActive.StateInit.Code.Exists {
+//		return contract{}, fmt.Errorf("empty account code")
+//	} else if !as.Account.Account.Storage.State.AccountActive.StateInit.Data.Exists {
+//		return contract{}, fmt.Errorf("empty account data")
+//	}
+//
+//	code, err := as.Account.Account.Storage.State.AccountActive.StateInit.Code.Value.Value.ToBocBase64()
+//	if err != nil {
+//		return contract{}, err
+//	}
+//
+//	data, err := as.Account.Account.Storage.State.AccountActive.StateInit.Data.Value.Value.ToBocBase64()
+//	if err != nil {
+//		return contract{}, err
+//	}
+//
+//	return contract{
+//		Address: addr,
+//		Code:    code,
+//		Data:    data,
+//	}, nil
+//}
 
 // GetJettonBalance
 // Returns jetton balance for custom block in basic units
@@ -335,7 +221,7 @@ func (c *Connection) lookupMasterchainBlock(ctx context.Context, seqno uint32) (
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, core2.ErrTimeoutExceeded // TODO: maybe remove
+			return nil, core.ErrTimeoutExceeded // TODO: maybe remove
 		default:
 			idExt, _, err := c.client.LookupBlock(ctx, id, 1, nil, nil) // TODO: check mode
 			if err != nil && isBlockNotReadyError(err) {
@@ -433,7 +319,7 @@ func (c *Connection) WaitStatus(ctx context.Context, addr tongo.AccountID, statu
 	for {
 		select {
 		case <-ctx.Done():
-			return core2.ErrTimeoutExceeded
+			return core.ErrTimeoutExceeded
 		default:
 			_, st, err := c.GetAccountCurrentState(ctx, addr)
 			if err != nil {
@@ -513,9 +399,10 @@ func (c *Connection) WaitStatus(ctx context.Context, addr tongo.AccountID, statu
 //	return c.client.WaitForBlock(seqno)
 //}
 
-func (c *Connection) RunSmcMethod(ctx context.Context, accountID ton.AccountID, method string, params tlb.VmStack) (uint32, tlb.VmStack, error) {
-	return c.client.RunSmcMethod(ctx, accountID, method, params)
-}
+//func (c *Connection) RunSmcMethod(ctx context.Context, accountID ton.AccountID, method string, params tlb.VmStack) (uint32, tlb.VmStack, error) {
+//	return c.client.RunSmcMethod(ctx, accountID, method, params)
+//}
+
 func (c *Connection) RunSmcMethodByID(ctx context.Context, accountID ton.AccountID, methodID int, params tlb.VmStack) (uint32, tlb.VmStack, error) {
 	return c.client.RunSmcMethodByID(ctx, accountID, methodID, params)
 }

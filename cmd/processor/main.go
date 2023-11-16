@@ -11,6 +11,7 @@ import (
 	"github.com/gobicycle/bicycle/internal/database"
 	"github.com/gobicycle/bicycle/internal/queue"
 	"github.com/gobicycle/bicycle/internal/webhook"
+	"github.com/tonkeeper/tongo"
 	"go.uber.org/zap"
 	"os"
 	"os/signal"
@@ -34,6 +35,9 @@ func main() {
 	if err != nil {
 		log.Fatal("blockchain connection error", zap.Error(err))
 	}
+
+	// TODO: be careful with methods using default executor
+	tongo.SetDefaultExecutor(bcClient) // for methods using default executor (like ParseAddress)
 
 	dbClient, err := db.NewConnection(cfg.DB.URI)
 	if err != nil {
@@ -91,15 +95,17 @@ func main() {
 
 	blockScanner := core.NewBlockScanner(wg, dbClient, bcClient, wallets.Shard, tracker, notificators)
 
-	withdrawalsProcessor := core.NewWithdrawalsProcessor(
-		wg, dbClient, bcClient, wallets, cfg.Processor.ColdWallet)
+	withdrawalsProcessor := core.NewWithdrawalsProcessor(wg, dbClient, bcClient, wallets, cfg.Processor.ColdWallet)
 	withdrawalsProcessor.Start()
+
+	// TODO: load and trim blockchain config
+	// TODO: new deposit generator
 
 	h, err := api.NewHandler(log,
 		api.WithStorage(dbClient),
-		api.WithBlockchain(bcClient),
-		api.WithShard(wallets.Shard),
-		api.WithDepositSide(cfg.Processor.IsDepositSideCalculation),
+		api.WithIncomeCountingSide(cfg.Processor.IsDepositSideCalculation),
+		api.WithDepositGenerator(depositGenerator),
+		api.WithTestnetFlag(cfg.Blockchain.Testnet),
 	)
 	if err != nil {
 		log.Fatal("failed to create api handler", zap.Error(err))

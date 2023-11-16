@@ -9,7 +9,7 @@ import (
 )
 
 func (h *Handler) MakeNewDeposit(ctx context.Context, params oas.MakeNewDepositParams) (oas.MakeNewDepositRes, error) {
-	if !isValidCurrency(params.Currency) {
+	if !isValidCurrency(params.Currency, h.jettons) {
 		return &oas.BadRequest{Error: "invalid currency type"}, nil
 	}
 
@@ -36,7 +36,7 @@ func (h *Handler) MakeNewDeposit(ctx context.Context, params oas.MakeNewDepositP
 }
 
 func (h *Handler) GetDeposits(ctx context.Context, params oas.GetDepositsParams) (oas.GetDepositsRes, error) {
-	deposits, err := getDeposits(ctx, params.UserID, h.storage)
+	deposits, err := getDeposits(ctx, params.UserID, h.storage, h.isTestnet)
 	if err != nil {
 		return &oas.InternalError{Error: err.Error()}, nil
 	}
@@ -44,7 +44,7 @@ func (h *Handler) GetDeposits(ctx context.Context, params oas.GetDepositsParams)
 }
 
 func (h *Handler) SendWithdrawal(ctx context.Context, req *oas.SendWithdrawalReq) (oas.SendWithdrawalRes, error) {
-	w, err := convertWithdrawal(req, h.isTestnet)
+	w, err := convertWithdrawal(req, h.isTestnet, h.jettons)
 	if err != nil {
 		return &oas.BadRequest{Error: fmt.Sprintf("convert withdrawal err: %v", err)}, nil
 	}
@@ -89,15 +89,15 @@ func (h *Handler) GetWithdrawalStatus(ctx context.Context, params oas.GetWithdra
 }
 
 func (h *Handler) GetIncome(ctx context.Context, params oas.GetIncomeParams) (oas.GetIncomeRes, error) {
-	totalIncomes, err := h.storage.GetIncome(ctx, params.UserID, h.isDepositSideCalculation)
+	totalIncomes, err := h.storage.GetIncome(ctx, params.UserID, h.incomeCountingSide)
 	if err != nil {
 		return &oas.InternalError{Error: fmt.Sprintf("get balances err: %v", err)}, nil
 	}
-	return convertIncome(h.storage, totalIncomes, h.isDepositSideCalculation), nil
+	return convertIncome(h.storage, totalIncomes, h.incomeCountingSide, h.isTestnet), nil
 }
 
 func (h *Handler) GetIncomeHistory(ctx context.Context, params oas.GetIncomeHistoryParams) (oas.GetIncomeHistoryRes, error) {
-	if !isValidCurrency(params.Currency) {
+	if !isValidCurrency(params.Currency, h.jettons) {
 		return &oas.BadRequest{Error: "invalid currency type"}, nil
 	}
 	// limit and offset must be with default values!

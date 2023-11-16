@@ -46,16 +46,6 @@ type blockchain interface {
 	GetAccountCurrentState(ctx context.Context, address tongo.AccountID) (uint64, tlb.AccountStatus, error)
 	GetLastJettonBalance(ctx context.Context, jettonWallet tongo.AccountID) (*big.Int, error)
 	DeployTonWallet(ctx context.Context, wallet *wallet.Wallet) error
-	GenerateDepositJettonWalletForProxy(
-		ctx context.Context,
-		shard tongo.ShardID,
-		proxyOwner, jettonMaster tongo.AccountID,
-		startSubWalletID uint32,
-	) (
-		proxy *JettonProxy,
-		addr *tongo.AccountID,
-		err error,
-	)
 }
 
 type blocksTracker interface {
