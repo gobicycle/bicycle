@@ -6,7 +6,6 @@ import (
 	"github.com/tonkeeper/tongo"
 	"github.com/tonkeeper/tongo/tlb"
 	"github.com/tonkeeper/tongo/wallet"
-	"github.com/xssnick/tonutils-go/address"
 	"math/big"
 	"time"
 )
@@ -17,7 +16,7 @@ type storage interface {
 	SaveJettonWallet(ctx context.Context, ownerAddress Address, walletData WalletData, notSaveOwner bool) error
 	GetWalletType(address Address) (WalletType, bool)
 	GetOwner(address Address) *Address
-	GetWalletTypeByTonutilsAddress(address *address.Address) (WalletType, bool)
+	//GetWalletTypeByTonutilsAddress(address *address.Address) (WalletType, bool)
 	SaveParsedBlocksData(ctx context.Context, events []BlockEvents, shardBlocks []*ShardBlock, masterBlock tlb.Block) error
 	GetTonInternalWithdrawalTasks(ctx context.Context, limit int) ([]InternalWithdrawalTask, error)
 	GetJettonInternalWithdrawalTasks(ctx context.Context, forbiddenAddresses []Address, limit int) ([]InternalWithdrawalTask, error)

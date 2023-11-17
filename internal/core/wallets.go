@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"github.com/gobicycle/bicycle/internal/audit"
@@ -9,13 +10,12 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/tonkeeper/tongo"
+	"github.com/tonkeeper/tongo/abi"
+	"github.com/tonkeeper/tongo/boc"
+	"github.com/tonkeeper/tongo/tlb"
 	"github.com/tonkeeper/tongo/wallet"
-	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
-	//"github.com/xssnick/tonutils-go/ton/wallet"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 	"math/big"
-	"math/rand"
+	"time"
 )
 
 type Wallets struct {
@@ -23,6 +23,7 @@ type Wallets struct {
 	TonHotWallet     *wallet.Wallet
 	TonBasicWallet   *wallet.Wallet // basic V3 wallet to make other wallets with different subwallet_id
 	JettonHotWallets map[string]JettonWallet
+	PublicKey        ed25519.PublicKey
 }
 
 // InitWallets
@@ -35,8 +36,9 @@ func InitWallets(
 	seed string,
 	jettons map[string]config.Jetton,
 	shardPrefixLen int,
+	hotWalletMinBalance uint64,
 ) (Wallets, error) {
-	tonHotWallet, shard, subwalletId, err := initTonHotWallet(ctx, db, bc, seed, shardPrefixLen)
+	tonHotWallet, shard, subwalletId, err := initTonHotWallet(ctx, db, bc, seed, shardPrefixLen, hotWalletMinBalance)
 	if err != nil {
 		return Wallets{}, err
 	}
@@ -49,7 +51,7 @@ func InitWallets(
 
 	jettonHotWallets := make(map[string]JettonWallet)
 	for currency, j := range jettons {
-		w, err := initJettonHotWallet(ctx, db, bc, tonHotWallet.Address(), j.Master, currency, subwalletId)
+		w, err := initJettonHotWallet(ctx, db, bc, tonHotWallet.GetAddress(), j.Master, currency, subwalletId)
 		if err != nil {
 			return Wallets{}, err
 		}
@@ -57,10 +59,11 @@ func InitWallets(
 	}
 
 	return Wallets{
-		Shard:            shard,
+		Shard:            *shard,
 		TonHotWallet:     tonHotWallet,
 		TonBasicWallet:   tonBasicWallet,
 		JettonHotWallets: jettonHotWallets,
+		// TODO: return pubkey
 	}, nil
 }
 
@@ -70,95 +73,95 @@ func initTonHotWallet(
 	bc blockchain,
 	seed string,
 	shardPrefixLen int,
+	hotWalletMinBalance uint64,
 ) (
-	tonHotWallet *wallet.Wallet,
-	shard tongo.ShardID,
-	subwalletId uint32,
-	err error,
+	*wallet.Wallet,
+	*tongo.ShardID,
+	uint32,
+	error,
 ) {
-	tonHotWallet, subwalletId, err = bc.GenerateDefaultWallet(seed, true)
+	tonHotWallet, subwalletId, err := bc.GenerateDefaultWallet(seed, true)
 	if err != nil {
-		return nil, ShardID{}, 0, err
+		return nil, nil, 0, err
 	}
 
-	hotSpec := tonHotWallet.GetSpec().(*wallet.SpecHighloadV2R2)
-	hotSpec.SetMessagesTTL(uint32(config.ExternalMessageLifetime.Seconds()))
+	//hotSpec := tonHotWallet.GetSpec().(*wallet.SpecHighloadV2R2)
 
-	addr := AddressMustFromTonutilsAddress(tonHotWallet.Address())
-	shard = ShardIdFromAddress(addr, shardPrefixLen)
+	// TODO: set lifetime in messages!
+	//hotSpec.SetMessagesTTL(uint32(config.ExternalMessageLifetime.Seconds()))
+
+	hotWalletAccountID := tonHotWallet.GetAddress()
+	//addr := AddressMustFromTonutilsAddress(tonHotWallet.Address())
+	shard := ShardIDFromAccountID(hotWalletAccountID, shardPrefixLen)
 
 	// TODO: check for shard len changes
+
 	alreadySaved := false
 	addrFromDb, err := db.GetTonHotWalletAddress(ctx)
-	if err == nil && addr != addrFromDb {
+	if err == nil && hotWalletAccountID.Address != addrFromDb {
 		audit.Log(audit.Error, string(TonHotWallet), InitEvent,
 			fmt.Sprintf("Hot TON wallet address is not equal to the one stored in the database. Maybe seed was being changed. %s != %s",
-				tonHotWallet.Address().String(), addrFromDb.ToTonutilsAddressStd(0).String()))
-		return nil, ShardID{}, 0,
+				hotWalletAccountID.ToHuman(true, false), addrFromDb.ToUserFormat(false))) // TODO: testnet flag
+		return nil, nil, 0,
 			fmt.Errorf("saved hot wallet not equal generated hot wallet. Maybe seed was being changed")
 	} else if !errors.Is(err, ErrNotFound) && err != nil {
-		return nil, ShardID{}, 0, err
+		return nil, nil, 0, err
 	} else if err == nil {
 		alreadySaved = true
 	}
 
-	log.Infof("Shard: %x", shard.prefix) // TODO: format shard
-	log.Infof("TON hot wallet address: %v", tonHotWallet.Address().String())
+	log.Infof("Shard: %x", shard.Encode()) // TODO: format shard
+	log.Infof("TON hot wallet address: %v", hotWalletAccountID.ToHuman(true, false))
 
-	balance, status, err := bc.GetAccountCurrentState(ctx, tonHotWallet.Address())
+	balance, status, err := bc.GetAccountCurrentState(ctx, hotWalletAccountID)
 	if err != nil {
-		return nil, ShardID{}, 0, err
+		return nil, nil, 0, err
 	}
-	if balance.Cmp(config.Config.Ton.HotWalletMin) == -1 { // hot wallet balance < TonHotWalletMinimumBalance
-		return nil, ShardID{}, 0,
-			fmt.Errorf("hot wallet balance must be at least %v nanoTON", config.Config.Ton.HotWalletMin)
+
+	if balance < hotWalletMinBalance {
+		return nil, nil, 0,
+			fmt.Errorf("hot wallet balance must be at least %d nanoTON", hotWalletMinBalance)
 	}
-	if status != tlb.AccountStatusActive {
+
+	if status != tlb.AccountActive {
 		err = bc.DeployTonWallet(ctx, tonHotWallet)
 		if err != nil {
-			return nil, ShardID{}, 0, err
+			return nil, nil, 0, err
 		}
 	}
+
 	if !alreadySaved {
 		err = db.SaveTonWallet(ctx, WalletData{
-			SubwalletID: uint32(wallet.DefaultSubwallet),
+			SubwalletID: subwalletId,
 			Currency:    TonSymbol,
 			Type:        TonHotWallet,
-			Address:     addr,
+			Address:     hotWalletAccountID.Address,
 		})
 		if err != nil {
-			return nil, ShardID{}, 0, err
+			return nil, nil, 0, err
 		}
 	}
-	return tonHotWallet, shard, subwalletId, nil
+
+	return tonHotWallet, &shard, subwalletId, nil
 }
 
 func initJettonHotWallet(
 	ctx context.Context,
 	db storage,
 	bc blockchain,
-	tonHotWallet, jettonMaster *address.Address,
+	tonHotWallet, jettonMaster tongo.AccountID,
 	currency string,
 	subwalletId uint32,
 ) (JettonWallet, error) {
 	// not init or check balances of Jetton wallets, it is not required for the service to work
-	a, err := bc.GetJettonWalletAddress(ctx, tonHotWallet, jettonMaster)
+	jettonWalletAccountID, err := bc.GetJettonWalletAddress(ctx, tonHotWallet, jettonMaster)
 	if err != nil {
 		return JettonWallet{}, err
 	}
-	res := JettonWallet{Address: a, Currency: currency}
-	log.Infof("%v jetton hot wallet address: %v", currency, a.String())
+	res := JettonWallet{Address: *jettonWalletAccountID, Currency: currency}
+	log.Infof("%v jetton hot wallet address: %v", currency, jettonWalletAccountID.ToHuman(true, false))
 
-	ownerAddr, err := AddressFromTonutilsAddress(tonHotWallet)
-	if err != nil {
-		return JettonWallet{}, err
-	}
-	jettonWalletAddr, err := AddressFromTonutilsAddress(a)
-	if err != nil {
-		return JettonWallet{}, err
-	}
-
-	walletData, isPresented, err := db.GetJettonWallet(ctx, jettonWalletAddr)
+	walletData, isPresented, err := db.GetJettonWallet(ctx, jettonWalletAccountID.Address)
 	if err != nil {
 		return JettonWallet{}, err
 	}
@@ -168,18 +171,18 @@ func initJettonHotWallet(
 	} else if isPresented && walletData.Currency != currency {
 		audit.Log(audit.Error, string(JettonHotWallet), InitEvent,
 			fmt.Sprintf("Hot Jetton wallets %s and %s have the same address %s",
-				walletData.Currency, currency, a.String()))
+				walletData.Currency, currency, jettonWalletAccountID.ToHuman(true, false)))
 		return JettonWallet{}, fmt.Errorf("jetton hot wallet address duplication")
 	}
 
 	err = db.SaveJettonWallet(
 		ctx,
-		ownerAddr,
+		tonHotWallet.Address,
 		WalletData{
 			SubwalletID: subwalletId,
 			Currency:    currency,
 			Type:        JettonHotWallet,
-			Address:     jettonWalletAddr,
+			Address:     jettonWalletAccountID.Address,
 		},
 		true,
 	)
@@ -189,155 +192,168 @@ func initJettonHotWallet(
 	return res, nil
 }
 
-func buildComment(comment string) *cell.Cell {
-	root := cell.BeginCell().MustStoreUInt(0, 32)
-	if err := root.StoreStringSnake(comment); err != nil {
-		log.Fatalf("memo must fit into cell")
+func buildComment(comment string) *boc.Cell {
+	body := boc.NewCell()
+	if err := tlb.Marshal(body, wallet.TextComment(comment)); err != nil {
+		log.Fatalf("comment serialization error")
 	}
-	return root.EndCell()
+	return body
 }
 
-func LoadComment(cell *cell.Cell) string {
+func LoadComment(cell *boc.Cell) string {
+
 	if cell == nil {
 		return ""
 	}
-	l := cell.BeginParse()
-	if val, err := l.LoadUInt(32); err == nil && val == 0 {
-		str, err := l.LoadStringSnake()
-		if err != nil {
-			log.Errorf("load comment error: %v", err)
-			return ""
-		}
-		return str
+
+	if cell.BitSize() < 32 {
+		return ""
 	}
-	return ""
+
+	op, err := cell.PickUint(32)
+	if err != nil {
+		log.Fatalf("op reading error")
+	}
+	if op != 0 {
+		return ""
+	}
+
+	var comment wallet.TextComment
+	err = tlb.Unmarshal(cell, &comment)
+	if err != nil {
+		log.Errorf("load comment error: %v", err)
+		return ""
+	}
+
+	return string(comment)
 }
 
 // WithdrawTONs
 // Send all TON from one wallet (and deploy it if needed) to another and destroy "from" wallet contract.
 // Wallet must be not empty.
 func WithdrawTONs(ctx context.Context, from, to *wallet.Wallet, comment string) error {
-	if from == nil || to == nil || to.Address() == nil {
+	if from == nil || to == nil {
 		return fmt.Errorf("nil wallet")
 	}
-	var body *cell.Cell
+	var body *boc.Cell
 	if comment != "" {
 		body = buildComment(comment)
 	}
-	return from.Send(ctx, &wallet.Message{
-		Mode: 128 + 32, // 128 + 32 send all and destroy
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      false,
-			DstAddr:     to.Address(),
-			Amount:      tlb.FromNanoTONU(0),
-			Body:        body,
-		},
-	}, false)
+	return from.Send(ctx, wallet.Message{
+		Amount:  0,
+		Address: to.GetAddress(),
+		Body:    body,
+		//Code:    *boc.Cell,
+		//Data:    *boc.Cell,
+		Bounce: false,
+		Mode:   128 + 32, // 128 + 32 send all and destroy
+	})
 }
 
 func WithdrawJettons(
 	ctx context.Context,
 	from, to *wallet.Wallet,
-	jettonWallet *address.Address,
+	jettonWallet tongo.AccountID,
 	forwardAmount tlb.Coins,
 	amount Coins,
 	comment string,
 ) error {
-	if from == nil || to == nil || to.Address() == nil {
+	if from == nil || to == nil {
 		return fmt.Errorf("nil wallet")
 	}
+
 	body := MakeJettonTransferMessage(
-		to.Address(),
-		to.Address(),
+		to.GetAddress(),
+		to.GetAddress(),
 		amount.BigInt(),
 		forwardAmount,
-		rand.Int63(),
+		uint64(time.Now().UnixNano()), // TODO: check for overflow in DB
 		comment,
 	)
-	return from.Send(ctx, &wallet.Message{
-		Mode: 128 + 32, // 128 + 32 send all and destroy
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      true,
-			DstAddr:     jettonWallet, // jetton wallet address
-			Amount:      tlb.FromNanoTONU(0),
-			Body:        body,
-		},
-	}, false)
+
+	return from.Send(ctx, wallet.Message{
+		Amount:  0,
+		Address: jettonWallet,
+		Body:    body,
+		Bounce:  true,
+		Mode:    128 + 32, // 128 + 32 send all and destroy // TODO: clarify
+	})
 }
 
 func MakeJettonTransferMessage(
-	destination, responseDest *address.Address,
+	destination, responseDest tongo.AccountID,
 	amount *big.Int,
 	forwardAmount tlb.Coins,
-	queryId int64,
+	queryID uint64,
 	comment string,
-) *cell.Cell {
+) *boc.Cell {
 
-	builder := cell.BeginCell().
-		MustStoreUInt(0x0f8a7ea5, 32).             // transfer#0f8a7ea5
-		MustStoreUInt(uint64(queryId), 64).        // query_id:uint64
-		MustStoreBigCoins(amount).                 // amount:(VarUInteger 16) Jettons amount.
-		MustStoreAddr(destination).                // destination:MsgAddress
-		MustStoreAddr(responseDest).               // response_destination:MsgAddress
-		MustStoreBoolBit(false).                   // custom_payload:(Maybe ^Cell)
-		MustStoreBigCoins(forwardAmount.NanoTON()) // forward_ton_amount:(VarUInteger 16)
+	c := boc.NewCell()
+	forwardTon := big.NewInt(int64(forwardAmount))
+
+	msgBody := abi.JettonTransferMsgBody{
+		QueryId:             queryID,
+		Amount:              tlb.VarUInteger16(*amount),
+		Destination:         destination.ToMsgAddress(),
+		ResponseDestination: responseDest.ToMsgAddress(),
+		ForwardTonAmount:    tlb.VarUInteger16(*forwardTon),
+	}
 
 	if comment != "" {
-		return builder.
-			MustStoreBoolBit(true). // forward_payload:(Either Cell ^Cell)
-			MustStoreRef(buildComment(comment)).
-			EndCell()
-
+		msgBody.ForwardPayload.IsRight = true
+		// TODO: build Jetton text comment. Use snake ?
+		msgBody.ForwardPayload.Value = abi.JettonPayload{
+			SumType: abi.TextCommentJettonOp,
+			Value:   abi.TextCommentJettonPayload{Text: tlb.Text(comment)},
+		}
 	}
-	return builder.
-		MustStoreBoolBit(false). // forward_payload:(Either Cell ^Cell)
-		EndCell()
 
+	if err := c.WriteUint(0xf8a7ea5, 32); err != nil { // transfer#0f8a7ea5
+		log.Fatalf("writing Jetton transfer op error")
+	}
+	if err := tlb.Marshal(c, msgBody); err != nil {
+		log.Fatalf("Jetton transfer message serialization error")
+	}
+
+	return c
 }
 
 func BuildTonWithdrawalMessage(t ExternalWithdrawalTask) *wallet.Message {
+	// TODO: check currency?
 	return &wallet.Message{
-		Mode: 3,
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      t.Bounceable,
-			DstAddr:     t.Destination.ToTonutilsAddressStd(0),
-			Amount:      tlb.FromNanoTON(t.Amount.BigInt()),
-			Body:        buildComment(t.Comment),
-		},
+		Amount:  tlb.Coins(t.Amount.BigInt().Uint64()),
+		Address: t.Destination.ToAccountID(),
+		Body:    buildComment(t.Comment), // TODO: check for empty comment?
+		Bounce:  t.Bounceable,
+		Mode:    3,
 	}
 }
 
 func BuildJettonWithdrawalMessage(
 	t ExternalWithdrawalTask,
 	highloadWallet *wallet.Wallet,
-	fromJettonWallet *address.Address,
+	fromJettonWallet tongo.AccountID,
 ) *wallet.Message {
 	body := MakeJettonTransferMessage(
-		t.Destination.ToTonutilsAddressStd(0),
-		highloadWallet.Address(),
+		t.Destination.ToAccountID(),
+		highloadWallet.GetAddress(),
 		t.Amount.BigInt(),
 		config.JettonForwardAmount,
-		t.QueryID,
+		uint64(t.QueryID),
 		t.Comment,
 	)
 	return &wallet.Message{
-		Mode: 3,
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      true,
-			DstAddr:     fromJettonWallet,
-			Amount:      config.JettonTransferTonAmount,
-			Body:        body,
-		},
+		Amount:  config.JettonTransferTonAmount,
+		Address: fromJettonWallet,
+		Body:    body,
+		Bounce:  true,
+		Mode:    3,
 	}
 }
 
 func BuildJettonProxyWithdrawalMessage(
 	proxy JettonProxy,
-	jettonWallet, tonWallet *address.Address,
+	jettonWallet, tonWallet tongo.AccountID,
 	forwardAmount tlb.Coins,
 	amount *big.Int,
 	comment string,
@@ -347,63 +363,64 @@ func BuildJettonProxyWithdrawalMessage(
 		tonWallet,
 		amount,
 		forwardAmount,
-		rand.Int63(),
+		uint64(time.Now().UnixNano()), // TODO: check for overflow in DB
 		comment,
 	)
 	msg, err := proxy.BuildMessage(jettonWallet, jettonTransferPayload).ToCell()
 	if err != nil {
 		log.Fatalf("build proxy message cell error: %v", err)
 	}
-	body := cell.BeginCell().MustStoreRef(msg).EndCell()
+	body := boc.NewCell()
+	err = body.AddRef(msg)
+	if err != nil {
+		log.Fatalf("add proxy message as ref error: %v", err)
+	}
 	return &wallet.Message{
-		Mode: 3,
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      true,
-			DstAddr:     proxy.Address(),
-			Amount:      config.JettonTransferTonAmount,
-			Body:        body,
-			StateInit:   proxy.StateInit(),
-		},
+		Amount:  config.JettonTransferTonAmount,
+		Address: proxy.Address(),
+		Body:    body,
+		Bounce:  true,
+		Code:    proxy.stateInit.Code,
+		Data:    proxy.stateInit.Data,
+		Mode:    3,
 	}
 }
 
 func buildJettonProxyServiceTonWithdrawalMessage(
 	proxy JettonProxy,
-	tonWallet *address.Address,
+	tonWallet tongo.AccountID,
 	memo uuid.UUID,
 ) *wallet.Message {
 	msg, err := proxy.BuildMessage(tonWallet, buildComment(memo.String())).ToCell()
 	if err != nil {
 		log.Fatalf("build proxy message cell error: %v", err)
 	}
-	body := cell.BeginCell().MustStoreRef(msg).EndCell()
+	body := boc.NewCell()
+	err = body.AddRef(msg)
+	if err != nil {
+		log.Fatalf("add proxy message as ref error: %v", err)
+	}
 	return &wallet.Message{
-		Mode: 3,
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      true,
-			DstAddr:     proxy.Address(),
-			Amount:      config.JettonTransferTonAmount,
-			Body:        body,
-			StateInit:   proxy.StateInit(),
-		},
+		Amount:  config.JettonTransferTonAmount,
+		Address: proxy.Address(),
+		Body:    body,
+		Bounce:  true,
+		Code:    proxy.stateInit.Code,
+		Data:    proxy.stateInit.Data,
+		Mode:    3,
 	}
 }
 
 func buildTonFillMessage(
-	to *address.Address,
+	to tongo.AccountID,
 	amount tlb.Coins,
 	memo uuid.UUID,
 ) *wallet.Message {
 	return &wallet.Message{
-		Mode: 3,
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      false,
-			DstAddr:     to,
-			Amount:      amount,
-			Body:        buildComment(memo.String()),
-		},
+		Amount:  amount,
+		Address: to,
+		Body:    buildComment(memo.String()),
+		Bounce:  false,
+		Mode:    3,
 	}
 }

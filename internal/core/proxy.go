@@ -6,7 +6,7 @@ import (
 	"github.com/gobicycle/bicycle/internal/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/tonkeeper/tongo"
-	"github.com/xssnick/tonutils-go/address"
+	"github.com/tonkeeper/tongo/boc"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
@@ -27,12 +27,13 @@ func NewJettonProxy(subwalletId uint32, owner tongo.AccountID) (*JettonProxy, er
 	if err != nil {
 		return nil, fmt.Errorf("failed to get state cell: %w", err)
 	}
-	addr := address.NewAddress(0, DefaultWorkchainID, stateCell.Hash())
+	addr := tongo.NewAccountId(DefaultWorkchainID, stateCell.Hash())
+	//addr := address.NewAddress(0, DefaultWorkchainID, stateCell.Hash())
 
 	return &JettonProxy{
 		Owner:       owner,
 		SubwalletID: subwalletId,
-		address:     addr,
+		address:     *addr,
 		stateInit:   stateInit,
 	}, nil
 }
@@ -68,7 +69,7 @@ func (p *JettonProxy) StateInit() *tlb.StateInit {
 }
 
 // BuildMessage wraps custom body payload to resend by proxy contract
-func (p *JettonProxy) BuildMessage(destination *address.Address, body *cell.Cell) *tlb.InternalMessage {
+func (p *JettonProxy) BuildMessage(destination tongo.AccountID, body *boc.Cell) *tlb.InternalMessage {
 	return &tlb.InternalMessage{
 		IHRDisabled: true,
 		Bounce:      true,

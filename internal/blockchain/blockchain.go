@@ -24,6 +24,26 @@ type Connection struct {
 	//	blockchainConfig string
 }
 
+// allowedConfigKeys is a list of blockchain config keys
+// we keep in config to optimize the performance of tvm and tvm emulator.
+// https://github.com/tonkeeper/opentonapi/blob/27b7c9130f627935d2291721cb1eee9a58b37420/pkg/litestorage/litestorage.go#L34
+var allowedConfigKeys = []uint32{
+	0, 1, 2, 3, 4, 5,
+	8,
+	9, 10,
+	12,
+	15,
+	17,
+	18,
+	20,
+	21,
+	24,
+	25,
+	32, // 32 + 34 together take up to 98% of the config size
+	34,
+	79, 80, 81, 82, // required by token bridge https://github.com/ton-blockchain/token-bridge-func/blob/3346a901e3e8e1a1e020fac564c845db3220c238/src/func/jetton-bridge/jetton-wallet.fc#L233
+}
+
 //type contract struct {
 //	Address tongo.AccountID
 //	Code    string
@@ -39,24 +59,6 @@ func NewConnection(ctx context.Context, cfg []tongoConfig.LiteServer) (*Connecti
 	if err != nil {
 		return nil, fmt.Errorf("liteapi creating err: %v", err.Error())
 	}
-
-	// TODO: or get config before emulation?
-	configParams, err := client.GetConfigAll(ctx, liteapi.NeedStateRoot) // TODO: clarify flag!
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: save config as cell (careful with pointers)
-
-	configCell := boc.NewCell()
-	err = tlb.Marshal(configCell, configParams)
-	if err != nil {
-		return nil, err
-	}
-	//blockchainConfig, err := configCell.ToBocBase64()
-	//if err != nil {
-	//	return nil, err
-	//}
 
 	return &Connection{client: client}, nil
 }
@@ -402,6 +404,26 @@ func (c *Connection) WaitStatus(ctx context.Context, addr tongo.AccountID, statu
 //func (c *Connection) RunSmcMethod(ctx context.Context, accountID ton.AccountID, method string, params tlb.VmStack) (uint32, tlb.VmStack, error) {
 //	return c.client.RunSmcMethod(ctx, accountID, method, params)
 //}
+
+func (c *Connection) GetTrimmedBlockchainConfig(ctx context.Context) (string, error) {
+
+	configParams, err := c.client.GetConfigAll(ctx, 0) // TODO: clarify mode
+	if err != nil {
+		return "", err
+	}
+
+	configParams = configParams.CloneKeepingSubsetOfKeys(allowedConfigKeys)
+
+	cell := boc.NewCell()
+	if err := tlb.Marshal(cell, configParams.Config); err != nil {
+		return "", err
+	}
+	configBase64, err := cell.ToBocBase64()
+	if err != nil {
+		return "", err
+	}
+	return configBase64, nil
+}
 
 func (c *Connection) RunSmcMethodByID(ctx context.Context, accountID ton.AccountID, methodID int, params tlb.VmStack) (uint32, tlb.VmStack, error) {
 	return c.client.RunSmcMethodByID(ctx, accountID, methodID, params)

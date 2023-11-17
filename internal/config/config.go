@@ -6,7 +6,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/tonkeeper/tongo"
 	"github.com/tonkeeper/tongo/config"
-	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/tonkeeper/tongo/tlb"
 	"math/big"
 	"reflect"
 	"strings"
@@ -14,8 +14,8 @@ import (
 )
 
 var (
-	JettonTransferTonAmount = tlb.FromNanoTONU(100_000_000)
-	JettonForwardAmount     = tlb.FromNanoTONU(20_000_000) // must be < JettonTransferTonAmount
+	JettonTransferTonAmount = tlb.Coins(100_000_000)
+	JettonForwardAmount     = tlb.Coins(20_000_000) // must be < JettonTransferTonAmount
 
 	ExternalMessageLifetime = 50 * time.Second
 

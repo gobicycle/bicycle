@@ -36,18 +36,44 @@ type DepositGenerator struct {
 // Options configures behavior of a DepositGenerator instance.
 type Options struct {
 	// TODO: implement
+	jettons map[string]Jetton
 }
 
 type Option func(o *Options)
 
-func NewDepositGenerator(opts ...Option) (*DepositGenerator, error) {
+func WithJettons(jettons map[string]Jetton) Option {
+	return func(o *Options) {
+		o.jettons = jettons
+	}
+}
+
+func NewDepositGenerator(
+	storage storage,
+	shard tongo.ShardID,
+	ownerAddress tongo.AccountID,
+	publicKey ed25519.PublicKey,
+	blockchainConfig string,
+	opts ...Option,
+) (*DepositGenerator, error) {
 	// TODO: implement
 	options := &Options{}
 	for _, o := range opts {
 		o(options)
 	}
+
+	res := DepositGenerator{
+		db:               storage,
+		shard:            shard,
+		ownerAddress:     ownerAddress,
+		publicKey:        publicKey,
+		blockchainConfig: blockchainConfig,
+	}
 	// TODO: check other options
-	return &DepositGenerator{}, nil
+	if options.jettons != nil {
+		res.jettons = options.jettons
+	}
+
+	return &res, nil
 }
 
 func (g *DepositGenerator) GenerateTonDeposit(ctx context.Context, userID string) (*tongo.AccountID, error) {

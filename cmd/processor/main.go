@@ -39,6 +39,11 @@ func main() {
 	// TODO: be careful with methods using default executor
 	tongo.SetDefaultExecutor(bcClient) // for methods using default executor (like ParseAddress)
 
+	blockchainConfig, err := bcClient.GetTrimmedBlockchainConfig(ctx)
+	if err != nil {
+		log.Fatal("load blockchain config error", zap.Error(err))
+	}
+
 	dbClient, err := db.NewConnection(cfg.DB.URI)
 	if err != nil {
 		log.Fatal("DB connection error", zap.Error(err))
@@ -98,8 +103,14 @@ func main() {
 	withdrawalsProcessor := core.NewWithdrawalsProcessor(wg, dbClient, bcClient, wallets, cfg.Processor.ColdWallet)
 	withdrawalsProcessor.Start()
 
-	// TODO: load and trim blockchain config
 	// TODO: new deposit generator
+	depositGenerator, err := core.NewDepositGenerator(
+		dbClient,
+		wallets.Shard,
+		wallets.TonHotWallet.GetAddress(),
+		wallets.PublicKey,
+		blockchainConfig,
+	)
 
 	h, err := api.NewHandler(log,
 		api.WithStorage(dbClient),

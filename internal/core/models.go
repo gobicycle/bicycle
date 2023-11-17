@@ -2,12 +2,14 @@ package core
 
 import (
 	"database/sql/driver"
+	"encoding/binary"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/tonkeeper/tongo"
 	"github.com/tonkeeper/tongo/tlb"
-	"github.com/xssnick/tonutils-go/address"
+	"github.com/tonkeeper/tongo/ton"
+	"math/bits"
 
 	"math/big"
 )
@@ -68,10 +70,10 @@ func (a Address) Value() (driver.Value, error) {
 	return a[:], nil
 }
 
-//// ToTonutilsAddressStd implements converter to ton-utils std Address type for default workchain !
-//func (a Address) ToTonutilsAddressStd(flags byte) *address.Address {
-//	return address.NewAddress(flags, DefaultWorkchain, a[:])
-//}
+// ToAccountID implements converter to ton-utils std Address type for default workchain !
+func (a Address) ToAccountID() tongo.AccountID {
+	return *tongo.NewAccountId(DefaultWorkchainID, a)
+}
 
 // TODO: remove
 // ToUserFormat converts to user-friendly text format with testnet and bounce flags
@@ -95,14 +97,14 @@ func (a Address) ToBytes() []byte {
 //	return addr.String()
 //}
 
-func AddressFromBytes(data []byte) (Address, error) {
-	if len(data) != 32 {
-		return Address{}, fmt.Errorf("invalid address len. Std addr len must be 32 bytes")
-	}
-	var res Address
-	copy(res[:], data)
-	return res, nil
-}
+//func AddressFromBytes(data []byte) (Address, error) {
+//	if len(data) != 32 {
+//		return Address{}, fmt.Errorf("invalid address len. Std addr len must be 32 bytes")
+//	}
+//	var res Address
+//	copy(res[:], data)
+//	return res, nil
+//}
 
 //func AddressFromTonutilsAddress(addr *address.Address) (Address, error) {
 //	if addr == nil {
@@ -128,7 +130,7 @@ type AddressInfo struct {
 }
 
 type JettonWallet struct {
-	Address  *address.Address
+	Address  tongo.AccountID
 	Currency string
 }
 
@@ -290,14 +292,14 @@ func ZeroCoins() Coins {
 //	}, nil
 //}
 
-//func ShardIdFromAddress(a Address, shardPrefixLen int) ShardID {
-//	return ShardID{
-//		prefix: int64(binary.BigEndian.Uint64(a[:8])),
-//		mask:   -1 << (64 - shardPrefixLen),
-//	}
-//	// TODO: check for correctness with full prefix
-//}
-//
+func ShardIDFromAccountID(a tongo.AccountID, shardPrefixLen int) tongo.ShardID {
+	prefix := int64(binary.BigEndian.Uint64(a.Address[:8]))
+	mask := -1 << (64 - shardPrefixLen)
+	shard := prefix | (1 << (bits.TrailingZeros64(uint64(mask)) - 1))
+	return ton.MustParseShardID(shard)
+	// TODO: check for correctness with full prefix
+}
+
 //func (s ShardID) MatchAddress(a Address) bool {
 //	aPrefix := binary.BigEndian.Uint64(a[:8])
 //	return (int64(aPrefix) & s.mask) == s.prefix
