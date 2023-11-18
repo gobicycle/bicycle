@@ -153,6 +153,7 @@ func initJettonHotWallet(
 	currency string,
 	subwalletId uint32,
 ) (JettonWallet, error) {
+	// TODO: use proxy for hot wallets
 	// not init or check balances of Jetton wallets, it is not required for the service to work
 	jettonWalletAccountID, err := bc.GetJettonWalletAddress(ctx, tonHotWallet, jettonMaster)
 	if err != nil {
@@ -366,7 +367,7 @@ func BuildJettonProxyWithdrawalMessage(
 		uint64(time.Now().UnixNano()), // TODO: check for overflow in DB
 		comment,
 	)
-	msg, err := proxy.BuildMessage(jettonWallet, jettonTransferPayload).ToCell()
+	msg, err := proxy.BuildPayload(jettonWallet, jettonTransferPayload)
 	if err != nil {
 		log.Fatalf("build proxy message cell error: %v", err)
 	}
@@ -380,8 +381,8 @@ func BuildJettonProxyWithdrawalMessage(
 		Address: proxy.Address(),
 		Body:    body,
 		Bounce:  true,
-		Code:    proxy.stateInit.Code,
-		Data:    proxy.stateInit.Data,
+		Code:    proxy.Code(),
+		Data:    proxy.Data(),
 		Mode:    3,
 	}
 }
@@ -391,7 +392,7 @@ func buildJettonProxyServiceTonWithdrawalMessage(
 	tonWallet tongo.AccountID,
 	memo uuid.UUID,
 ) *wallet.Message {
-	msg, err := proxy.BuildMessage(tonWallet, buildComment(memo.String())).ToCell()
+	msg, err := proxy.BuildPayload(tonWallet, buildComment(memo.String()))
 	if err != nil {
 		log.Fatalf("build proxy message cell error: %v", err)
 	}
@@ -405,8 +406,8 @@ func buildJettonProxyServiceTonWithdrawalMessage(
 		Address: proxy.Address(),
 		Body:    body,
 		Bounce:  true,
-		Code:    proxy.stateInit.Code,
-		Data:    proxy.stateInit.Data,
+		Code:    proxy.Code(),
+		Data:    proxy.Data(),
 		Mode:    3,
 	}
 }
