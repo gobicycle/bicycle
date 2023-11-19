@@ -65,12 +65,8 @@ func (c *Connection) GetOwner(address core.Address) *core.Address {
 	return info.Owner
 }
 
-//func (c *Connection) GetWalletTypeByTonutilsAddress(address *address.Address) (core.WalletType, bool) {
-//	a, err := core.AddressFromTonutilsAddress(address)
-//	if err != nil {
-//		return "", false
-//	}
-//	return c.GetWalletType(a)
+//func (c *Connection) GetWalletTypeByTongoAccountID(accountID tongo.AccountID) (core.WalletType, bool) {
+//	return c.GetWalletType(accountID.Address)
 //}
 
 // GetLastSubwalletID returns last (greatest) used subwallet_id from DB

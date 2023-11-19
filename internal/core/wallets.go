@@ -277,7 +277,7 @@ func WithdrawJettons(
 		Address: jettonWallet,
 		Body:    body,
 		Bounce:  true,
-		Mode:    128 + 32, // 128 + 32 send all and destroy // TODO: clarify
+		Mode:    128 + 32, // 128 + 32 send all and destroy
 	})
 }
 

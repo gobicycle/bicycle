@@ -16,7 +16,7 @@ type storage interface {
 	SaveJettonWallet(ctx context.Context, ownerAddress Address, walletData WalletData, notSaveOwner bool) error
 	GetWalletType(address Address) (WalletType, bool)
 	GetOwner(address Address) *Address
-	//GetWalletTypeByTonutilsAddress(address *address.Address) (WalletType, bool)
+	//GetWalletTypeByTongoAccountID(accountID tongo.AccountID) (WalletType, bool)
 	SaveParsedBlocksData(ctx context.Context, events []BlockEvents, shardBlocks []*ShardBlock, masterBlock tlb.Block) error
 	GetTonInternalWithdrawalTasks(ctx context.Context, limit int) ([]InternalWithdrawalTask, error)
 	GetJettonInternalWithdrawalTasks(ctx context.Context, forbiddenAddresses []Address, limit int) ([]InternalWithdrawalTask, error)
@@ -36,7 +36,7 @@ type storage interface {
 }
 
 type blockchain interface {
-	GetJettonWalletAddress(ctx context.Context, owner tongo.AccountID, jettonMaster tongo.AccountID) (*tongo.AccountID, error)
+	GetJettonWalletAddress(ctx context.Context, owner tongo.AccountID, jettonMaster tongo.AccountID) (tongo.AccountID, error)
 	//GetTransactionIDsFromBlock(ctx context.Context, blockID *ton.BlockIDExt) ([]ton.TransactionShortInfo, error)
 	//GetTransactionFromBlock(ctx context.Context, blockID *ton.BlockIDExt, txID ton.TransactionShortInfo) (*tlb.Transaction, error)
 	GenerateDefaultWallet(seed string, isHighload bool) (*wallet.Wallet, uint32, error)
