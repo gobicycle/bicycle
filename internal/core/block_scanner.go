@@ -10,6 +10,7 @@ import (
 	"github.com/tonkeeper/tongo"
 	"github.com/tonkeeper/tongo/boc"
 	"github.com/tonkeeper/tongo/tlb"
+	"github.com/tonkeeper/tongo/wallet"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"math/big"
@@ -35,8 +36,8 @@ type transactions struct {
 }
 
 type jettonTransferNotificationMsg struct {
-	Amount Coins
-	Sender *address.Address
+	Amount  Coins
+	Sender  *address.Address
 	Comment string
 }
 
@@ -49,7 +50,7 @@ type JettonTransferMsg struct {
 type HighLoadWalletExtMsgInfo struct {
 	UUID     uuid.UUID
 	TTL      time.Time
-	Messages *cell.Dictionary
+	Messages []wallet.RawMessage
 }
 
 type incomeNotification struct {
@@ -203,19 +204,22 @@ func (s *BlockScanner) filterTXs(
 ) (
 	[]transactions, error,
 ) {
-	//txMap := make(map[Address][]*tlb.Transaction)
+	// TODO: process all shard blocks
+	txMap := make(map[Address][]*tlb.Transaction)
 	for _, tx := range block.Transactions {
 		//a, err := AddressFromBytes(id.Account) // must be int256 for lite api
 		//if err != nil {
 		//	return nil, err
 		//}
-		_, ok := s.db.GetWalletType(//TODO: get addr from TX)
+
+		addr := Address(tx.AccountAddr)
+		_, ok := s.db.GetWalletType(addr)
 		if ok {
-			tx, err := s.blockchain.GetTransactionFromBlock(ctx, blockID, id)
-			if err != nil {
-				return nil, err
-			}
-			txMap[a] = append(txMap[a], tx)
+			//tx, err := s.blockchain.GetTransactionFromBlock(ctx, blockID, id)
+			//if err != nil {
+			//	return nil, err
+			//}
+			txMap[addr] = append(txMap[addr], tx)
 		}
 	}
 	var res []transactions
@@ -227,23 +231,23 @@ func (s *BlockScanner) filterTXs(
 }
 
 func checkTxForSuccess(tx *tlb.Transaction) (bool, error) {
-	descData := tx.Description.Description
-	descCell, err := tlb.ToCell(descData)
-	if err != nil {
-		return false, err
-	}
-	c, err := boc.DeserializeBoc(descCell.ToBOC())
-	if err != nil {
-		return false, err
-	}
-	var desc tongoTlb.TransactionDescr
-	err = tongoTlb.Unmarshal(c[0], &desc)
-	if err != nil {
-		return false, err
-	}
-	var fakeTx tongo.Transaction // need for check tx success via tongo
-	fakeTx.Description = desc
-	return fakeTx.IsSuccess(), nil
+	//descData := tx.Description.Description
+	//descCell, err := tlb.ToCell(descData)
+	//if err != nil {
+	//	return false, err
+	//}
+	//c, err := boc.DeserializeBoc(descCell.ToBOC())
+	//if err != nil {
+	//	return false, err
+	//}
+	//var desc tongoTlb.TransactionDescr
+	//err = tongoTlb.Unmarshal(c[0], &desc)
+	//if err != nil {
+	//	return false, err
+	//}
+	//var fakeTx tongo.Transaction // need for check tx success via tongo
+	//fakeTx.Description = desc
+	return tx.IsSuccess(), nil
 }
 
 func (s *BlockScanner) processTXs(
@@ -553,7 +557,7 @@ func parseExternalMessage(msg *tlb.ExternalMessage) (
 	}
 	addrMap = make(map[Address]struct{})
 
-	info, err := getHighLoadWalletExtMsgInfo(msg)
+	info, err := getHighLoadWalletExtMsgInfo(msg) // TODO: use get hash and ExtractRawMessages from tongo
 	if err != nil {
 		return uuid.UUID{}, nil, false, err
 	}
@@ -603,29 +607,38 @@ func (s *BlockScanner) failedWithdrawals(inMap map[Address]struct{}, outMap map[
 	return w
 }
 
-func getHighLoadWalletExtMsgInfo(extMsg *tlb.ExternalMessage) (HighLoadWalletExtMsgInfo, error) {
-	body := extMsg.Payload()
-	if body == nil {
-		return HighLoadWalletExtMsgInfo{}, fmt.Errorf("nil body for external message")
-	}
-	hash := body.Hash() // must be 32 bytes
-	u, err := uuid.FromBytes(hash[:16])
-	if err != nil {
-		return HighLoadWalletExtMsgInfo{}, err
+func getHighLoadWalletExtMsgInfo(extMsg *tlb.Message) (*HighLoadWalletExtMsgInfo, error) {
+
+	if extMsg.Info.SumType != "ExtInMsgInfo" {
+		return nil, fmt.Errorf("not external message")
 	}
 
-	var data struct {
-		Sign        []byte           `tlb:"bits 512"`
-		SubwalletID uint32           `tlb:"## 32"`
-		BoundedID   uint64           `tlb:"## 64"`
-		Messages    *cell.Dictionary `tlb:"dict 16"`
-	}
-	err = tlb.LoadFromCell(&data, body.BeginParse())
+	body := boc.Cell(extMsg.Body.Value)
+	hash, err := body.Hash256() // must be 32 bytes
 	if err != nil {
-		return HighLoadWalletExtMsgInfo{}, err
+		return nil, fmt.Errorf("hash calculation error")
 	}
-	ttl := time.Unix(int64((data.BoundedID>>32)&0x00_00_00_00_FF_FF_FF_FF), 0)
-	return HighLoadWalletExtMsgInfo{UUID: u, TTL: ttl, Messages: data.Messages}, nil
+
+	u, err := uuid.FromBytes(hash[:16])
+	if err != nil {
+		return nil, err
+	}
+
+	// maybe check signature?
+	var signedBody wallet.SignedMsgBody
+	if err = tlb.Unmarshal(&body, &signedBody); err != nil {
+		return nil, err
+	}
+
+	var highloadMessage wallet.HighloadV2Message
+	bodyCell := boc.Cell(signedBody.Message)
+	if err = tlb.Unmarshal(&bodyCell, &highloadMessage); err != nil {
+		return nil, err
+	}
+
+	ttl := time.Unix(int64((highloadMessage.BoundedQueryID>>32)&0x00_00_00_00_FF_FF_FF_FF), 0)
+	res := HighLoadWalletExtMsgInfo{UUID: u, TTL: ttl, Messages: highloadMessage.RawMessages}
+	return &res, nil
 }
 
 func (s *BlockScanner) processTonHotWalletExternalInMsg(tx *tlb.Transaction) (Events, error) {

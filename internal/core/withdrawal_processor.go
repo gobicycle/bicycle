@@ -37,7 +37,7 @@ type serviceWithdrawal struct {
 }
 
 type withdrawals struct {
-	Messages []wallet.Message
+	Messages []wallet.Sendable // TODO: not use slice of interfaces
 	External []ExternalWithdrawalTask
 	Internal []internalWithdrawal
 	Service  []serviceWithdrawal
@@ -98,13 +98,13 @@ func (p *WithdrawalsProcessor) startWithdrawalsProcessor() {
 			continue
 		}
 
-		extMsg, err := p.wallets.TonHotWallet.CreateMessage(config.ExternalMessageLifetime, w.Messages)
+		extMsg, err := p.wallets.TonHotWallet.CreateMessage(config.ExternalMessageLifetime, w.Messages...)
 		//extMsg, err := p.wallets.TonHotWallet.BuildMessageForMany(ctx, w.Messages)
 		if err != nil {
 			log.Fatalf("build hotwallet external msg error: %v\n", err)
 		}
 
-		info, err := getHighLoadWalletExtMsgInfo(extMsg)
+		info, err := getHighLoadWalletExtMsgInfo(extMsg) // Use TTL from final message
 		if err != nil {
 			log.Fatalf("get external message uuid error: %v\n", err)
 		}
@@ -125,7 +125,9 @@ func (p *WithdrawalsProcessor) startWithdrawalsProcessor() {
 				log.Fatalf("save internal withdrawal error: %v\n", err)
 			}
 		}
-		err = p.bc.SendExternalMessage(ctx, extMsg)
+
+		err = p.wallets.TonHotWallet.RawSend(ctx, 0, info.TTL, info.Messages, nil) // seqno not used for highload wallet
+		// err = p.bc.SendExternalMessage(ctx, extMsg)
 		if err != nil {
 			log.Errorf("send external msg error: %v\n", err)
 		}
@@ -513,14 +515,15 @@ func (p *WithdrawalsProcessor) startInternalTonWithdrawalsProcessor() {
 }
 
 func (p *WithdrawalsProcessor) withdrawTONsFromDeposit(ctx context.Context, task InternalWithdrawalTask) error {
-	subwallet, err := p.wallets.TonBasicWallet.GetSubwallet(task.SubwalletID)
+	//subwallet, err := p.wallets.TonBasicWallet.GetSubwallet(task.SubwalletID)
+	subwallet, err := wallet.New(key, wallet.V3R2, DefaultWorkchainID, &task.SubwalletID, p.bc) // TODO: set default wallet type as const and use generate wallet method
 	if err != nil {
 		return err
 	}
-	spec := subwallet.GetSpec().(*wallet.SpecV3)
-	spec.SetMessagesTTL(uint32(config.ExternalMessageLifetime.Seconds()))
+	//spec := subwallet.GetSpec().(*wallet.SpecV3)
+	//spec.SetMessagesTTL(uint32(config.ExternalMessageLifetime.Seconds()))
 
-	balance, state, err := p.bc.GetAccountCurrentState(ctx, subwallet.Address())
+	balance, state, err := p.bc.GetAccountCurrentState(ctx, subwallet.GetAddress())
 	if err != nil {
 		return err
 	}
