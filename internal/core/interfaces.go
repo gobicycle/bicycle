@@ -28,7 +28,7 @@ type storage interface {
 	SaveWithdrawalRequest(ctx context.Context, w WithdrawalRequest) (int64, error)
 	IsInProgressInternalWithdrawalRequest(ctx context.Context, dest Address, currency string) (bool, error)
 	GetServiceHotWithdrawalTasks(ctx context.Context, limit int) ([]ServiceWithdrawalTask, error)
-	UpdateServiceWithdrawalRequest(ctx context.Context, t ServiceWithdrawalTask, tonAmount Coins,
+	UpdateServiceWithdrawalRequest(ctx context.Context, t ServiceWithdrawalTask, tonAmount tlb.Coins,
 		expiredAt time.Time, filled bool) error
 	GetServiceDepositWithdrawalTasks(ctx context.Context, limit int) ([]ServiceWithdrawalTask, error)
 	GetJettonWallet(ctx context.Context, address Address) (*WalletData, bool, error)

@@ -8,8 +8,8 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/tonkeeper/tongo"
+	"github.com/tonkeeper/tongo/tlb"
 	"github.com/tonkeeper/tongo/wallet"
-	"github.com/xssnick/tonutils-go/tlb"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -31,13 +31,13 @@ type internalWithdrawal struct {
 }
 
 type serviceWithdrawal struct {
-	TonAmount Coins
+	TonAmount tlb.Coins
 	Filled    bool
 	Task      ServiceWithdrawalTask
 }
 
 type withdrawals struct {
-	Messages []wallet.Sendable // TODO: not use slice of interfaces
+	Messages []wallet.Sendable
 	External []ExternalWithdrawalTask
 	Internal []internalWithdrawal
 	Service  []serviceWithdrawal
@@ -213,8 +213,9 @@ func (p *WithdrawalsProcessor) buildWithdrawalMessages(ctx context.Context) (wit
 		}
 		t, ok := p.db.GetWalletType(w.Destination)
 		if ok {
+			// TODO: use raw format for internal logs
 			audit.Log(audit.Warning, string(TonHotWallet), ExternalWithdrawalEvent,
-				fmt.Sprintf("withdrawal task to internal %s address %s", t, w.Destination.ToUserFormat()))
+				fmt.Sprintf("withdrawal task to internal %s address %s", t, w.Destination.ToAccountID().String()))
 			continue
 		}
 		if decreaseBalances(balances, w.Currency, w.Amount.BigInt()) {
@@ -266,7 +267,7 @@ func (p *WithdrawalsProcessor) buildJettonInternalWithdrawalMessage(
 	ctx context.Context,
 	task InternalWithdrawalTask,
 ) (
-	[]wallet.Message,
+	[]wallet.Sendable,
 	uuid.UUID,
 	error,
 ) {
@@ -292,16 +293,16 @@ func (p *WithdrawalsProcessor) buildJettonInternalWithdrawalMessage(
 			balance,
 			memo.String(),
 		)
-		return []wallet.Message{msg}, memo, nil
+		return []wallet.Sendable{msg}, memo, nil
 	}
-	return []wallet.Message{}, uuid.UUID{}, nil
+	return []wallet.Sendable{}, uuid.UUID{}, nil
 }
 
 func (p *WithdrawalsProcessor) buildServiceWithdrawalMessage(
 	ctx context.Context,
 	task ServiceWithdrawalTask,
 ) (
-	[]wallet.Message,
+	[]wallet.Sendable,
 	serviceWithdrawal,
 	error,
 ) {
@@ -324,7 +325,7 @@ func (p *WithdrawalsProcessor) buildServiceFilling(
 	ctx context.Context,
 	task ServiceWithdrawalTask,
 ) (
-	[]wallet.Message,
+	[]wallet.Sendable,
 	serviceWithdrawal,
 	error,
 ) {
@@ -345,27 +346,32 @@ func (p *WithdrawalsProcessor) buildServiceFilling(
 	if jettonBalance.Cmp(big.NewInt(0)) == 0 {
 		audit.Log(audit.Warning, string(TonDepositWallet), ServiceWithdrawalEvent,
 			fmt.Sprintf("zero balance of Jettons %s on TON deposit address %s",
-				task.JettonMaster.ToUserFormat(), // TODO: use same format
-				deposit.ToHuman()))
+				task.JettonMaster.ToAccountID().ToRaw(), // TODO: use same format
+				deposit.ToRaw()))
 		return nil, serviceWithdrawal{
-			TonAmount: ZeroCoins(),
+			TonAmount: 0,
 			Task:      task,
 		}, nil
 	}
-	msg := buildTonFillMessage(deposit, config.JettonTransferTonAmount, task.Memo)
 	task.JettonAmount = NewCoins(jettonBalance)
-	return []wallet.Message{*msg}, serviceWithdrawal{
-		TonAmount: ZeroCoins(),
-		Task:      task,
-		Filled:    true,
-	}, nil
+	msg := tonFillMessage{
+		To:     deposit,
+		Amount: config.JettonTransferTonAmount,
+		Memo:   task.Memo,
+	}
+	return []wallet.Sendable{msg},
+		serviceWithdrawal{
+			TonAmount: 0,
+			Task:      task,
+			Filled:    true,
+		}, nil
 }
 
 func (p *WithdrawalsProcessor) buildServiceTonWithdrawal(
 	ctx context.Context,
 	task ServiceWithdrawalTask,
 ) (
-	[]wallet.Message,
+	[]wallet.Sendable,
 	serviceWithdrawal,
 	error,
 ) {
@@ -378,23 +384,23 @@ func (p *WithdrawalsProcessor) buildServiceTonWithdrawal(
 		return nil, serviceWithdrawal{}, err
 	}
 	res := serviceWithdrawal{
-		TonAmount: NewCoins(tonBalance),
+		TonAmount: tlb.Coins(tonBalance),
 		Task:      task,
 	}
-	if tonBalance.Cmp(big.NewInt(0)) == 0 {
+	if tonBalance == 0 {
 		audit.Log(audit.Warning, string(JettonOwner), ServiceWithdrawalEvent,
-			fmt.Sprintf("zero balance of TONs on proxy address %s", proxy.address.ToHuman()))
+			fmt.Sprintf("zero balance of TONs on proxy address %s", proxy.address.ToRaw()))
 		return nil, res, nil
 	}
 	msg := buildJettonProxyServiceTonWithdrawalMessage(*proxy, p.wallets.TonHotWallet.GetAddress(), task.Memo)
-	return []wallet.Message{*msg}, res, nil
+	return []wallet.Sendable{*msg}, res, nil
 }
 
 func (p *WithdrawalsProcessor) buildServiceJettonWithdrawal(
 	ctx context.Context,
 	task ServiceWithdrawalTask,
 ) (
-	[]wallet.Message,
+	[]wallet.Sendable,
 	serviceWithdrawal,
 	error,
 ) {
@@ -410,9 +416,9 @@ func (p *WithdrawalsProcessor) buildServiceJettonWithdrawal(
 	if ok {
 		audit.Log(audit.Warning, string(JettonOwner), ServiceWithdrawalEvent,
 			fmt.Sprintf("service withdrawal from known internal %s address %s rejected",
-				t, jettonWallet.ToHuman()))
+				t, jettonWallet.ToRaw()))
 		return nil, serviceWithdrawal{
-			TonAmount: ZeroCoins(),
+			TonAmount: 0,
 			Task:      task,
 		}, nil
 	}
@@ -425,16 +431,16 @@ func (p *WithdrawalsProcessor) buildServiceJettonWithdrawal(
 	if jettonBalance.Cmp(big.NewInt(0)) == 0 {
 		audit.Log(audit.Warning, string(JettonOwner), ServiceWithdrawalEvent,
 			fmt.Sprintf("zero %s Jetton balance on proxy address %s",
-				task.JettonMaster.ToUserFormat(), // TODO: same format
-				proxy.address.ToHuman()))
+				task.JettonMaster.ToAccountID().ToRaw(), // TODO: same format
+				proxy.address.ToRaw()))
 		return nil, serviceWithdrawal{
-			TonAmount: ZeroCoins(),
+			TonAmount: 0,
 			Task:      task,
 		}, nil
 	}
 	task.JettonAmount = NewCoins(jettonBalance)
 	res := serviceWithdrawal{
-		TonAmount: ZeroCoins(),
+		TonAmount: 0,
 		Task:      task,
 	}
 
@@ -446,7 +452,7 @@ func (p *WithdrawalsProcessor) buildServiceJettonWithdrawal(
 		jettonBalance,
 		task.Memo.String(),
 	)
-	return []wallet.Message{*msg}, res, nil
+	return []wallet.Sendable{*msg}, res, nil
 }
 
 func (p *WithdrawalsProcessor) buildExternalWithdrawalMessage(wt ExternalWithdrawalTask) *wallet.Message {

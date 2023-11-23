@@ -159,7 +159,7 @@ func initJettonHotWallet(
 	if err != nil {
 		return JettonWallet{}, err
 	}
-	res := JettonWallet{Address: *jettonWalletAccountID, Currency: currency}
+	res := JettonWallet{Address: jettonWalletAccountID, Currency: currency}
 	log.Infof("%v jetton hot wallet address: %v", currency, jettonWalletAccountID.ToHuman(true, false))
 
 	walletData, isPresented, err := db.GetJettonWallet(ctx, jettonWalletAccountID.Address)
@@ -412,16 +412,16 @@ func buildJettonProxyServiceTonWithdrawalMessage(
 	}
 }
 
-func buildTonFillMessage(
-	to tongo.AccountID,
-	amount tlb.Coins,
-	memo uuid.UUID,
-) *wallet.Message {
-	return &wallet.Message{
-		Amount:  amount,
-		Address: to,
-		Body:    buildComment(memo.String()),
-		Bounce:  false,
-		Mode:    3,
-	}
-}
+//func buildTonFillMessage(
+//	to tongo.AccountID,
+//	amount tlb.Coins,
+//	memo uuid.UUID,
+//) *wallet.Message {
+//	return &wallet.Message{
+//		Amount:  amount,
+//		Address: to,
+//		Body:    buildComment(memo.String()),
+//		Bounce:  false,
+//		Mode:    3,
+//	}
+//}

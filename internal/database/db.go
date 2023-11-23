@@ -409,7 +409,7 @@ func (c *Connection) SaveServiceWithdrawalRequest(ctx context.Context, w core.Se
 func (c *Connection) UpdateServiceWithdrawalRequest(
 	ctx context.Context,
 	t core.ServiceWithdrawalTask,
-	tonAmount core.Coins,
+	tonAmount tlb.Coins,
 	expiredAt time.Time,
 	filled bool,
 ) error {
