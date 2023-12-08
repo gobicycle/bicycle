@@ -19,9 +19,9 @@ import (
 )
 
 type Wallets struct {
-	Shard            tongo.ShardID
-	TonHotWallet     *wallet.Wallet
-	TonBasicWallet   *wallet.Wallet // basic V3 wallet to make other wallets with different subwallet_id
+	Shard        tongo.ShardID
+	TonHotWallet *wallet.Wallet
+	//TonBasicWallet   *wallet.Wallet // basic V3 wallet to make other wallets with different subwallet_id
 	JettonHotWallets map[string]JettonWallet
 	PublicKey        ed25519.PublicKey
 }
@@ -43,10 +43,6 @@ func InitWallets(
 		return Wallets{}, err
 	}
 
-	tonBasicWallet, _, err := bc.GenerateDefaultWallet(seed, false)
-	if err != nil {
-		return Wallets{}, err
-	}
 	// don't set TTL here because spec is not inherited by GetSubwallet method
 
 	jettonHotWallets := make(map[string]JettonWallet)
@@ -61,7 +57,6 @@ func InitWallets(
 	return Wallets{
 		Shard:            *shard,
 		TonHotWallet:     tonHotWallet,
-		TonBasicWallet:   tonBasicWallet,
 		JettonHotWallets: jettonHotWallets,
 		// TODO: return pubkey
 	}, nil
@@ -232,7 +227,12 @@ func LoadComment(cell *boc.Cell) string {
 // WithdrawTONs
 // Send all TON from one wallet (and deploy it if needed) to another and destroy "from" wallet contract.
 // Wallet must be not empty.
-func WithdrawTONs(ctx context.Context, from, to *wallet.Wallet, comment string) error {
+func WithdrawTONs(
+	ctx context.Context,
+	from, to *wallet.Wallet,
+	comment string,
+	expiredAt time.Time, // TODO: implement
+) error {
 	if from == nil || to == nil {
 		return fmt.Errorf("nil wallet")
 	}
@@ -258,6 +258,7 @@ func WithdrawJettons(
 	forwardAmount tlb.Coins,
 	amount Coins,
 	comment string,
+	expiredAt time.Time, // TODO: implement
 ) error {
 	if from == nil || to == nil {
 		return fmt.Errorf("nil wallet")

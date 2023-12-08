@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"crypto/ed25519"
 	"github.com/google/uuid"
 	"github.com/tonkeeper/tongo"
 	"github.com/tonkeeper/tongo/tlb"
@@ -45,6 +46,7 @@ type blockchain interface {
 	GetAccountCurrentState(ctx context.Context, address tongo.AccountID) (uint64, tlb.AccountStatus, error)
 	GetLastJettonBalance(ctx context.Context, jettonWallet tongo.AccountID) (*big.Int, error)
 	DeployTonWallet(ctx context.Context, wallet *wallet.Wallet) error
+	GenerateWallet(privateKey ed25519.PrivateKey, walletType wallet.Version, subwalletID uint32) (*wallet.Wallet, error)
 }
 
 type blocksTracker interface {

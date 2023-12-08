@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"crypto/ed25519"
 	"fmt"
 	core "github.com/gobicycle/bicycle/internal/core"
 	log "github.com/sirupsen/logrus"
@@ -64,7 +65,7 @@ func NewConnection(ctx context.Context, cfg []tongoConfig.LiteServer) (*Connecti
 }
 
 // GenerateDefaultWallet generates HighloadV2R2 or V3R2 TON wallet with
-// default subwallet_id and returns wallet, shard and subwalletID
+// default subwallet_id and returns wallet and subwalletID
 func (c *Connection) GenerateDefaultWallet(seed string, isHighload bool) (
 	w *wallet.Wallet,
 	subwalletID uint32, err error,
@@ -74,24 +75,31 @@ func (c *Connection) GenerateDefaultWallet(seed string, isHighload bool) (
 		return nil, 0, err
 	}
 
-	subWalletID := wallet.DefaultSubWallet
+	id := wallet.DefaultSubWallet
 
 	if isHighload {
-		hw, err := wallet.New(pk, wallet.HighLoadV2R2, core.DefaultWorkchainID, &subWalletID, c.client)
+		hw, err := wallet.New(pk, wallet.HighLoadV2R2, core.DefaultWorkchainID, &id, c.client)
 		w = &hw
 		if err != nil {
 			return nil, 0, err
 		}
 		//w, err = wallet.FromSeed(c, words, wallet.HighloadV2R2)
 	} else {
-		ow, err := wallet.New(pk, wallet.V3R2, core.DefaultWorkchainID, &subWalletID, c.client)
+		ow, err := wallet.New(pk, wallet.V3R2, core.DefaultWorkchainID, &id, c.client)
 		w = &ow
 		if err != nil {
 			return nil, 0, err
 		}
 		//w, err = wallet.FromSeed(c, words, wallet.V3)
 	}
-	return w, uint32(subWalletID), nil
+	return w, uint32(id), nil
+}
+
+// TODO: simplify
+func (c *Connection) GenerateWallet(privateKey ed25519.PrivateKey, walletType wallet.Version, subwalletID uint32) (*wallet.Wallet, error) {
+	id := int(subwalletID) // TODO: check for maxuint32
+	w, err := wallet.New(privateKey, walletType, core.DefaultWorkchainID, &id, c.client)
+	return &w, err
 }
 
 // GetJettonWalletAddress generates jetton wallet address from owner and jetton master addresses
