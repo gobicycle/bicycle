@@ -582,12 +582,16 @@ func parseExternalMessage(msg *tlb.ExternalMessage) (
 	return info.UUID, addrMap, true, nil
 }
 
-func (s *BlockScanner) failedWithdrawals(inMap map[Address]struct{}, outMap map[Address]struct{}, u uuid.UUID) []ExternalWithdrawal {
+func (s *BlockScanner) failedWithdrawals(inMap map[Address]struct{}, outMap map[Address]struct{}, u uuid.UUID, txHash []byte) []ExternalWithdrawal {
 	var w []ExternalWithdrawal
 	for i := range inMap {
 		_, dstOk := s.db.GetWalletType(i)
 		if _, ok := outMap[i]; !ok && !dstOk { // !dstOk - not failed internal fee payments
-			w = append(w, ExternalWithdrawal{ExtMsgUuid: u, To: i, IsFailed: true})
+			w = append(w, ExternalWithdrawal{ExtMsgUuid: u, To: i, IsFailed: true, TxHash: txHash})
+			audit.LogTX(audit.Error, string(TonHotWallet), txHash, fmt.Sprintf("Failed external withdrawal to %v", i.ToUserFormat()))
+		} else if !ok && dstOk { // failed internal fee payments
+			// TODO: cause a fatal error or increment error counter
+			audit.LogTX(audit.Error, string(TonHotWallet), txHash, fmt.Sprintf("Failed internal withdrawal to %v", i.ToUserFormat()))
 		}
 	}
 	return w
@@ -663,6 +667,7 @@ func (s *BlockScanner) processTonHotWalletExternalInMsg(tx *tlb.Transaction) (Ev
 				Amount:     jettonTransfer.Amount,
 				Comment:    jettonTransfer.Comment,
 				IsFailed:   false,
+				TxHash:     tx.Hash,
 			})
 			addrMapOut[a] = struct{}{}
 			continue
@@ -687,11 +692,12 @@ func (s *BlockScanner) processTonHotWalletExternalInMsg(tx *tlb.Transaction) (Ev
 				Amount:     NewCoins(msg.Amount.NanoTON()),
 				Comment:    msg.Comment(),
 				IsFailed:   false,
+				TxHash:     tx.Hash,
 			})
 		}
 		addrMapOut[addr] = struct{}{}
 	}
-	events.ExternalWithdrawals = append(events.ExternalWithdrawals, s.failedWithdrawals(addrMapIn, addrMapOut, u)...)
+	events.ExternalWithdrawals = append(events.ExternalWithdrawals, s.failedWithdrawals(addrMapIn, addrMapOut, u, tx.Hash)...)
 	return events, nil
 }
 

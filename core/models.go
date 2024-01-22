@@ -53,6 +53,7 @@ const (
 	PendingStatus    WithdrawalStatus = "pending"
 	ProcessingStatus WithdrawalStatus = "processing"
 	ProcessedStatus  WithdrawalStatus = "processed"
+	FailedStatus     WithdrawalStatus = "failed"
 )
 
 var (
@@ -209,6 +210,7 @@ type ExternalWithdrawal struct {
 	Amount     Coins
 	Comment    string
 	IsFailed   bool
+	TxHash     []byte
 }
 
 type JettonWithdrawalConfirmation struct {

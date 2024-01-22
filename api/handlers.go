@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gobicycle/bicycle/config"
 	"github.com/gobicycle/bicycle/core"
@@ -58,6 +59,7 @@ type WithdrawalResponse struct {
 
 type WithdrawalStatusResponse struct {
 	Status core.WithdrawalStatus `json:"status"`
+	TxHash string                `json:"tx_hash,omitempty"`
 }
 
 type GetIncomeResponse struct {
@@ -81,6 +83,7 @@ type income struct {
 	SourceAddress  string `json:"source_address,omitempty"`
 	Amount         string `json:"amount"`
 	Comment        string `json:"comment,omitempty"`
+	TxHash         string `json:"tx_hash,omitempty"`
 }
 
 func NewHandler(s storage, b blockchain, token string, shard byte, hotWalletAddress address.Address) *Handler {
@@ -207,8 +210,8 @@ func (h *Handler) getWithdrawalStatus(resp http.ResponseWriter, req *http.Reques
 		writeHttpError(resp, http.StatusBadRequest, fmt.Sprintf("convert request ID err: %v", err))
 		return
 	}
-	status, err := h.storage.GetExternalWithdrawalStatus(req.Context(), id)
-	if err == core.ErrNotFound {
+	status, txHash, err := h.storage.GetExternalWithdrawalStatus(req.Context(), id)
+	if errors.Is(err, core.ErrNotFound) {
 		writeHttpError(resp, http.StatusBadRequest, "request ID not found")
 		return
 	}
@@ -218,7 +221,7 @@ func (h *Handler) getWithdrawalStatus(resp http.ResponseWriter, req *http.Reques
 	}
 	resp.Header().Add("Content-Type", "application/json")
 	resp.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(resp).Encode(WithdrawalStatusResponse{Status: status})
+	err = json.NewEncoder(resp).Encode(WithdrawalStatusResponse{Status: status, TxHash: fmt.Sprintf("%x", txHash)})
 	if err != nil {
 		log.Errorf("json encode error: %v", err)
 	}
@@ -562,6 +565,7 @@ func convertHistory(dbConn storage, currency string, incomes []core.ExternalInco
 			Time:    int64(i.Utime),
 			Amount:  i.Amount.String(),
 			Comment: i.Comment,
+			TxHash:  fmt.Sprintf("%x", i.TxHash),
 		}
 		if currency == core.TonSymbol {
 			inc.DepositAddress = i.To.ToUserFormat()
@@ -612,7 +616,7 @@ type storage interface {
 	SaveWithdrawalRequest(ctx context.Context, w core.WithdrawalRequest) (int64, error)
 	IsWithdrawalRequestUnique(ctx context.Context, w core.WithdrawalRequest) (bool, error)
 	IsActualBlockData(ctx context.Context) (bool, error)
-	GetExternalWithdrawalStatus(ctx context.Context, id int64) (core.WithdrawalStatus, error)
+	GetExternalWithdrawalStatus(ctx context.Context, id int64) (core.WithdrawalStatus, []byte, error)
 	GetWalletType(address core.Address) (core.WalletType, bool)
 	GetIncome(ctx context.Context, userID string, isDepositSide bool) ([]core.TotalIncome, error)
 	SaveServiceWithdrawalRequest(ctx context.Context, w core.ServiceWithdrawalRequest) (uuid.UUID, error)

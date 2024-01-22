@@ -176,14 +176,16 @@ sender's address as `source_address` (if it could be determined).
                   "time": 1680604643,
                   "source_address": "0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP",
                   "amount": "1000000",
-                  "comment": "hello"
+                  "comment": "hello",
+                  "tx_hash": "9d0fb69b1ca9371bc9e5260a248cda12a1c42916f9051fe9fc21b4abdd41d744"
                 },
                 {
                   "deposit_address": "0QCdyiS-fIV9UVfI9Phswo4l2MA-hm8YseHynZ_YiH9Y1oSe",
                   "time": 1680604648,
                   "source_address": "0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP",
                   "amount": "1000000",
-                  "comment": "hello"
+                  "comment": "hello",
+                  "tx_hash": "7d0fb69b1ca9371bc9e5260a248cda12a1c42916f9051fe9fc21b4abdd41d744"
                 }
               ]
             }
@@ -339,7 +341,7 @@ Returns `memo` as comment for transfer message.
 
 ## Get withdrawal status [GET /v1/withdrawal/status{?id}]
 
-Get withdrawal status. Returns `pending`, `processing`, `processed`
+Get withdrawal status. Returns `pending`, `processing`, `processed`/'failed' and transaction hash for processed withdrawal.
 
 + Parameters
 
@@ -356,7 +358,8 @@ Get withdrawal status. Returns `pending`, `processing`, `processed`
     + Body
 
             {
-              "status": "pending"
+              "status": "processed",
+              "tx_hash": "9d0fb69b1ca9371bc9e5260a248cda12a1c42916f9051fe9fc21b4abdd41d744"
             }
 
 + Response 400 (application/json)

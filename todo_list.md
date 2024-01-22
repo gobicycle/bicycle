@@ -52,9 +52,11 @@
 - [x] Add hysteresis to cold wallet withdrawal
 - [x] Add user id to notifications
 - [x] Add transaction hash to notifications
+- [ ] Save tx hash to DB for withdrawals and incomes
+- [ ] Add `failed` status for withdrawals and do not retry failed (at hot wallet) withdrawals
 - [ ] Avoid blocking withdrawals to an address if there is a very large amount in the queue for withdrawals to this address
-- [ ] Save tx hash to DB
 - [ ] Support DNS names in recipient address
+- [ ] Withdrawal cancellation mechanism
 - [ ] Jetton threat model
 - [ ] TNX compatibility test
 - [ ] Installation video manual
@@ -70,5 +72,7 @@
 - [ ] Separate .env files for services
 - [ ] Automatic migrations
 - [ ] SDK
-- [ ] migration from blueprint to openapi
-- [ ] refactor config and cutoff parameters
+- [ ] Migration from blueprint to openapi
+- [ ] Refactor config and cutoff parameters
+- [ ] Get balances via states and check proof (not via get method)
+- [ ] Remove scam jettons from examples
