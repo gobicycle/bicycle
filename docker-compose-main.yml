@@ -7,6 +7,7 @@ services:
     container_name: payment_processor_db
     volumes:
     - ./deploy/db/01_init.up.sql:/docker-entrypoint-initdb.d/init.sql
+    - bicycle-postgres:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     restart: always
