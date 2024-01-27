@@ -331,6 +331,12 @@ Template:
 - RESULT  : The sender's address must be not presented.
 - COMMENT :
 
+8. -[] Checked
+- TEST    : Up `payment-postgres` from `docker-compose-main.yml` with named volume. Write some data to DB.
+            Remove the container via down (without -v flag) and up it again. Check that the data is available in the DB.
+- RESULT  : 
+- COMMENT :
+
 ### Stability test
 
 1. -[] Checked
