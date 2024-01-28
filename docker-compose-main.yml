@@ -73,3 +73,7 @@ services:
 networks:
   p-network:
     driver: bridge
+
+volumes:
+  bicycle-postgres:
+    external: false
