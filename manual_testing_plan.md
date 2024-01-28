@@ -334,7 +334,13 @@ Template:
 8. -[] Checked
 - TEST    : Up `payment-postgres` from `docker-compose-main.yml` with named volume. Write some data to DB.
             Remove the container via down (without -v flag) and up it again. Check that the data is available in the DB.
-- RESULT  : 
+- RESULT  : The data in the database should be preserved after the container is recreated.
+- COMMENT :
+
+9. -[] Checked
+- TEST    : Check availability of Prometheus metrics. Run the prometheus container from the `docker-compose-main.yml` file 
+            and check the metrics via the web interface.
+- RESULT  : Error counter metrics should be available in the Prometheus web interface.
 - COMMENT :
 
 ### Stability test

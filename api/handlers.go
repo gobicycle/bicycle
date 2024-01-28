@@ -1,12 +1,14 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/gobicycle/bicycle/config"
 	"github.com/gobicycle/bicycle/core"
+	"github.com/gobicycle/bicycle/metrics"
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	log "github.com/sirupsen/logrus"
@@ -344,6 +346,23 @@ func (h *Handler) serviceJettonWithdrawal(resp http.ResponseWriter, req *http.Re
 	}
 }
 
+func (h *Handler) getMetrics(resp http.ResponseWriter, req *http.Request) {
+	buf := new(bytes.Buffer)
+	for _, m := range metrics.AllMetrics {
+		err := m.Print(buf)
+		if err != nil {
+			writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get metrics err: %v", err.Error()))
+			return
+		}
+	}
+	resp.Header().Add("Content-Type", "application/text")
+	resp.WriteHeader(http.StatusOK)
+	_, err := resp.Write(buf.Bytes())
+	if err != nil {
+		log.Errorf("buffer writing error: %v", err)
+	}
+}
+
 func RegisterHandlers(mux *http.ServeMux, h *Handler) {
 	mux.HandleFunc("/v1/address/new", recoverMiddleware(authMiddleware(post(h.getNewAddress))))
 	mux.HandleFunc("/v1/address/all", recoverMiddleware(authMiddleware(get(h.getAddresses))))
@@ -355,6 +374,7 @@ func RegisterHandlers(mux *http.ServeMux, h *Handler) {
 	mux.HandleFunc("/v1/balance", recoverMiddleware(authMiddleware(get(h.getBalance)))) // deprecated
 	mux.HandleFunc("/v1/income", recoverMiddleware(authMiddleware(get(h.getIncome))))
 	mux.HandleFunc("/v1/deposit/history", recoverMiddleware(authMiddleware(get(h.getIncomeHistory))))
+	mux.HandleFunc("/metrics", recoverMiddleware(get(h.getMetrics)))
 }
 
 func generateAddress(

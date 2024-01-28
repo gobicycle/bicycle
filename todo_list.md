@@ -54,6 +54,10 @@
 - [x] Add transaction hash to notifications
 - [ ] Save tx hash to DB for withdrawals and incomes
 - [ ] Add `failed` status for withdrawals and do not retry failed (at hot wallet) withdrawals
+- [ ] Get incoming and withdrawal by tx hash method
+- [ ] Add asc-desc flag for get history method
+- [ ] Add error counter as prometheus metrics
+- [ ] Send events after saving to the database (there is a possibility of losing events instead of duplicating them)
 - [ ] Avoid blocking withdrawals to an address if there is a very large amount in the queue for withdrawals to this address
 - [ ] Support DNS names in recipient address
 - [ ] Withdrawal cancellation mechanism

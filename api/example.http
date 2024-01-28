@@ -58,3 +58,6 @@ Authorization: Bearer {{token}}
 
 ###
 GET {{url}}/v1/system/sync
+
+###
+GET {{url}}/metrics
