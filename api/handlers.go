@@ -16,6 +16,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -273,7 +274,17 @@ func (h *Handler) getIncomeHistory(resp http.ResponseWriter, req *http.Request) 
 		writeHttpError(resp, http.StatusBadRequest, "invalid offset parameter")
 		return
 	}
-	history, err := h.storage.GetIncomeHistory(req.Context(), id, currency, limit, offset)
+
+	ascOrder := false
+	sort := strings.ToLower(req.URL.Query().Get("sort_order"))
+	if sort == "asc" {
+		ascOrder = true
+	} else if sort != "" && sort != "desc" {
+		writeHttpError(resp, http.StatusBadRequest, "invalid sort order")
+		return
+	}
+
+	history, err := h.storage.GetIncomeHistory(req.Context(), id, currency, limit, offset, ascOrder)
 	if err != nil {
 		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get history err: %v", err))
 		return
@@ -640,7 +651,7 @@ type storage interface {
 	GetWalletType(address core.Address) (core.WalletType, bool)
 	GetIncome(ctx context.Context, userID string, isDepositSide bool) ([]core.TotalIncome, error)
 	SaveServiceWithdrawalRequest(ctx context.Context, w core.ServiceWithdrawalRequest) (uuid.UUID, error)
-	GetIncomeHistory(ctx context.Context, userID string, currency string, limit int, offset int) ([]core.ExternalIncome, error)
+	GetIncomeHistory(ctx context.Context, userID string, currency string, limit int, offset int, ascOrder bool) ([]core.ExternalIncome, error)
 	GetOwner(address core.Address) *core.Address
 }
 

@@ -1158,6 +1158,7 @@ func (c *Connection) GetIncomeHistory(
 	currency string,
 	limit int,
 	offset int,
+	ascOrder bool,
 ) (
 	[]core.ExternalIncome,
 	error,
@@ -1168,27 +1169,32 @@ func (c *Connection) GetIncomeHistory(
 		walletType   core.WalletType
 	)
 
+	order := "DESC"
+	if ascOrder {
+		order = "ASC"
+	}
+
 	if currency == core.TonSymbol {
-		sqlStatement = `
+		sqlStatement = fmt.Sprintf(`
 			SELECT utime, lt, payer_address, deposit_address, amount, comment, payer_workchain, tx_hash
 			FROM payments.external_incomes i
 				LEFT JOIN payments.ton_wallets tw ON i.deposit_address = tw.address
 			WHERE tw.type = $1 AND tw.user_id = $2 AND $3 = $3
-			ORDER BY lt DESC
+			ORDER BY lt %s
 			LIMIT $4
 			OFFSET $5
-		`
+		`, order)
 		walletType = core.TonDepositWallet
 	} else {
-		sqlStatement = `
+		sqlStatement = fmt.Sprintf(`
 			SELECT utime, lt, payer_address, deposit_address, amount, comment, payer_workchain, tx_hash
 			FROM payments.external_incomes i
 			    LEFT JOIN payments.jetton_wallets jw ON i.deposit_address = jw.address
 			WHERE jw.type = $1 AND jw.user_id = $2 AND jw.currency = $3
-			ORDER BY lt DESC
+			ORDER BY lt %s
 			LIMIT $4
 			OFFSET $5
-		`
+		`, order)
 		walletType = core.JettonDepositWallet
 	}
 
