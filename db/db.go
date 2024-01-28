@@ -1217,3 +1217,53 @@ func (c *Connection) GetIncomeHistory(
 	}
 	return res, nil
 }
+
+// GetIncomeByTx returns external income and currency for deposit side by transaction hash
+func (c *Connection) GetIncomeByTx(
+	ctx context.Context,
+	txHash []byte,
+) (
+	*core.ExternalIncome,
+	string,
+	error,
+) {
+
+	var (
+		income core.ExternalIncome
+		t      time.Time
+	)
+
+	err := c.client.QueryRow(ctx, `
+		SELECT utime, lt, payer_address, deposit_address, amount, comment, payer_workchain
+		FROM payments.external_incomes i
+		LEFT JOIN payments.ton_wallets tw ON i.deposit_address = tw.address
+		WHERE tw.type = $1 AND i.tx_hash = $2
+		LIMIT 1
+	`, core.TonDepositWallet, txHash).Scan(&t, &income.Lt, &income.From, &income.To, &income.Amount, &income.Comment, &income.FromWorkchain)
+	if errors.Is(err, pgx.ErrNoRows) {
+		var currency string
+		// amount > 0 means receiving an aggregated transaction for an unidentified jetton replenishment
+		err = c.client.QueryRow(ctx, `
+			SELECT utime, lt, payer_address, deposit_address, amount, comment, payer_workchain, jw.currency
+			FROM payments.external_incomes i
+			LEFT JOIN payments.jetton_wallets jw ON i.deposit_address = jw.address
+			WHERE jw.type = $1 AND i.tx_hash = $2 AND i.amount > 0
+			LIMIT 1
+		`, core.JettonDepositWallet, txHash).Scan(&t, &income.Lt, &income.From, &income.To, &income.Amount, &income.Comment, &income.FromWorkchain, &currency)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, "", nil // not found
+		}
+		if err != nil {
+			return nil, "", err
+		}
+		income.Utime = uint32(t.Unix())
+		income.TxHash = txHash
+		return &income, currency, nil
+	}
+	if err != nil {
+		return nil, "", err
+	}
+	income.Utime = uint32(t.Unix())
+	income.TxHash = txHash
+	return &income, core.TonSymbol, nil
+}

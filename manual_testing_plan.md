@@ -258,6 +258,23 @@ Template:
 - RESULT  : The sender's address must be not presented in the history.
 - COMMENT :
 
+29. -[] Checked
+- TEST    : Replenish the TON and Jetton deposit with some amount and check it by
+            `/v1/deposit/income{?tx_hash}` method.
+- RESULT  : Incomes must correlate with payments and DB `external_incomes` table.
+- COMMENT :
+
+30. -[] Checked
+- TEST    : Replenish the Jetton deposit with zero forward amount and check it by
+            `/v1/deposit/income{?tx_hash}` method.
+- RESULT  : The sender's address must be not presented in the response value must be nonzero.
+- COMMENT :
+
+31. -[] Checked
+- TEST    : Try to find non-existent `tx_hash` by `/v1/deposit/income{?tx_hash}` method.
+- RESULT  : The method should return a 404 error.
+- COMMENT :
+
 ### Internal logic
 
 1. -[] Checked

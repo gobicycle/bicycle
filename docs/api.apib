@@ -400,4 +400,62 @@ As long as the flag is equal to `false`, no withdrawals are made.
 
             {
                 "error": "error text"
-            }             
+            }
+
+## Get income by transaction hash [GET /v1/deposit/income{?tx_hash}]
+
+Find income for deposit by `tx_hash`. Returns the currency and the deposit replenishment with the
+sender's address as `source_address` (if it could be determined).
+
++ Parameters
+
+    + tx_hash (string) - an unique hash of replenishment transaction
+
++ Request
+
+    + Headers
+
+            Authorization: Bearer
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+              "currency": "TON",
+              "income":
+                {
+                  "deposit_address": "0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR",
+                  "time": 1680604643,
+                  "source_address": "0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP",
+                  "amount": "1000000",
+                  "comment": "hello",
+                  "tx_hash": "9d0fb69b1ca9371bc9e5260a248cda12a1c42916f9051fe9fc21b4abdd41d744"
+                }
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 404 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }

@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -72,6 +73,11 @@ type GetIncomeResponse struct {
 
 type GetHistoryResponse struct {
 	Incomes []income `json:"incomes"`
+}
+
+type GetIncomeByTxResponse struct {
+	Currency string `json:"currency"`
+	Income   income `json:"income"`
 }
 
 type totalIncome struct {
@@ -238,7 +244,7 @@ func (h *Handler) getIncome(resp http.ResponseWriter, req *http.Request) {
 	}
 	totalIncomes, err := h.storage.GetIncome(req.Context(), id, config.Config.IsDepositSideCalculation)
 	if err != nil {
-		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get balances err: %v", err))
+		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get income err: %v", err))
 		return
 	}
 	resp.Header().Add("Content-Type", "application/json")
@@ -374,6 +380,35 @@ func (h *Handler) getMetrics(resp http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func (h *Handler) getIncomeByTx(resp http.ResponseWriter, req *http.Request) {
+	txHash := strings.ToLower(req.URL.Query().Get("tx_hash"))
+	hash, err := hex.DecodeString(txHash)
+	if err != nil {
+		writeHttpError(resp, http.StatusBadRequest, fmt.Sprintf("get tx hash err: %v", err.Error()))
+		return
+	}
+	if len(hash) != 32 {
+		writeHttpError(resp, http.StatusBadRequest, "invalid hash len")
+		return
+	}
+	oneIncome, currency, err := h.storage.GetIncomeByTx(req.Context(), hash)
+	if err != nil {
+		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get income by tx err: %v", err))
+		return
+	}
+	if oneIncome == nil {
+		writeHttpError(resp, http.StatusNotFound, "transaction not found")
+		return
+	}
+	resp.Header().Add("Content-Type", "application/json")
+	resp.WriteHeader(http.StatusOK)
+	res := GetIncomeByTxResponse{Currency: currency, Income: convertOneIncome(h.storage, currency, *oneIncome)}
+	err = json.NewEncoder(resp).Encode(res)
+	if err != nil {
+		log.Errorf("json encode error: %v", err)
+	}
+}
+
 func RegisterHandlers(mux *http.ServeMux, h *Handler) {
 	mux.HandleFunc("/v1/address/new", recoverMiddleware(authMiddleware(post(h.getNewAddress))))
 	mux.HandleFunc("/v1/address/all", recoverMiddleware(authMiddleware(get(h.getAddresses))))
@@ -385,6 +420,7 @@ func RegisterHandlers(mux *http.ServeMux, h *Handler) {
 	mux.HandleFunc("/v1/balance", recoverMiddleware(authMiddleware(get(h.getBalance)))) // deprecated
 	mux.HandleFunc("/v1/income", recoverMiddleware(authMiddleware(get(h.getIncome))))
 	mux.HandleFunc("/v1/deposit/history", recoverMiddleware(authMiddleware(get(h.getIncomeHistory))))
+	mux.HandleFunc("/v1/deposit/income", recoverMiddleware(authMiddleware(get(h.getIncomeByTx))))
 	mux.HandleFunc("/metrics", recoverMiddleware(get(h.getMetrics)))
 }
 
@@ -587,33 +623,38 @@ func convertIncome(dbConn storage, totalIncomes []core.TotalIncome) GetIncomeRes
 	return res
 }
 
+func convertOneIncome(dbConn storage, currency string, oneIncome core.ExternalIncome) income {
+	inc := income{
+		Time:    int64(oneIncome.Utime),
+		Amount:  oneIncome.Amount.String(),
+		Comment: oneIncome.Comment,
+		TxHash:  fmt.Sprintf("%x", oneIncome.TxHash),
+	}
+	if currency == core.TonSymbol {
+		inc.DepositAddress = oneIncome.To.ToUserFormat()
+	} else {
+		owner := dbConn.GetOwner(oneIncome.To)
+		if owner == nil {
+			// TODO: remove fatal
+			log.Fatalf("can not find owner for deposit: %s", oneIncome.To.ToUserFormat())
+		}
+		inc.DepositAddress = owner.ToUserFormat()
+	}
+	// show only std address
+	if len(oneIncome.From) == 32 && oneIncome.FromWorkchain != nil {
+		addr := address.NewAddress(0, byte(*oneIncome.FromWorkchain), oneIncome.From)
+		addr.SetTestnetOnly(config.Config.Testnet)
+		inc.SourceAddress = addr.String()
+	}
+	return inc
+}
+
 func convertHistory(dbConn storage, currency string, incomes []core.ExternalIncome) GetHistoryResponse {
 	var res = GetHistoryResponse{
 		Incomes: []income{},
 	}
 	for _, i := range incomes {
-		inc := income{
-			Time:    int64(i.Utime),
-			Amount:  i.Amount.String(),
-			Comment: i.Comment,
-			TxHash:  fmt.Sprintf("%x", i.TxHash),
-		}
-		if currency == core.TonSymbol {
-			inc.DepositAddress = i.To.ToUserFormat()
-		} else {
-			owner := dbConn.GetOwner(i.To)
-			if owner == nil {
-				// TODO: remove fatal
-				log.Fatalf("can not find owner for deposit: %s", i.To.ToUserFormat())
-			}
-			inc.DepositAddress = owner.ToUserFormat()
-		}
-		// show only std address
-		if len(i.From) == 32 && i.FromWorkchain != nil {
-			addr := address.NewAddress(0, byte(*i.FromWorkchain), i.From)
-			addr.SetTestnetOnly(config.Config.Testnet)
-			inc.SourceAddress = addr.String()
-		}
+		inc := convertOneIncome(dbConn, currency, i)
 		res.Incomes = append(res.Incomes, inc)
 	}
 	return res
@@ -653,6 +694,7 @@ type storage interface {
 	SaveServiceWithdrawalRequest(ctx context.Context, w core.ServiceWithdrawalRequest) (uuid.UUID, error)
 	GetIncomeHistory(ctx context.Context, userID string, currency string, limit int, offset int, ascOrder bool) ([]core.ExternalIncome, error)
 	GetOwner(address core.Address) *core.Address
+	GetIncomeByTx(ctx context.Context, txHash []byte) (*core.ExternalIncome, string, error)
 }
 
 type blockchain interface {
