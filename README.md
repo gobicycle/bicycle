@@ -137,6 +137,10 @@ docker-compose -f docker-compose-main.yml up -d payment-rabbitmq
 
 ## Payment notifications
 
+ATTENTION! Sending notifications does not guarantee that all notifications will be sent. 
+If the service is restarted after the data is saved to the database and before the notification data is sent, 
+these notifications will not be sent after restart.
+
 The service has several mechanisms for notification of payments. These are webhooks and a AMQP (to RabbitMQ). 
 Depending on the `DEPOSIT_SIDE_BALANCE` setting, a notification is received either about the payment to the 
 deposit address, or about the withdrawal from the deposit to the hot wallet. Source address and comment returned if known.

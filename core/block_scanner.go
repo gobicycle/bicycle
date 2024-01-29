@@ -121,11 +121,13 @@ func (s *BlockScanner) processBlock(ctx context.Context, block ShardBlockHeader)
 	if err != nil {
 		return err
 	}
-	err = s.pushNotifications(e)
+	err = s.db.SaveParsedBlockData(ctx, e)
 	if err != nil {
 		return err
 	}
-	return s.db.SaveParsedBlockData(ctx, e)
+	// Push notifications after saving to the database.
+	// Prevents duplicate sending on restart, but may result in lost notifications.
+	return s.pushNotifications(e)
 }
 
 func (s *BlockScanner) pushNotifications(e BlockEvents) error {
