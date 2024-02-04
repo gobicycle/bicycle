@@ -360,6 +360,14 @@ Template:
 - RESULT  : Error counter metrics should be available in the Prometheus web interface.
 - COMMENT :
 
+10. -[] Checked
+- TEST    : Check migration 0.4.x-0.5.0.sql. Create version v0.4.0 DB, then make several withdrawals 
+            (preferably with lost messages) that are in the status `processed` and `processing`.
+            Then stop the processor and apply the migration. Launch the new version of the processor and 
+            check that the outputs were processed normally and no duplicate outputs occurred.
+- RESULT  : Withdrawals must be made correctly, there should be no duplicate withdrawals.
+- COMMENT :
+
 ### Stability test
 
 1. -[] Checked
