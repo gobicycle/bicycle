@@ -965,13 +965,12 @@ func (c *Connection) SetExpired(ctx context.Context) error {
 	}
 	defer tx.Rollback(ctx)
 
-	// processed_lt IS NULL - for lost external messages,
-	// tx_hash IS NULL - for lost external messages and for all withdrawals up to version 0.4.x inclusive
+	// processed_lt IS NULL AND failed = false - for lost external messages
 	rows, err := tx.Query(ctx, `
 			UPDATE payments.external_withdrawals
 			SET
 		    	failed = true		    	
-			WHERE  expired_at < $1 AND processed_lt IS NULL AND tx_hash IS NULL AND failed = false
+			WHERE  expired_at < $1 AND processed_lt IS NULL AND failed = false
 			RETURNING query_id
 	`, time.Now().Add(-config.AllowableBlockchainLagging))
 
@@ -1077,7 +1076,7 @@ func (c *Connection) GetExternalWithdrawalStatus(ctx context.Context, id int64) 
 		err = c.client.QueryRow(ctx, `
 		SELECT tx_hash, failed
 		FROM payments.external_withdrawals
-		WHERE query_id = $1 AND processed_lt IS NOT NULL
+		WHERE query_id = $1 AND tx_hash IS NOT NULL
 		LIMIT 1
 	`, id).Scan(&txHash, &isFailed)
 		if err != nil {
@@ -1251,7 +1250,7 @@ func (c *Connection) GetIncomeByTx(
 			LIMIT 1
 		`, core.JettonDepositWallet, txHash).Scan(&t, &income.Lt, &income.From, &income.To, &income.Amount, &income.Comment, &income.FromWorkchain, &currency)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, "", nil // not found
+			return nil, "", core.ErrNotFound // not found
 		}
 		if err != nil {
 			return nil, "", err

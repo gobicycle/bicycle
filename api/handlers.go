@@ -392,12 +392,12 @@ func (h *Handler) getIncomeByTx(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 	oneIncome, currency, err := h.storage.GetIncomeByTx(req.Context(), hash)
-	if err != nil {
-		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get income by tx err: %v", err))
+	if errors.Is(err, core.ErrNotFound) {
+		writeHttpError(resp, http.StatusNotFound, "transaction not found")
 		return
 	}
-	if oneIncome == nil {
-		writeHttpError(resp, http.StatusNotFound, "transaction not found")
+	if err != nil {
+		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get income by tx err: %v", err))
 		return
 	}
 	resp.Header().Add("Content-Type", "application/json")
