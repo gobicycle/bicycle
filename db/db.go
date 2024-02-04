@@ -1073,10 +1073,11 @@ func (c *Connection) GetExternalWithdrawalStatus(ctx context.Context, id int64) 
 			isFailed bool
 		)
 		// must be only one record
+		// OR processed_lt IS NOT NULL for DB up to 0.5.0 version
 		err = c.client.QueryRow(ctx, `
 		SELECT tx_hash, failed
 		FROM payments.external_withdrawals
-		WHERE query_id = $1 AND tx_hash IS NOT NULL
+		WHERE query_id = $1 AND (tx_hash IS NOT NULL OR processed_lt IS NOT NULL)
 		LIMIT 1
 	`, id).Scan(&txHash, &isFailed)
 		if err != nil {
