@@ -53,6 +53,7 @@
 - [x] Add user id to notifications
 - [x] Add transaction hash to notifications
 - [ ] Add incorrect processing of some TON deposit replenishments for failed transaction to threat model
+- [ ] Duplicates of external withdrawals for DB backup problem
 - [ ] Save tx hash to DB for withdrawals and incomes
 - [ ] Add `failed` status for withdrawals and do not retry failed (at hot wallet) withdrawals
 - [ ] Get incoming and withdrawal by tx hash method
