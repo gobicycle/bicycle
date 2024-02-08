@@ -316,33 +316,32 @@ func (s *BlockScanner) processTonDepositWalletTXs(txs transactions) (Events, err
 			return Events{}, fmt.Errorf("anomalous behavior of the deposit TON wallet")
 		}
 
-		success, err := checkTxForSuccess(tx)
-		if err != nil {
-			return Events{}, err
-		}
-		if !success {
-			audit.LogTX(audit.Info, string(TonDepositWallet), tx.Hash, "failed transaction")
-			continue
-		}
-
 		switch tx.IO.In.MsgType {
 		case tlb.MsgTypeExternalIn:
 			// internal withdrawal. spam or invalid external cannot invoke tx
 			// theoretically will be up to 4 out messages for TON V3 wallet
 			// external_in msg without out_msg very rare or impossible
 			// it is not critical for internal transfers (double spending not dangerous).
+			success, err := checkTxForSuccess(tx)
+			if err != nil {
+				return Events{}, err
+			}
+			if !success {
+				audit.LogTX(audit.Info, string(TonDepositWallet), tx.Hash, "failed transaction")
+				continue
+			}
 			e, err := s.processTonDepositWalletExternalInMsg(tx)
 			if err != nil {
 				return Events{}, err
 			}
 			events.Append(e)
 		case tlb.MsgTypeInternal:
-			// success external income (without bounce)
+			// external payment income
 			// internal message can not invoke out message for TON wallet V3 except of bounce
-			// bounced filtered at !success step
+			// bounced filtered by len(tx.IO.Out) != 0
 			if len(tx.IO.Out) != 0 {
-				audit.LogTX(audit.Error, string(TonDepositWallet), tx.Hash, "outgoing message from internal incoming")
-				return Events{}, fmt.Errorf("anomalous behavior of the deposit TON wallet")
+				audit.LogTX(audit.Info, string(TonDepositWallet), tx.Hash, "ton deposit filling is bounced")
+				continue
 			}
 			e, err := s.processTonDepositWalletInternalInMsg(tx)
 			if err != nil {
