@@ -703,6 +703,7 @@ func (c *Connection) GetTonInternalWithdrawalTasks(ctx context.Context, limit in
 		WHERE ((since_lt IS NOT NULL AND finish_lt IS NOT NULL AND lt > finish_lt) OR (since_lt IS NULL)) 
 		  AND type = $1
 		GROUP BY deposit_address, tw.subwallet_id
+		ORDER BY MAX(di.amount) DESC
 		LIMIT $2
 	`, core.TonDepositWallet, limit)
 	if err != nil {
@@ -751,6 +752,7 @@ func (c *Connection) GetJettonInternalWithdrawalTasks(
 		WHERE ((since_lt IS NOT NULL AND lt > since_lt AND finish_lt IS NOT NULL)
 		   OR (since_lt IS NULL)) AND jw.type = $1 AND NOT tw.address = ANY($2)
 		GROUP BY deposit_address, jw.subwallet_id, jw.currency
+		ORDER BY MAX(di.amount) DESC
 		LIMIT $3
 	`, core.JettonDepositWallet, excludedAddr, limit)
 	if err != nil {
