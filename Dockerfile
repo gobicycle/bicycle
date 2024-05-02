@@ -20,6 +20,7 @@ COPY db db
 COPY audit audit
 COPY queue queue
 COPY webhook webhook
+COPY metrics metrics
 RUN go build -o /tmp/processor github.com/gobicycle/bicycle/cmd/processor
 RUN go build -o /tmp/testutil github.com/gobicycle/bicycle/cmd/testutil
 
