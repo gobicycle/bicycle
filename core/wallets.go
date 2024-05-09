@@ -354,7 +354,8 @@ func BuildJettonProxyWithdrawalMessage(
 		rand.Int63(),
 		comment,
 	)
-	msg, err := proxy.BuildMessage(jettonWallet, jettonTransferPayload).ToCell()
+
+	msg, err := tlb.ToCell(proxy.BuildMessage(jettonWallet, jettonTransferPayload))
 	if err != nil {
 		log.Fatalf("build proxy message cell error: %v", err)
 	}
@@ -377,7 +378,7 @@ func buildJettonProxyServiceTonWithdrawalMessage(
 	tonWallet *address.Address,
 	memo uuid.UUID,
 ) *wallet.Message {
-	msg, err := proxy.BuildMessage(tonWallet, buildComment(memo.String())).ToCell()
+	msg, err := tlb.ToCell(proxy.BuildMessage(tonWallet, buildComment(memo.String())))
 	if err != nil {
 		log.Fatalf("build proxy message cell error: %v", err)
 	}
