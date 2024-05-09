@@ -226,6 +226,7 @@ func (c *Connection) getShardBlocksHeader(ctx context.Context, shardBlockID *ton
 	for {
 		block, err = c.client.GetBlockData(ctx, shardBlockID)
 		if err != nil && isNotReadyError(err) {
+			time.Sleep(time.Millisecond * 500)
 			continue
 		} else if err != nil {
 			return core.ShardBlockHeader{}, err
