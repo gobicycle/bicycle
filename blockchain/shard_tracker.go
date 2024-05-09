@@ -12,6 +12,7 @@ import (
 )
 
 const ErrBlockNotApplied = "block is not applied"
+const ErrBlockNotInDB = "code 651"
 
 type ShardTracker struct {
 	connection            *Connection
@@ -236,5 +237,5 @@ func (c *Connection) getShardBlocksHeader(ctx context.Context, shardBlockID *ton
 }
 
 func isNotReadyError(err error) bool {
-	return strings.Contains(err.Error(), ErrBlockNotApplied)
+	return strings.Contains(err.Error(), ErrBlockNotApplied) || strings.Contains(err.Error(), ErrBlockNotInDB)
 }

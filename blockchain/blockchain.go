@@ -429,7 +429,7 @@ func (c *Connection) WaitStatus(ctx context.Context, addr *address.Address, stat
 // Gets account from prev block if impossible to get it from current block. Be careful with diff calculation between blocks.
 func (c *Connection) GetAccount(ctx context.Context, block *ton.BlockIDExt, addr *address.Address) (*tlb.Account, error) {
 	res, err := c.client.GetAccount(ctx, block, addr)
-	if err != nil && strings.Contains(err.Error(), ErrBlockNotApplied) {
+	if err != nil && isNotReadyError(err) {
 		prevBlock, err := c.client.LookupBlock(ctx, block.Workchain, block.Shard, block.SeqNo-1)
 		if err != nil {
 			return nil, err
@@ -453,7 +453,7 @@ func (c *Connection) RunGetMethod(ctx context.Context, block *ton.BlockIDExt, ad
 			return nil, core.ErrTimeoutExceeded
 		default:
 			res, err := c.client.RunGetMethod(ctx, block, addr, method, params...)
-			if err != nil && strings.Contains(err.Error(), ErrBlockNotApplied) {
+			if err != nil && isNotReadyError(err) {
 				time.Sleep(time.Millisecond * 200)
 				continue
 			}
