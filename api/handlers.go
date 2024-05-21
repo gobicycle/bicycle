@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gobicycle/bicycle/config"
 	"github.com/gobicycle/bicycle/core"
@@ -57,7 +58,9 @@ type WithdrawalResponse struct {
 }
 
 type WithdrawalStatusResponse struct {
-	Status core.WithdrawalStatus `json:"status"`
+	UserID  string                `json:"user_id"`
+	QueryID string                `json:"query_id"`
+	Status  core.WithdrawalStatus `json:"status"`
 }
 
 type GetIncomeResponse struct {
@@ -208,7 +211,7 @@ func (h *Handler) getWithdrawalStatus(resp http.ResponseWriter, req *http.Reques
 		return
 	}
 	status, err := h.storage.GetExternalWithdrawalStatus(req.Context(), id)
-	if err == core.ErrNotFound {
+	if errors.Is(err, core.ErrNotFound) {
 		writeHttpError(resp, http.StatusBadRequest, "request ID not found")
 		return
 	}
@@ -218,7 +221,11 @@ func (h *Handler) getWithdrawalStatus(resp http.ResponseWriter, req *http.Reques
 	}
 	resp.Header().Add("Content-Type", "application/json")
 	resp.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(resp).Encode(WithdrawalStatusResponse{Status: status})
+	err = json.NewEncoder(resp).Encode(WithdrawalStatusResponse{
+		UserID:  status.UserID,
+		QueryID: status.QueryID,
+		Status:  status.Status,
+	})
 	if err != nil {
 		log.Errorf("json encode error: %v", err)
 	}
@@ -612,7 +619,7 @@ type storage interface {
 	SaveWithdrawalRequest(ctx context.Context, w core.WithdrawalRequest) (int64, error)
 	IsWithdrawalRequestUnique(ctx context.Context, w core.WithdrawalRequest) (bool, error)
 	IsActualBlockData(ctx context.Context) (bool, error)
-	GetExternalWithdrawalStatus(ctx context.Context, id int64) (core.WithdrawalStatus, error)
+	GetExternalWithdrawalStatus(ctx context.Context, id int64) (core.WithdrawalData, error)
 	GetWalletType(address core.Address) (core.WalletType, bool)
 	GetIncome(ctx context.Context, userID string, isDepositSide bool) ([]core.TotalIncome, error)
 	SaveServiceWithdrawalRequest(ctx context.Context, w core.ServiceWithdrawalRequest) (uuid.UUID, error)
