@@ -339,7 +339,7 @@ Returns `memo` as comment for transfer message.
 
 ## Get withdrawal status [GET /v1/withdrawal/status{?id}]
 
-Get withdrawal status. Returns `pending`, `processing`, `processed`
+Get withdrawal status. Returns `pending`, `processing`, `processed` and request meta (user_id and query_id).
 
 + Parameters
 
@@ -356,6 +356,8 @@ Get withdrawal status. Returns `pending`, `processing`, `processed`
     + Body
 
             {
+              "user_id": "123",
+              "query_id": "321",
               "status": "pending"
             }
 

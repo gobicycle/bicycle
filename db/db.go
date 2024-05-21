@@ -1047,28 +1047,34 @@ func (c *Connection) IsInProgressInternalWithdrawalRequest(
 	return true, nil
 }
 
-func (c *Connection) GetExternalWithdrawalStatus(ctx context.Context, id int64) (core.WithdrawalStatus, error) {
-	var processing, processed bool
+func (c *Connection) GetExternalWithdrawalStatus(ctx context.Context, id int64) (core.WithdrawalData, error) {
+	var (
+		processing, processed bool
+		data                  core.WithdrawalData
+	)
 	err := c.client.QueryRow(ctx, `
-		SELECT processing, processed
+		SELECT processing, processed, user_id, user_query_id
 		FROM payments.withdrawal_requests
 		WHERE query_id = $1 AND is_internal = false
 		LIMIT 1
-	`, id).Scan(&processing, &processed)
+	`, id).Scan(&processing, &processed, &data.UserID, &data.QueryID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", core.ErrNotFound
+		return core.WithdrawalData{}, core.ErrNotFound
 	}
 	if err != nil {
-		return "", err
+		return core.WithdrawalData{}, err
 	}
 	if processing && processed {
-		return core.ProcessedStatus, nil
+		data.Status = core.ProcessedStatus
+		return data, nil
 	} else if processing && !processed {
-		return core.ProcessingStatus, nil
+		data.Status = core.ProcessingStatus
+		return data, nil
 	} else if !processing && !processed {
-		return core.PendingStatus, nil
+		data.Status = core.PendingStatus
+		return data, nil
 	}
-	return "", fmt.Errorf("bad status")
+	return core.WithdrawalData{}, fmt.Errorf("bad status")
 }
 
 // GetIncome returns list of incomes by user_id
