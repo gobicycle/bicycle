@@ -58,7 +58,7 @@ func NewConnection(addr, key string) (*Connection, error) {
 		return nil, fmt.Errorf("connection err: %v", err.Error())
 	}
 	return &Connection{
-		client: ton.NewAPIClient(client, ton.ProofCheckPolicyFast).WithRetry(),
+		client: ton.NewAPIClient(client, ton.ProofCheckPolicyUnsafe).WithRetry(),
 		// TODO: set secure
 	}, nil
 }
