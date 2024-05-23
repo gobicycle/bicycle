@@ -23,7 +23,21 @@ import (
 )
 
 type Connection struct {
-	client *ton.APIClient
+	client ton.APIClientWrapped
+}
+
+func (c *Connection) WaitForBlock(seqno uint32) ton.APIClientWrapped {
+	return c.client.WaitForBlock(seqno)
+}
+
+func (c *Connection) FindLastTransactionByInMsgHash(ctx context.Context, addr *address.Address, msgHash []byte, maxTxNumToScan ...int) (*tlb.Transaction, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c *Connection) FindLastTransactionByOutMsgHash(ctx context.Context, addr *address.Address, msgHash []byte, maxTxNumToScan ...int) (*tlb.Transaction, error) {
+	//TODO implement me
+	panic("implement me")
 }
 
 type contract struct {
@@ -34,14 +48,19 @@ type contract struct {
 
 // NewConnection creates new Blockchain connection
 func NewConnection(addr, key string) (*Connection, error) {
+
 	client := liteclient.NewConnectionPool()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
+
 	err := client.AddConnection(ctx, addr, key)
 	if err != nil {
 		return nil, fmt.Errorf("connection err: %v", err.Error())
 	}
-	return &Connection{ton.NewAPIClient(client)}, nil
+	return &Connection{
+		client: ton.NewAPIClient(client, ton.ProofCheckPolicyFast).WithRetry(),
+		// TODO: set secure
+	}, nil
 }
 
 // GenerateDefaultWallet generates HighloadV2R2 or V3R2 TON wallet with
@@ -410,7 +429,7 @@ func (c *Connection) WaitStatus(ctx context.Context, addr *address.Address, stat
 // Gets account from prev block if impossible to get it from current block. Be careful with diff calculation between blocks.
 func (c *Connection) GetAccount(ctx context.Context, block *ton.BlockIDExt, addr *address.Address) (*tlb.Account, error) {
 	res, err := c.client.GetAccount(ctx, block, addr)
-	if err != nil && strings.Contains(err.Error(), ErrBlockNotApplied) {
+	if err != nil && isNotReadyError(err) {
 		prevBlock, err := c.client.LookupBlock(ctx, block.Workchain, block.Shard, block.SeqNo-1)
 		if err != nil {
 			return nil, err
@@ -434,7 +453,7 @@ func (c *Connection) RunGetMethod(ctx context.Context, block *ton.BlockIDExt, ad
 			return nil, core.ErrTimeoutExceeded
 		default:
 			res, err := c.client.RunGetMethod(ctx, block, addr, method, params...)
-			if err != nil && strings.Contains(err.Error(), ErrBlockNotApplied) {
+			if err != nil && isNotReadyError(err) {
 				time.Sleep(time.Millisecond * 200)
 				continue
 			}
@@ -445,10 +464,6 @@ func (c *Connection) RunGetMethod(ctx context.Context, block *ton.BlockIDExt, ad
 
 func (c *Connection) ListTransactions(ctx context.Context, addr *address.Address, num uint32, lt uint64, txHash []byte) ([]*tlb.Transaction, error) {
 	return c.client.ListTransactions(ctx, addr, num, lt, txHash)
-}
-
-func (c *Connection) WaitNextMasterBlock(ctx context.Context, master *ton.BlockIDExt) (*ton.BlockIDExt, error) {
-	return c.client.WaitNextMasterBlock(ctx, master)
 }
 
 func (c *Connection) Client() ton.LiteClient {
