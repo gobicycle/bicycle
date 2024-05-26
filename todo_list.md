@@ -52,21 +52,23 @@
 - [x] Add hysteresis to cold wallet withdrawal
 - [x] Add user id to notifications
 - [x] Add transaction hash to notifications
+- [x] Save tx hash to DB for incomes
+- [x] Add `failed` status for withdrawals and do not retry failed (at hot wallet) withdrawals
+- [x] Save tx hash to DB for withdrawals
+- [x] Get incoming by tx hash method
+- [x] Add asc-desc flag for get history method
+- [x] Add error counter as prometheus metrics
+- [x] Send events after saving to the database (there is a possibility of losing events instead of duplicating them)
+- [x] Use stable branch for emulator
+- [ ] Get withdrawal by tx hash method
 - [ ] Add incorrect processing of some TON deposit replenishments for failed transaction to threat model
 - [ ] Duplicates of external withdrawals for DB backup problem
-- [ ] Save tx hash to DB for withdrawals and incomes
-- [ ] Add `failed` status for withdrawals and do not retry failed (at hot wallet) withdrawals
-- [ ] Get incoming and withdrawal by tx hash method
-- [ ] Add asc-desc flag for get history method
-- [ ] Add error counter as prometheus metrics
-- [ ] Send events after saving to the database (there is a possibility of losing events instead of duplicating them)
 - [ ] Avoid blocking withdrawals to an address if there is a very large amount in the queue for withdrawals to this address
 - [ ] Support DNS names in recipient address
 - [ ] Withdrawal cancellation mechanism
 - [ ] Jetton threat model
 - [ ] TNX compatibility test
 - [ ] Installation video manual
-- [ ] Use stable branch for emulator
 - [ ] Download blockchain config at start
 - [ ] Add reconnect to node when timeout expires
 - [ ] Node deploy
