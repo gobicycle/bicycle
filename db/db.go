@@ -189,7 +189,7 @@ func (c *Connection) SaveJettonWallet(
 		// only jetton deposit owners tracked by address book
 		// hot TON wallet also owner of jetton hot wallets
 		// cold wallets excluded from address book
-		c.addressBook.put(ownerAddress, core.AddressInfo{Type: core.JettonOwner, Owner: nil})
+		c.addressBook.put(ownerAddress, core.AddressInfo{Type: core.JettonOwner, Owner: nil, UserID: walletData.UserID})
 	}
 	c.addressBook.put(walletData.Address, core.AddressInfo{Type: walletData.Type, Owner: &ownerAddress, UserID: walletData.UserID})
 	return nil

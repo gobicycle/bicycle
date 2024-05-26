@@ -64,7 +64,7 @@ Template:
 
 ### API
 
-1. -[X] Checked
+1. -[ ] Checked
 - TEST    : Use `/v1/address/new` method (few for TONs and few for Jettons for different users). 
             Check new addresses in DB
 - RESULT  : You must receive different addresses in user-friendly format with `bounce = false` flag and 
@@ -72,12 +72,12 @@ Template:
             owner address.
 - COMMENT :
 
-2. -[X] Checked
+2. -[ ] Checked
 - TEST    : Use `/v1/address/all{?user_id}` method and compare with addresses created at 1. And check it by DB
 - RESULT  : All addresses must be received and equal to those created earlier
 - COMMENT :
 
-3. -[X] Checked
+3. -[ ] Checked
 - TEST    : Check `/v1/income{?user_id}` for new empty deposits
 - RESULT  : Income must be zero. The addresses must match the addresses obtained by method `/v1/address/all{?user_id}`.
 - COMMENT :
@@ -96,7 +96,7 @@ Template:
             There is no any correlated messages in `external withdrawals` table.
 - COMMENT :
 
-6. -[X] Checked
+6. -[ ] Checked
 - TEST    : Make some withdrawals by `/v1/withdrawal/send` method for TONs and check it by `/v1/withdrawal/status{?id}` 
             few times and try to catch all statuses: `pending`, `processing`, `processed`. Check status of withdrawals 
             by transaction explorer (e.g. https://testnet.tonapi.io/ or https://tonapi.io/). Check withdrawal in DB.
@@ -123,12 +123,12 @@ Template:
             as final state.
 - COMMENT :
 
-9. -[X] Checked
+9. -[ ] Checked
 - TEST    : Start the service after some downtime. Check sync status by `/v1/system/sync` few times. 
 - RESULT  : Start status should be `"is_synced": false` then become `"is_synced": true`
 - COMMENT :
 
-10. -[X] Checked
+10. -[ ] Checked
 - TEST    : Start service with `IS_TESTNET=true` env var. Make some withdrawals by `/v1/withdrawal/send` method to
             TESTNET and MAINNET user-friendly form addresses. 
 - RESULT  : All withdrawals must be accepted
@@ -140,18 +140,18 @@ Template:
 - RESULT  : All withdrawals must be rejected
 - COMMENT :
 
-12. -[X] Checked
+12. -[ ] Checked
 - TEST    : Make some withdrawals by `/v1/withdrawal/send` method to service internal addresses 
             (hot wallet, jetton hot wallet, owner, ton deposit, jetton deposit).
 - RESULT  : All withdrawals must be rejected
 - COMMENT :
 
-13. -[X] Checked
+13. -[ ] Checked
 - TEST    : Try all methods with auth using wrong token
 - RESULT  : All requests must be rejected
 - COMMENT :
 
-14. -[X] Checked
+14. -[ ] Checked
 - TEST    : Make TON and Jetton withdrawal to -1 workchain
 - RESULT  : Withdrawals must be rejected
 - COMMENT :
@@ -232,7 +232,7 @@ Template:
 - RESULT  : Removed Jetton should not appear in `/v1/address/all`, `/v1/income`.
 - COMMENT : Not implemented yet
 
-25. -[X] Checked
+25. -[ ] Checked
 - TEST    : Make some payments at deposits and check it by `/v1/history{?user_id,currency,limit,offset}` method
             with different `DEPOSIT_SIDE_BALANCE` env var
 - RESULT  : Incomes must correlate with payments and DB `external_incomes` table. The history on the deposits side
@@ -245,32 +245,32 @@ Template:
 - RESULT  : The sender's address must be displayed correctly in the history.
 - COMMENT :
 
-27. -[X] Checked
+27. -[ ] Checked
 - TEST    : Replenish the TON deposit (when it in nonexist status) with a bounceable message and check it by
             `/v1/deposit/history{?user_id,currency,limit,offset}` method. Also check logs.
 - RESULT  : The bounced payment should not be in the history. There should be no errors in the logs, only a warning
             about a bounced message.
 - COMMENT :
 
-28. -[X] Checked
+28. -[ ] Checked
 - TEST    : Replenish the Jetton deposit with zero forward amount and check it by
             `/v1/deposit/history{?user_id,currency,limit,offset}` method.
 - RESULT  : The sender's address must be not presented in the history.
 - COMMENT :
 
-29. -[X] Checked
+29. -[ ] Checked
 - TEST    : Replenish the TON and Jetton deposit with some amount and check it by
             `/v1/deposit/income{?tx_hash}` method.
 - RESULT  : Incomes must correlate with payments and DB `external_incomes` table.
 - COMMENT :
 
-30. -[X] Checked
+30. -[ ] Checked
 - TEST    : Replenish the Jetton deposit with zero forward amount and check it by
             `/v1/deposit/income{?tx_hash}` method.
 - RESULT  : The sender's address must be not presented in the response value must be nonzero.
 - COMMENT :
 
-31. -[X] Checked
+31. -[ ] Checked
 - TEST    : Try to find non-existent `tx_hash` by `/v1/deposit/income{?tx_hash}` method.
 - RESULT  : The method should return a 404 error.
 - COMMENT :
@@ -348,19 +348,19 @@ Template:
 - RESULT  : The sender's address must be not presented.
 - COMMENT :
 
-8. -[X] Checked
+8. -[ ] Checked
 - TEST    : Up `payment-postgres` from `docker-compose-main.yml` with named volume. Write some data to DB.
             Remove the container via down (without -v flag) and up it again. Check that the data is available in the DB.
 - RESULT  : The data in the database should be preserved after the container is recreated.
 - COMMENT :
 
-9. -[X] Checked
+9. -[ ] Checked
 - TEST    : Check availability of Prometheus metrics. Run the prometheus container from the `docker-compose-main.yml` file 
             and check the metrics via the web interface.
 - RESULT  : Error counter metrics should be available in the Prometheus web interface.
 - COMMENT :
 
-10. -[X] Checked
+10. -[ ] Checked
 - TEST    : Check migration 0.4.x-0.5.0.sql. Create version v0.4.0 DB, then make several withdrawals 
             (preferably with lost messages) that are in the status `processed` and `processing`.
             Then stop the processor and apply the migration. Launch the new version of the processor and 
