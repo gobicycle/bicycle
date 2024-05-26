@@ -37,7 +37,7 @@ func connect(t *testing.T) *Connection {
 		t.Fatal("empty server var")
 	}
 	key := os.Getenv("KEY")
-	if server == "" {
+	if key == "" {
 		t.Fatal("empty key var")
 	}
 	c, err := NewConnection(server, key)
@@ -226,7 +226,7 @@ func Test_DeployTonWallet(t *testing.T) {
 	if err != nil {
 		t.Fatal("get acc current state err: ", err)
 	}
-	if b.Cmp(amount.NanoTON()) != 1 || st != tlb.AccountStatusActive {
+	if b.Cmp(amount.Nano()) != 1 || st != tlb.AccountStatusActive {
 		t.Fatal("wallet not active")
 	}
 	newWallet, err := mainWallet.GetSubwallet(rand.Uint32())

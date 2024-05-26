@@ -483,7 +483,7 @@ func decodeJettonTransferNotification(msg *tlb.InternalMessage) (jettonTransferN
 	}
 	return jettonTransferNotificationMsg{
 		Sender:  notification.Sender,
-		Amount:  NewCoins(notification.Amount.NanoTON()),
+		Amount:  NewCoins(notification.Amount.Nano()),
 		Comment: LoadComment(notification.ForwardPayload),
 	}, nil
 }
@@ -511,7 +511,7 @@ func DecodeJettonTransfer(msg *tlb.InternalMessage) (JettonTransferMsg, error) {
 		return JettonTransferMsg{}, err
 	}
 	return JettonTransferMsg{
-		NewCoins(transfer.Amount.NanoTON()),
+		NewCoins(transfer.Amount.Nano()),
 		transfer.Destination,
 		LoadComment(transfer.ForwardPayload),
 	}, nil
@@ -698,7 +698,7 @@ func (s *BlockScanner) processTonHotWalletExternalInMsg(tx *tlb.Transaction) (Ev
 				Utime:      msg.CreatedAt,
 				Lt:         msg.CreatedLT,
 				To:         addr,
-				Amount:     NewCoins(msg.Amount.NanoTON()),
+				Amount:     NewCoins(msg.Amount.Nano()),
 				Comment:    msg.Comment(),
 				IsFailed:   false,
 				TxHash:     tx.Hash,
@@ -769,7 +769,7 @@ func (s *BlockScanner) processTonHotWalletInternalInMsg(tx *tlb.Transaction) (Ev
 			Utime:    inMsg.CreatedAt,
 			From:     srcAddr,
 			To:       dstAddr,
-			Amount:   NewCoins(inMsg.Amount.NanoTON()),
+			Amount:   NewCoins(inMsg.Amount.Nano()),
 			Memo:     inMsg.Comment(),
 			IsFailed: false,
 			TxHash:   tx.Hash,
@@ -845,7 +845,7 @@ func (s *BlockScanner) processTonDepositWalletExternalInMsg(tx *tlb.Transaction)
 			Utime:    msg.CreatedAt,
 			Lt:       msg.CreatedLT,
 			From:     dstAddr,
-			Amount:   NewCoins(msg.Amount.NanoTON()),
+			Amount:   NewCoins(msg.Amount.Nano()),
 			Memo:     msg.Comment(),
 			IsFailed: false,
 		})
@@ -885,7 +885,7 @@ func (s *BlockScanner) processTonDepositWalletInternalInMsg(tx *tlb.Transaction)
 			From:          from.ToBytes(),
 			FromWorkchain: fromWorkchain,
 			To:            dstAddr,
-			Amount:        NewCoins(inMsg.Amount.NanoTON()),
+			Amount:        NewCoins(inMsg.Amount.Nano()),
 			Comment:       inMsg.Comment(),
 			TxHash:        tx.Hash,
 		})

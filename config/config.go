@@ -24,7 +24,7 @@ var (
 	InternalWithdrawalPeriod  = 30 * time.Second
 	ExpirationProcessorPeriod = 5 * time.Second
 
-	AllowableBlockchainLagging     = 15 * time.Second // TODO: use env var
+	AllowableBlockchainLagging     = 40 * time.Second // TODO: use env var
 	AllowableServiceToNodeTimeDiff = 2 * time.Second
 )
 

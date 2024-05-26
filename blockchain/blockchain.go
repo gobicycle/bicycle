@@ -248,10 +248,6 @@ func newEmulator(code, data *boc.Cell) (*tvm.Emulator, error) {
 		return nil, err
 	}
 	// TODO: try tvm.WithLazyC7Optimization()
-	err = emulator.SetVerbosityLevel(1)
-	if err != nil {
-		return nil, err
-	}
 	return emulator, nil
 }
 
@@ -307,7 +303,7 @@ func (c *Connection) GetAccountCurrentState(ctx context.Context, address *addres
 	if !account.IsActive {
 		return big.NewInt(0), tlb.AccountStatusNonExist, nil
 	}
-	return account.State.Balance.NanoTON(), account.State.Status, nil
+	return account.State.Balance.Nano(), account.State.Status, nil
 }
 
 // DeployTonWallet
