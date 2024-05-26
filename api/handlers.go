@@ -64,8 +64,8 @@ type WithdrawalResponse struct {
 type WithdrawalStatusResponse struct {
 	UserID  string                `json:"user_id"`
 	QueryID string                `json:"query_id"`
-	Status core.WithdrawalStatus `json:"status"`
-	TxHash string                `json:"tx_hash,omitempty"`
+	Status  core.WithdrawalStatus `json:"status"`
+	TxHash  string                `json:"tx_hash,omitempty"`
 }
 
 type GetIncomeResponse struct {
@@ -221,7 +221,7 @@ func (h *Handler) getWithdrawalStatus(resp http.ResponseWriter, req *http.Reques
 		writeHttpError(resp, http.StatusBadRequest, fmt.Sprintf("convert request ID err: %v", err))
 		return
 	}
-	status, txHash, err := h.storage.GetExternalWithdrawalStatus(req.Context(), id)
+	status, err := h.storage.GetExternalWithdrawalStatus(req.Context(), id)
 	if errors.Is(err, core.ErrNotFound) {
 		writeHttpError(resp, http.StatusBadRequest, "request ID not found")
 		return
@@ -235,8 +235,9 @@ func (h *Handler) getWithdrawalStatus(resp http.ResponseWriter, req *http.Reques
 	err = json.NewEncoder(resp).Encode(WithdrawalStatusResponse{
 		UserID:  status.UserID,
 		QueryID: status.QueryID,
-		Status: status,
-		TxHash: fmt.Sprintf("%x", txHash),
+		Status:  status.Status,
+		// TODO: check for nil
+		TxHash: fmt.Sprintf("%x", status.TxHash),
 	})
 	if err != nil {
 		log.Errorf("json encode error: %v", err)
@@ -424,7 +425,6 @@ func RegisterHandlers(mux *http.ServeMux, h *Handler) {
 	mux.HandleFunc("/v1/withdrawal/service/jetton", recoverMiddleware(authMiddleware(post(h.serviceJettonWithdrawal))))
 	mux.HandleFunc("/v1/withdrawal/status", recoverMiddleware(authMiddleware(get(h.getWithdrawalStatus))))
 	mux.HandleFunc("/v1/system/sync", recoverMiddleware(get(h.getSync)))
-	mux.HandleFunc("/v1/balance", recoverMiddleware(authMiddleware(get(h.getBalance)))) // deprecated
 	mux.HandleFunc("/v1/income", recoverMiddleware(authMiddleware(get(h.getIncome))))
 	mux.HandleFunc("/v1/deposit/history", recoverMiddleware(authMiddleware(get(h.getIncomeHistory))))
 	mux.HandleFunc("/v1/deposit/income", recoverMiddleware(authMiddleware(get(h.getIncomeByTx))))

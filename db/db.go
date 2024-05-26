@@ -1090,11 +1090,11 @@ func (c *Connection) GetExternalWithdrawalStatus(ctx context.Context, id int64) 
 		}
 		if isFailed {
 			data.Status = core.FailedStatus
-			data.Hash = txHash
+			data.TxHash = txHash
 			return data, nil
 		}
 		data.Status = core.ProcessedStatus
-		data.Hash = txHash
+		data.TxHash = txHash
 		return data, nil
 	} else if processing && !processed {
 		data.Status = core.ProcessingStatus

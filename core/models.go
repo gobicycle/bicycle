@@ -170,6 +170,7 @@ type WithdrawalData struct {
 	QueryID string
 	UserID  string
 	Status  WithdrawalStatus
+	TxHash  []byte
 }
 
 type ServiceWithdrawalRequest struct {
