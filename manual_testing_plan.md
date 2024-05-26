@@ -7,64 +7,64 @@ Template:
 
 ### Initialization
 
-1. -[ ] Checked
+1. -[X] Checked
 - TEST    : Run with not deployed (and zero balance) hot wallet (new seed phrase)
 - RESULT  : There must be an insufficient balance error
 - COMMENT : 
 
-2. -[ ] Checked
+2. -[X] Checked
 - TEST    : Run with uninit hot wallet with balance > minimum balance
 - RESULT  : Hot wallet must be initialized at first start of service
 - COMMENT :
 
-3. -[ ] Checked
+3. -[X] Checked
 - TEST    : Run with new seed phrase when hot wallet already exist in DB
 - RESULT  : There must be an incorrect seed phrase error
 - COMMENT :
 
-4. -[ ] Checked
+4. -[X] Checked
 - TEST    : Run service with empty DB and stop after few minutes. Check time of first and last block 
             in `block_data` table
 - RESULT  : Time `saved_at` and `gen_utime` must correlate with system time
 - COMMENT :
 
-5. -[ ] Checked
+5. -[X] Checked
 - TEST    : Run with nonexist hot jetton wallet and receive external jetton transfer at jetton deposit 
             (> minimal withdrawal amount)
 - RESULT  : Jetton hot wallet must be initialized by Jetton withdrawal from deposit, 
             if jetton deposit successfully initialized (it depends on transfer sender)
 - COMMENT :
 
-6. -[ ] Checked
+6. -[X] Checked
 - TEST    : Run with testnet cold wallet address at mainnet (`IS_TESTNET=false`)
 - RESULT  : There must be "Can not use testnet cold wallet address for mainnet" error
 - COMMENT :
 
-7. -[ ] Checked
+7. -[X] Checked
 - TEST    : Run service with empty `JETTONS` env variable
 - RESULT  : Service must start and process TONs
 - COMMENT :
 
-8. -[ ] Checked
+8. -[X] Checked
 - TEST    : Run service with `JETTONS` env variable with different currencies and same master contract address.
             Like `TGR:ABC...,FNZ:ABC...`.
 - RESULT  : Service must stop. Must be address duplication error message in audit log.
 - COMMENT :
 
-9. -[ ] Checked
+9. -[X] Checked
 - TEST    : Run service with one `JETTONS` env variable, then rename currency for one of Jetton and restart.
             Like `TGR:ABC...,FNZ:CDE...` -> `SCALE:ABC...,FNZ:CDE...`.
 - RESULT  : Service must stop. Must be address duplication error message in audit log.
 - COMMENT :
 
-10. -[ ] Checked
+10. -[X] Checked
 - TEST    : Start service with uninitialized cold wallet and bounceable address for cold wallet.
 - RESULT  : Service must stop. Must be invalid address format error message in log.
 - COMMENT :
 
 ### API
 
-1. -[ ] Checked
+1. -[X] Checked
 - TEST    : Use `/v1/address/new` method (few for TONs and few for Jettons for different users). 
             Check new addresses in DB
 - RESULT  : You must receive different addresses in user-friendly format with `bounce = false` flag and 
@@ -72,23 +72,23 @@ Template:
             owner address.
 - COMMENT :
 
-2. -[ ] Checked
+2. -[X] Checked
 - TEST    : Use `/v1/address/all{?user_id}` method and compare with addresses created at 1. And check it by DB
 - RESULT  : All addresses must be received and equal to those created earlier
 - COMMENT :
 
-3. -[ ] Checked
+3. -[X] Checked
 - TEST    : Check `/v1/income{?user_id}` for new empty deposits
 - RESULT  : Income must be zero. The addresses must match the addresses obtained by method `/v1/address/all{?user_id}`.
 - COMMENT :
 
-4. -[ ] Checked
+4. -[X] Checked
 - TEST    : Make some payments at deposits and check it by `/v1/income{?user_id}` method 
             with different `DEPOSIT_SIDE_BALANCE` env var
 - RESULT  : Income must correlate with payments sum
 - COMMENT :
 
-5. -[ ] Checked
+5. -[X] Checked
 - TEST    : Make some withdrawals by `/v1/withdrawal/send` method for TONs and Jettons with amount > hot wallet balance
             and check it by `/v1/withdrawal/status{?id}` few times. Check status of withdrawals by transaction explorer 
             (e.g. https://testnet.tonapi.io/ or https://tonapi.io/). Check withdrawal in DB.
@@ -96,7 +96,7 @@ Template:
             There is no any correlated messages in `external withdrawals` table.
 - COMMENT :
 
-6. -[ ] Checked
+6. -[X] Checked
 - TEST    : Make some withdrawals by `/v1/withdrawal/send` method for TONs and check it by `/v1/withdrawal/status{?id}` 
             few times and try to catch all statuses: `pending`, `processing`, `processed`. Check status of withdrawals 
             by transaction explorer (e.g. https://testnet.tonapi.io/ or https://tonapi.io/). Check withdrawal in DB.

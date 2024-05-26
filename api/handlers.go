@@ -232,13 +232,18 @@ func (h *Handler) getWithdrawalStatus(resp http.ResponseWriter, req *http.Reques
 	}
 	resp.Header().Add("Content-Type", "application/json")
 	resp.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(resp).Encode(WithdrawalStatusResponse{
+
+	res := WithdrawalStatusResponse{
 		UserID:  status.UserID,
 		QueryID: status.QueryID,
 		Status:  status.Status,
-		// TODO: check for nil
-		TxHash: fmt.Sprintf("%x", status.TxHash),
-	})
+	}
+
+	if status.TxHash != nil {
+		res.TxHash = fmt.Sprintf("%x", status.TxHash)
+	}
+
+	err = json.NewEncoder(resp).Encode(res)
 	if err != nil {
 		log.Errorf("json encode error: %v", err)
 	}
