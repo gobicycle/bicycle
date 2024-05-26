@@ -342,7 +342,7 @@ Returns `memo` as comment for transfer message.
 
 ## Get withdrawal status [GET /v1/withdrawal/status{?id}]
 
-Get withdrawal status. Returns `pending`, `processing`, `processed`/'failed' and transaction hash for processed withdrawal.
+Get withdrawal status. Returns `pending`, `processing`, `processed`/'failed', transaction hash for processed withdrawal and request meta (user_id and query_id).
 
 + Parameters
 
@@ -359,6 +359,8 @@ Get withdrawal status. Returns `pending`, `processing`, `processed`/'failed' and
     + Body
 
             {
+              "user_id": "123",
+              "query_id": "321",
               "status": "processed",
               "tx_hash": "9d0fb69b1ca9371bc9e5260a248cda12a1c42916f9051fe9fc21b4abdd41d744"
             }
@@ -458,4 +460,4 @@ sender's address as `source_address` (if it could be determined).
 
             {
                 "error": "error text"
-            }
+            }             

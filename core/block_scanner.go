@@ -225,8 +225,11 @@ func (s *BlockScanner) filterTXs(
 }
 
 func checkTxForSuccess(tx *tlb.Transaction) (bool, error) {
-	descData := tx.Description.ToBOC()
-	c, err := boc.DeserializeBoc(descData)
+	cell1, err := tlb.ToCell(tx.Description)
+	if err != nil {
+		return false, err
+	}
+	c, err := boc.DeserializeBoc(cell1.ToBOC())
 	if err != nil {
 		return false, err
 	}
@@ -339,7 +342,7 @@ func (s *BlockScanner) processTonDepositWalletTXs(txs transactions) (Events, err
 			// external payment income
 			// internal message can not invoke out message for TON wallet V3 except of bounce
 			// bounced filtered by len(tx.IO.Out) != 0
-			if len(tx.IO.Out) != 0 {
+			if tx.OutMsgCount != 0 {
 				audit.LogTX(audit.Info, string(TonDepositWallet), tx.Hash, "ton deposit filling is bounced")
 				continue
 			}
@@ -637,7 +640,12 @@ func (s *BlockScanner) processTonHotWalletExternalInMsg(tx *tlb.Transaction) (Ev
 	}
 
 	addrMapOut := make(map[Address]struct{})
-	for _, m := range tx.IO.Out {
+	outList, err := tx.IO.Out.ToSlice()
+	if err != nil {
+		return Events{}, err
+	}
+
+	for _, m := range outList {
 		if m.MsgType != tlb.MsgTypeInternal {
 			audit.LogTX(audit.Error, string(TonHotWallet), tx.Hash, "not internal out message for transaction")
 			return Events{}, fmt.Errorf("anomalous behavior of the TON hot wallet")
@@ -811,7 +819,12 @@ func (s *BlockScanner) processTonDepositWalletExternalInMsg(tx *tlb.Transaction)
 		return Events{}, err
 	}
 
-	for _, o := range tx.IO.Out {
+	outList, err := tx.IO.Out.ToSlice()
+	if err != nil {
+		return Events{}, err
+	}
+
+	for _, o := range outList {
 		if o.MsgType != tlb.MsgTypeInternal {
 			audit.LogTX(audit.Error, string(TonDepositWallet), tx.Hash, "not internal out message for transaction")
 			return Events{}, fmt.Errorf("anomalous behavior of the deposit TON wallet")
@@ -885,7 +898,12 @@ func (s *BlockScanner) processJettonDepositOutMsgs(tx *tlb.Transaction) (Events,
 	knownIncomeAmount := big.NewInt(0)
 	unknownMsgFound := false
 
-	for _, m := range tx.IO.Out { // checks for JettonTransferNotification
+	outList, err := tx.IO.Out.ToSlice()
+	if err != nil {
+		return Events{}, nil, false, err
+	}
+
+	for _, m := range outList { // checks for JettonTransferNotification
 
 		if m.MsgType != tlb.MsgTypeInternal {
 			audit.LogTX(audit.Info, string(JettonDepositWallet), tx.Hash, "sends external out message")
@@ -1002,7 +1020,7 @@ func (s *BlockScanner) processJettonDepositInMsg(tx *tlb.Transaction) (Events, *
 	}
 
 	// success withdrawal from deposit jetton wallet
-	if len(tx.IO.Out) < 1 {
+	if tx.OutMsgCount < 1 {
 		audit.LogTX(audit.Error, string(JettonDepositWallet), tx.Hash, "success Jettons transfer TX without out message")
 		return Events{}, nil, true, fmt.Errorf("anomalous behavior of the deposit Jetton wallet")
 	}

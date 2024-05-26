@@ -166,6 +166,12 @@ type WithdrawalRequest struct {
 	Comment     string
 }
 
+type WithdrawalData struct {
+	QueryID string
+	UserID  string
+	Status  WithdrawalStatus
+}
+
 type ServiceWithdrawalRequest struct {
 	From         Address
 	JettonMaster *Address

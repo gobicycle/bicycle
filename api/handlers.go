@@ -62,6 +62,8 @@ type WithdrawalResponse struct {
 }
 
 type WithdrawalStatusResponse struct {
+	UserID  string                `json:"user_id"`
+	QueryID string                `json:"query_id"`
 	Status core.WithdrawalStatus `json:"status"`
 	TxHash string                `json:"tx_hash,omitempty"`
 }
@@ -230,7 +232,12 @@ func (h *Handler) getWithdrawalStatus(resp http.ResponseWriter, req *http.Reques
 	}
 	resp.Header().Add("Content-Type", "application/json")
 	resp.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(resp).Encode(WithdrawalStatusResponse{Status: status, TxHash: fmt.Sprintf("%x", txHash)})
+	err = json.NewEncoder(resp).Encode(WithdrawalStatusResponse{
+		UserID:  status.UserID,
+		QueryID: status.QueryID,
+		Status: status,
+		TxHash: fmt.Sprintf("%x", txHash),
+	})
 	if err != nil {
 		log.Errorf("json encode error: %v", err)
 	}
@@ -688,7 +695,7 @@ type storage interface {
 	SaveWithdrawalRequest(ctx context.Context, w core.WithdrawalRequest) (int64, error)
 	IsWithdrawalRequestUnique(ctx context.Context, w core.WithdrawalRequest) (bool, error)
 	IsActualBlockData(ctx context.Context) (bool, error)
-	GetExternalWithdrawalStatus(ctx context.Context, id int64) (core.WithdrawalStatus, []byte, error)
+	GetExternalWithdrawalStatus(ctx context.Context, id int64) (core.WithdrawalData, error)
 	GetWalletType(address core.Address) (core.WalletType, bool)
 	GetIncome(ctx context.Context, userID string, isDepositSide bool) ([]core.TotalIncome, error)
 	SaveServiceWithdrawalRequest(ctx context.Context, w core.ServiceWithdrawalRequest) (uuid.UUID, error)
