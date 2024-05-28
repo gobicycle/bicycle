@@ -14,7 +14,9 @@ import (
 	"github.com/shopspring/decimal"
 	log "github.com/sirupsen/logrus"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
@@ -59,6 +61,10 @@ type GetAddressesResponse struct {
 
 type WithdrawalResponse struct {
 	ID int64 `json:"ID"`
+}
+
+type GetBalanceResponse struct {
+	Balance string `json:"amount"`
 }
 
 type WithdrawalStatusResponse struct {
@@ -422,6 +428,57 @@ func (h *Handler) getIncomeByTx(resp http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func (h *Handler) getBalance(resp http.ResponseWriter, req *http.Request) {
+
+	currency := req.URL.Query().Get("currency")
+	if currency == "" {
+		writeHttpError(resp, http.StatusBadRequest, "need to provide currency")
+		return
+	}
+	if !isValidCurrency(currency) {
+		writeHttpError(resp, http.StatusBadRequest, "invalid currency type")
+		return
+	}
+
+	var (
+		tonWalletAddress core.Address
+		err              error
+	)
+
+	addr := req.URL.Query().Get("address")
+	if addr != "" {
+		tonWalletAddress, _, err = validateAddress(addr)
+		if err != nil {
+			writeHttpError(resp, http.StatusBadRequest, fmt.Sprintf("invalid address: %s", err.Error()))
+			return
+		}
+	} else {
+		// TODO: get hot wallet address
+		// TODO: implement
+	}
+
+	if currency == core.TonSymbol {
+
+		balance, _, err := h.blockchain.GetAccountCurrentState(req.Context(), tonWalletAddress.ToTonutilsAddressStd(0))
+		if err != nil {
+			writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get TON balance err: %v", err))
+			return
+		}
+
+		resp.Header().Add("Content-Type", "application/json")
+		resp.WriteHeader(http.StatusOK)
+		res := GetBalanceResponse{Balance: balance.String()}
+		err = json.NewEncoder(resp).Encode(res)
+		if err != nil {
+			log.Errorf("json encode error: %v", err)
+		}
+
+	} else {
+		// TODO: implement
+	}
+
+}
+
 func RegisterHandlers(mux *http.ServeMux, h *Handler) {
 	mux.HandleFunc("/v1/address/new", recoverMiddleware(authMiddleware(post(h.getNewAddress))))
 	mux.HandleFunc("/v1/address/all", recoverMiddleware(authMiddleware(get(h.getAddresses))))
@@ -433,6 +490,7 @@ func RegisterHandlers(mux *http.ServeMux, h *Handler) {
 	mux.HandleFunc("/v1/income", recoverMiddleware(authMiddleware(get(h.getIncome))))
 	mux.HandleFunc("/v1/deposit/history", recoverMiddleware(authMiddleware(get(h.getIncomeHistory))))
 	mux.HandleFunc("/v1/deposit/income", recoverMiddleware(authMiddleware(get(h.getIncomeByTx))))
+	mux.HandleFunc("/v1/balance", recoverMiddleware(authMiddleware(get(h.getBalance))))
 	mux.HandleFunc("/metrics", recoverMiddleware(get(h.getMetrics)))
 }
 
@@ -722,4 +780,5 @@ type blockchain interface {
 		err error,
 	)
 	GenerateDefaultWallet(seed string, isHighload bool) (*wallet.Wallet, byte, uint32, error)
+	GetAccountCurrentState(ctx context.Context, address *address.Address) (*big.Int, tlb.AccountStatus, error)
 }

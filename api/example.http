@@ -65,3 +65,7 @@ GET {{url}}/metrics
 ###
 GET {{url}}//v1/deposit/income?tx_hash=54e61136c33b94372030de8c7d02bc23a60e3de7cfad46f26258e8e722dc66b1
 Authorization: Bearer {{token}}
+
+###
+GET {{url}}//v1/balance?currency=TON&address=kQAbMQzuuGiCne0R7QEj9nrXsjM7gNjeVmrlBZouyC-SCALE
+Authorization: Bearer {{token}}

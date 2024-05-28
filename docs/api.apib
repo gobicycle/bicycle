@@ -383,6 +383,47 @@ Get withdrawal status. Returns `pending`, `processing`, `processed`/'failed', tr
                 "error": "error text"
             } 
 
+## Get balance [GET /v1/balance{?currency,address}]
+
+Get balance for account by `address` and `currency`. Returns the balance of hot wallet if `address` not specified.
+
++ Parameters
+
+    + currency (string) - the text identifier of the currency specified in the processor configuration. `TON` for TON coin.
+    + address (string) - address in URL-safe, user-friendly Base64 form. Hot wallet address by default if the parameter is not specified.
+
++ Request
+
+    + Headers
+
+            Authorization: Bearer
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "amount": "1000000"
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
 ## Get sync flag [GET /v1/system/sync]
 
 Get blockchain sync flag. Returns `true` if the service has up-to-date data from the blockchain.
