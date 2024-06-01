@@ -443,6 +443,7 @@ func (h *Handler) getBalance(resp http.ResponseWriter, req *http.Request) {
 	var (
 		tonWalletAddress core.Address
 		err              error
+		balance          *big.Int
 	)
 
 	addr := req.URL.Query().Get("address")
@@ -453,28 +454,34 @@ func (h *Handler) getBalance(resp http.ResponseWriter, req *http.Request) {
 			return
 		}
 	} else {
-		// TODO: get hot wallet address
-		// TODO: implement
+		tonWalletAddress = core.AddressMustFromTonutilsAddress(&h.hotWalletAddress)
 	}
 
 	if currency == core.TonSymbol {
 
-		balance, _, err := h.blockchain.GetAccountCurrentState(req.Context(), tonWalletAddress.ToTonutilsAddressStd(0))
+		balance, _, err = h.blockchain.GetAccountCurrentState(req.Context(), tonWalletAddress.ToTonutilsAddressStd(0))
 		if err != nil {
 			writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get TON balance err: %v", err))
 			return
 		}
 
-		resp.Header().Add("Content-Type", "application/json")
-		resp.WriteHeader(http.StatusOK)
-		res := GetBalanceResponse{Balance: balance.String()}
-		err = json.NewEncoder(resp).Encode(res)
+	} else {
+
+		jetton, _ := config.Config.Jettons[currency] // currency validate earlier
+		balance, err = h.blockchain.GetJettonBalanceByOwner(req.Context(), tonWalletAddress.ToTonutilsAddressStd(0), jetton.Master)
 		if err != nil {
-			log.Errorf("json encode error: %v", err)
+			writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get jetton balance err: %v", err))
+			return
 		}
 
-	} else {
-		// TODO: implement
+	}
+
+	resp.Header().Add("Content-Type", "application/json")
+	resp.WriteHeader(http.StatusOK)
+	res := GetBalanceResponse{Balance: balance.String()}
+	err = json.NewEncoder(resp).Encode(res)
+	if err != nil {
+		log.Errorf("json encode error: %v", err)
 	}
 
 }
@@ -781,4 +788,5 @@ type blockchain interface {
 	)
 	GenerateDefaultWallet(seed string, isHighload bool) (*wallet.Wallet, byte, uint32, error)
 	GetAccountCurrentState(ctx context.Context, address *address.Address) (*big.Int, tlb.AccountStatus, error)
+	GetJettonBalanceByOwner(ctx context.Context, owner *address.Address, jettonMaster *address.Address) (*big.Int, error)
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/ton/jetton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"math"
 	"math/big"
@@ -127,6 +128,22 @@ func (c *Connection) GetJettonWalletAddress(
 	res := addr.ToTonutilsAddressStd(0)
 	res.SetTestnetOnly(config.Config.Testnet)
 	return res, nil
+}
+
+func (c *Connection) GetJettonBalanceByOwner(
+	ctx context.Context,
+	owner *address.Address,
+	jettonMaster *address.Address,
+) (*big.Int, error) {
+
+	jettonMasterClient := jetton.NewJettonMasterClient(c.client, jettonMaster)
+
+	jettonWalletClient, err := jettonMasterClient.GetJettonWallet(ctx, owner)
+	if err != nil {
+		return nil, err
+	}
+
+	return jettonWalletClient.GetBalance(ctx)
 }
 
 // GenerateDepositJettonWalletForProxy
