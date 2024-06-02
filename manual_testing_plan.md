@@ -275,6 +275,26 @@ Template:
 - RESULT  : The method should return a 404 error.
 - COMMENT :
 
+32. -[ ] Checked
+- TEST    : Check balance of hot wallet by `/v1/balance{?currency}` (without address parameter) method for TON and jettons.
+- RESULT  : The method should return actual balance for hot wallet.
+- COMMENT :
+
+33. -[ ] Checked
+- TEST    : Check balance of custom account by `/v1/balance{?currency,address}` method for TON and jettons.
+- RESULT  : The method should return actual balance for this account.
+- COMMENT :
+
+34. -[ ] Checked
+- TEST    : Check balance of custom noexist account without jetton wallet by `/v1/balance{?currency,address}` method for TON and jettons.
+- RESULT  : The method should return zero balance for this account.
+- COMMENT :
+
+35. -[ ] Checked
+- TEST    : Check balance of custom account by `/v1/balance{?currency,address}` with invalid parameters (unknown currency, testnet address for mainnet).
+- RESULT  : The method should return bad request error.
+- COMMENT :
+
 ### Internal logic
 
 1. -[ ] Checked

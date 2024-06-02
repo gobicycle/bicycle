@@ -60,7 +60,8 @@
 - [x] Add error counter as prometheus metrics
 - [x] Send events after saving to the database (there is a possibility of losing events instead of duplicating them)
 - [x] Use stable branch for emulator
-- [ ] Get balance method
+- [x] Get balance method
+- [x] Add meta to get withdrawals status method
 - [ ] Support DNS names in recipient address
 - [ ] Get withdrawal by tx hash method
 - [ ] Add incorrect processing of some TON deposit replenishments for failed transaction to threat model
