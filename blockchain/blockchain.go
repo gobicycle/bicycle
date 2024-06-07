@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/gobicycle/bicycle/config"
 	"github.com/gobicycle/bicycle/core"
@@ -14,6 +15,7 @@ import (
 	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/ton/dns"
 	"github.com/xssnick/tonutils-go/ton/jetton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"math"
@@ -144,6 +146,35 @@ func (c *Connection) GetJettonBalanceByOwner(
 	}
 
 	return jettonWalletClient.GetBalance(ctx)
+}
+
+func (c *Connection) DnsResolveSmc(
+	ctx context.Context,
+	domainName string,
+) (*address.Address, error) {
+
+	root, err := dns.RootContractAddr(c.client) // TODO: add resolver to bc struct
+	if err != nil {
+		return nil, err
+	}
+
+	resolver := dns.NewDNSClient(c.client, root)
+
+	// TODO: it is necessary to distinguish network errors from the impossibility of resolving
+	domain, err := resolver.Resolve(ctx, domainName)
+	if errors.Is(err, dns.ErrNoSuchRecord) {
+		return nil, core.ErrNotFound
+	}
+
+	smcAddr := domain.GetWalletRecord()
+
+	if smcAddr == nil {
+		// not wallet
+		return nil, core.ErrNotFound
+	}
+
+	// TODO: implement
+	return nil, fmt.Errorf("IMPLEMENT ME")
 }
 
 // GenerateDepositJettonWalletForProxy
