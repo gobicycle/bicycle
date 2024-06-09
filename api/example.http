@@ -69,3 +69,7 @@ Authorization: Bearer {{token}}
 ###
 GET {{url}}//v1/balance?currency=TON&address=kQAbMQzuuGiCne0R7QEj9nrXsjM7gNjeVmrlBZouyC-SCALE
 Authorization: Bearer {{token}}
+
+###
+GET {{url}}//v1/resolve?domain=wallet.ton
+Authorization: Bearer {{token}}

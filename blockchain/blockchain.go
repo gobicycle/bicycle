@@ -26,7 +26,8 @@ import (
 )
 
 type Connection struct {
-	client ton.APIClientWrapped
+	client   ton.APIClientWrapped
+	resolver *dns.Client
 }
 
 func (c *Connection) WaitForBlock(seqno uint32) ton.APIClientWrapped {
@@ -60,8 +61,19 @@ func NewConnection(addr, key string) (*Connection, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connection err: %v", err.Error())
 	}
+
+	wrappedClient := ton.NewAPIClient(client, ton.ProofCheckPolicyUnsafe).WithRetry()
+
+	root, err := dns.RootContractAddr(wrappedClient)
+	if err != nil {
+		return nil, err
+	}
+
+	resolver := dns.NewDNSClient(wrappedClient, root)
+
 	return &Connection{
-		client: ton.NewAPIClient(client, ton.ProofCheckPolicyUnsafe).WithRetry(),
+		client:   wrappedClient,
+		resolver: resolver,
 		// TODO: set secure
 	}, nil
 }
@@ -153,28 +165,23 @@ func (c *Connection) DnsResolveSmc(
 	domainName string,
 ) (*address.Address, error) {
 
-	root, err := dns.RootContractAddr(c.client) // TODO: add resolver to bc struct
-	if err != nil {
+	// TODO: it is necessary to distinguish network errors from the impossibility of resolving
+	domain, err := c.resolver.Resolve(ctx, domainName)
+	if errors.Is(err, dns.ErrNoSuchRecord) {
+		return nil, core.ErrNotFound
+	} else if err != nil {
 		return nil, err
 	}
 
-	resolver := dns.NewDNSClient(c.client, root)
-
-	// TODO: it is necessary to distinguish network errors from the impossibility of resolving
-	domain, err := resolver.Resolve(ctx, domainName)
-	if errors.Is(err, dns.ErrNoSuchRecord) {
-		return nil, core.ErrNotFound
-	}
-
 	smcAddr := domain.GetWalletRecord()
+	// TODO: fix tonutils
 
 	if smcAddr == nil {
 		// not wallet
 		return nil, core.ErrNotFound
 	}
 
-	// TODO: implement
-	return nil, fmt.Errorf("IMPLEMENT ME")
+	return smcAddr, nil
 }
 
 // GenerateDepositJettonWalletForProxy

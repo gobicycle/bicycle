@@ -501,4 +501,52 @@ sender's address as `source_address` (if it could be determined).
 
             {
                 "error": "error text"
-            }             
+            }
+
+## Resolve domain name [GET /v1/resolve{?domain}]
+
+Resolve domain name. Returns bounceable user-friendly address for smart-contract (`dns_smc_address#9fd3` DNS record).
+
++ Parameters
+
+    + domain (string) - domain name (for example: wallet.ton)
+
++ Request
+
+    + Headers
+
+            Authorization: Bearer
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+              "address": "kQCKt2WPGX-fh0cIAz38Ljd_OKQjoZE_cqk7QrYGsNP6wfP0"
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 404 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }

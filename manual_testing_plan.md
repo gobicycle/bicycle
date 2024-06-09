@@ -295,6 +295,16 @@ Template:
 - RESULT  : The method should return bad request error.
 - COMMENT :
 
+36. -[ ] Checked
+- TEST    : Resolve address of custom account by `/v1/resolve{?domain}` with valid `dns_smc_address` record.
+- RESULT  : The method should return valid user-friendly address with bounceable flag and testnet/mainnet flag.
+- COMMENT :
+
+37. -[ ] Checked
+- TEST    : Resolve address of custom account by `/v1/resolve{?domain}` with invalid domain or without `dns_smc_address` DNS record.
+- RESULT  : The method should return not found error.
+- COMMENT :
+
 ### Internal logic
 
 1. -[ ] Checked
