@@ -62,6 +62,21 @@ Template:
 - RESULT  : Service must stop. Must be invalid address format error message in log.
 - COMMENT :
 
+11. -[ ] Checked
+- TEST    : Start service with `PROOF_CHECK_ENABLED=true` and empty or invalid `NETWORK_CONFIG_URL` ENV variable.
+- RESULT  : Service must stop. Must be blockchain connection error message in log.
+- COMMENT :
+
+12. -[ ] Checked
+- TEST    : Start service with `PROOF_CHECK_ENABLED=false` ENV variable.
+- RESULT  : Service must start normally.
+- COMMENT :
+
+13. -[ ] Checked
+- TEST    : Start service with `PROOF_CHECK_ENABLED=true` and valid `NETWORK_CONFIG_URL` ENV variable.
+- RESULT  : Service must start normally. Must be `Proof checks are completed` message in log.
+- COMMENT :
+
 ### API
 
 1. -[X] Checked
