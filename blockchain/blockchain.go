@@ -54,7 +54,7 @@ type contract struct {
 func NewConnection(addr, key string) (*Connection, error) {
 
 	client := liteclient.NewConnectionPool()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 	defer cancel()
 
 	err := client.AddConnection(ctx, addr, key)
@@ -62,11 +62,36 @@ func NewConnection(addr, key string) (*Connection, error) {
 		return nil, fmt.Errorf("connection err: %v", err.Error())
 	}
 
-	wrappedClient := ton.NewAPIClient(client, ton.ProofCheckPolicyUnsafe).WithRetry()
+	var wrappedClient ton.APIClientWrapped
+
+	if config.Config.ProofCheckEnabled {
+
+		if config.Config.NetworkConfigUrl == "" {
+			return nil, fmt.Errorf("empty network config URL")
+		}
+
+		cfg, err := liteclient.GetConfigFromUrl(ctx, config.Config.NetworkConfigUrl)
+		if err != nil {
+			return nil, fmt.Errorf("get network config from url err: %s", err.Error())
+		}
+
+		wrappedClient = ton.NewAPIClient(client, ton.ProofCheckPolicySecure).WithRetry()
+		wrappedClient.SetTrustedBlockFromConfig(cfg)
+
+		log.Infof("Fetching and checking proofs since config init block ...")
+		_, err = wrappedClient.CurrentMasterchainInfo(ctx) // we fetch block just to trigger chain proof check
+		if err != nil {
+			return nil, fmt.Errorf("get masterchain info err: %s", err.Error())
+		}
+		log.Infof("Proof checks are completed")
+
+	} else {
+		wrappedClient = ton.NewAPIClient(client, ton.ProofCheckPolicyUnsafe).WithRetry()
+	}
 
 	root, err := dns.RootContractAddr(wrappedClient)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get DNS root contract err: %s", err.Error())
 	}
 
 	resolver := dns.NewDNSClient(wrappedClient, root)
@@ -74,7 +99,6 @@ func NewConnection(addr, key string) (*Connection, error) {
 	return &Connection{
 		client:   wrappedClient,
 		resolver: resolver,
-		// TODO: set secure
 	}, nil
 }
 
