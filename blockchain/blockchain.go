@@ -89,7 +89,8 @@ func NewConnection(addr, key string) (*Connection, error) {
 		wrappedClient = ton.NewAPIClient(client, ton.ProofCheckPolicyUnsafe).WithRetry()
 	}
 
-	root, err := dns.RootContractAddr(wrappedClient)
+	// TODO: replace after tonutils fix
+	root, err := getRootContractAddr(ctx, wrappedClient)
 	if err != nil {
 		return nil, fmt.Errorf("get DNS root contract err: %s", err.Error())
 	}
@@ -100,6 +101,32 @@ func NewConnection(addr, key string) (*Connection, error) {
 		client:   wrappedClient,
 		resolver: resolver,
 	}, nil
+}
+
+func getRootContractAddr(ctx context.Context, api ton.APIClientWrapped) (*address.Address, error) {
+
+	// TODO: remove after tonutils fix
+	b, err := api.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get masterchain info: %w", err)
+	}
+
+	cfg, err := api.GetBlockchainConfig(ctx, b, 4)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get root address from network config: %w", err)
+	}
+
+	data := cfg.Get(4)
+	if data == nil {
+		return nil, fmt.Errorf("failed to get root address from network config")
+	}
+
+	hash, err := data.BeginParse().LoadSlice(256)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get root address from network config 4, failed to load hash: %w", err)
+	}
+
+	return address.NewAddress(0, 255, hash), nil
 }
 
 // GenerateDefaultWallet generates HighloadV2R2 or V3R2 TON wallet with
@@ -197,8 +224,8 @@ func (c *Connection) DnsResolveSmc(
 		return nil, err
 	}
 
-	smcAddr := domain.GetWalletRecord()
-	// TODO: fix tonutils
+	// TODO: replace after tonutils fix
+	smcAddr := getWalletRecord(domain)
 
 	if smcAddr == nil {
 		// not wallet
@@ -206,6 +233,37 @@ func (c *Connection) DnsResolveSmc(
 	}
 
 	return smcAddr, nil
+}
+
+func getWalletRecord(d *dns.Domain) *address.Address {
+
+	// TODO: remove after tonutils fix
+	rec := d.GetRecord("wallet")
+	if rec == nil {
+		return nil
+	}
+	p := rec.BeginParse()
+
+	p, err := p.LoadRef()
+	if err != nil {
+		return nil
+	}
+
+	category, err := p.LoadUInt(16)
+	if err != nil {
+		return nil
+	}
+
+	if category != 0x9fd3 { // const _CategoryContractAddr = 0x9fd3
+		return nil
+	}
+
+	addr, err := p.LoadAddr()
+	if err != nil {
+		return nil
+	}
+
+	return addr
 }
 
 // GenerateDepositJettonWalletForProxy
