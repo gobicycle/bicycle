@@ -1276,3 +1276,46 @@ func (c *Connection) GetIncomeByTx(
 	income.TxHash = txHash
 	return &income, core.TonSymbol, nil
 }
+
+func (c *Connection) GetTotalWithdrawalAmounts(ctx context.Context, currency string) (*core.TotalWithdrawalsAmount, error) {
+
+	tx, err := c.client.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	var totalAmounts core.TotalWithdrawalsAmount
+
+	err = tx.QueryRow(ctx, `
+		SELECT 
+		    COALESCE(SUM(amount), 0 ) as total_processing_amount
+		FROM payments.withdrawal_requests
+		WHERE currency = $1 AND processed = false AND processing = true 
+	`, currency).Scan(
+		&totalAmounts.Processing,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.QueryRow(ctx, `
+		SELECT 
+		    COALESCE(SUM(amount), 0 ) as total_pending_amount
+		FROM payments.withdrawal_requests
+		WHERE currency = $1 AND processed = false AND processing = false 
+	`, currency).Scan(
+		&totalAmounts.Pending,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &totalAmounts, nil
+
+}

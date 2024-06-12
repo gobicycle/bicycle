@@ -386,6 +386,7 @@ Get withdrawal status. Returns `pending`, `processing`, `processed`/'failed', tr
 ## Get balance [GET /v1/balance{?currency,address}]
 
 Get balance for account by `address` and `currency`. Returns the balance of hot wallet if `address` not specified.
+For hot wallet also returns `total_processing_amount` and `total_pending_amount` for withdrawals in queue.
 
 + Parameters
 
@@ -403,7 +404,9 @@ Get balance for account by `address` and `currency`. Returns the balance of hot 
     + Body
 
             {
-                "amount": "1000000"
+                "balance": "1000000",
+                "total_processing_amount": "1000",
+                "total_pending_amount": "1000"
             }
 
 + Response 400 (application/json)

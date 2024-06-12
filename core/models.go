@@ -282,6 +282,11 @@ type TotalIncome struct {
 	Currency string
 }
 
+type TotalWithdrawalsAmount struct {
+	Pending    Coins
+	Processing Coins
+}
+
 type Coins = decimal.Decimal
 
 func NewCoins(int *big.Int) Coins {

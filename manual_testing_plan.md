@@ -292,7 +292,7 @@ Template:
 
 32. -[ ] Checked
 - TEST    : Check balance of hot wallet by `/v1/balance{?currency}` (without address parameter) method for TON and jettons.
-- RESULT  : The method should return actual balance for hot wallet.
+- RESULT  : The method should return actual balance for hot wallet and correct withdrawal amounts.
 - COMMENT :
 
 33. -[ ] Checked
