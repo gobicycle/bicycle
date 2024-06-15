@@ -323,7 +323,7 @@ type storage interface {
 	GetTonHotWalletAddress(ctx context.Context) (Address, error)
 	SetExpired(ctx context.Context) error
 	SaveInternalWithdrawalTask(ctx context.Context, task InternalWithdrawalTask, expiredAt time.Time, memo uuid.UUID) error
-	IsActualBlockData(ctx context.Context) (bool, error)
+	IsActualBlockData(ctx context.Context) (bool, int64, error)
 	SaveWithdrawalRequest(ctx context.Context, w WithdrawalRequest) (int64, error)
 	IsInProgressInternalWithdrawalRequest(ctx context.Context, dest Address, currency string) (bool, error)
 	GetServiceHotWithdrawalTasks(ctx context.Context, limit int) ([]ServiceWithdrawalTask, error)

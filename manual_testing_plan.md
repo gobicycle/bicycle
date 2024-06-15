@@ -320,6 +320,11 @@ Template:
 - RESULT  : The method should return not found error.
 - COMMENT :
 
+38. -[ ] Checked
+- TEST    : Check last block time by `/v1/system/sync`.
+- RESULT  : Last block time must correlate with DB records.
+- COMMENT :
+
 ### Internal logic
 
 1. -[ ] Checked

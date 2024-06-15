@@ -587,7 +587,7 @@ func (p *WithdrawalsProcessor) waitSync() {
 			break
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-		isSynced, err := p.db.IsActualBlockData(ctx)
+		isSynced, _, err := p.db.IsActualBlockData(ctx)
 		if err != nil {
 			log.Fatalf("check sync error: %v", err)
 		}

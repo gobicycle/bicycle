@@ -204,16 +204,20 @@ func (h *Handler) sendWithdrawal(resp http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handler) getSync(resp http.ResponseWriter, req *http.Request) {
-	isSynced, err := h.storage.IsActualBlockData(req.Context())
+
+	isSynced, utime, err := h.storage.IsActualBlockData(req.Context())
 	if err != nil {
 		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get sync from db err: %v", err))
 		return
 	}
 	getSyncResponse := struct {
-		IsSynced bool `json:"is_synced"`
+		IsSynced  bool  `json:"is_synced"`
+		BlockTime int64 `json:"last_block_gen_utime"`
 	}{
-		IsSynced: isSynced,
+		IsSynced:  isSynced,
+		BlockTime: utime,
 	}
+
 	resp.Header().Add("Content-Type", "application/json")
 	resp.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(resp).Encode(getSyncResponse)
@@ -810,7 +814,7 @@ type storage interface {
 	GetJettonOwnersAddresses(ctx context.Context, userID string, types []core.WalletType) ([]core.OwnerWallet, error)
 	SaveWithdrawalRequest(ctx context.Context, w core.WithdrawalRequest) (int64, error)
 	IsWithdrawalRequestUnique(ctx context.Context, w core.WithdrawalRequest) (bool, error)
-	IsActualBlockData(ctx context.Context) (bool, error)
+	IsActualBlockData(ctx context.Context) (bool, int64, error)
 	GetExternalWithdrawalStatus(ctx context.Context, id int64) (core.WithdrawalData, error)
 	GetWalletType(address core.Address) (core.WalletType, bool)
 	GetIncome(ctx context.Context, userID string, isDepositSide bool) ([]core.TotalIncome, error)

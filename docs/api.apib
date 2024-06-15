@@ -431,13 +431,15 @@ For hot wallet also returns `total_processing_amount` and `total_pending_amount`
 
 Get blockchain sync flag. Returns `true` if the service has up-to-date data from the blockchain.
 As long as the flag is equal to `false`, no withdrawals are made.
+Also returns last scanned workchain block `gen_utime` (unix time) to evaluate the processor's lag from the blockchain.
 
 + Response 200 (application/json)
 
     + Body
 
             {
-              "is_synced": false
+              "is_synced": false,
+              "last_block_gen_utime": 1718490850,
             }
 
 + Response 500 (application/json)

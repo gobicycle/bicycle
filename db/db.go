@@ -1006,7 +1006,7 @@ func (c *Connection) SetExpired(ctx context.Context) error {
 	return tx.Commit(ctx)
 }
 
-func (c *Connection) IsActualBlockData(ctx context.Context) (bool, error) {
+func (c *Connection) IsActualBlockData(ctx context.Context) (bool, int64, error) {
 	var lastBlockTime time.Time
 	err := c.client.QueryRow(ctx, `
 		SELECT 
@@ -1016,12 +1016,12 @@ func (c *Connection) IsActualBlockData(ctx context.Context) (bool, error) {
 		LIMIT 1
 	`).Scan(&lastBlockTime)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return false, nil
+		return false, 0, nil
 	}
 	if err != nil {
-		return false, err
+		return false, 0, err
 	}
-	return time.Since(lastBlockTime) < config.AllowableBlockchainLagging, nil
+	return time.Since(lastBlockTime) < config.AllowableBlockchainLagging, lastBlockTime.Unix(), nil
 }
 
 func (c *Connection) IsInProgressInternalWithdrawalRequest(

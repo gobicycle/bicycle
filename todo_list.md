@@ -65,6 +65,7 @@
 - [x] DNS resolver
 - [x] Check proofs
 - [x] Total withdrawals amount for get balance method
+- [x] Add last block time to /v1/system/sync method
 - [ ] Binary comment support for withdrawals
 - [ ] Get withdrawal by tx hash method
 - [ ] Add incorrect processing of some TON deposit replenishments for failed transaction to threat model
