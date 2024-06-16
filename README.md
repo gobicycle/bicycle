@@ -118,24 +118,24 @@ If the `hot_wallet_residual_balance` is not set, then it is calculated using the
 ```console
 make -f Makefile
 ```
-2. Prepare `.env` file for `payment-postgres` service or fill environment variables in `docker-compose-main.yml` file.
+2. Prepare `.env` file for `payment-postgres` service or fill environment variables in `docker-compose.yml` file.
 Database scheme automatically init.
 ```console
-docker-compose -f docker-compose-main.yml up -d payment-postgres
+docker-compose -f docker-compose.yml up -d payment-postgres
 ```
-3. Prepare `.env` file for `payment-processor` service or fill environment variables in `docker-compose-main.yml` file.
+3. Prepare `.env` file for `payment-processor` service or fill environment variables in `docker-compose.yml` file.
 ```console
-docker-compose -f docker-compose-main.yml up -d payment-processor
+docker-compose -f docker-compose.yml up -d payment-processor
 ```
 4. Optionally you can start Grafana for service monitoring. Prepare `.env` file for `payment-grafana` service or 
-fill environment variables in `docker-compose-main.yml` file.
+fill environment variables in `docker-compose.yml` file.
 ```console
-docker-compose -f docker-compose-main.yml up -d payment-grafana
+docker-compose -f docker-compose.yml up -d payment-grafana
 ```
 5. Optionally you can start RabbitMQ to collect payment notifications (if `QUEUE_ENABLED` env var is `true` for payment-processor). 
-Prepare `.env` file for `payment-rabbitmq` service or fill environment variables in `docker-compose-main.yml` file.
+Prepare `.env` file for `payment-rabbitmq` service or fill environment variables in `docker-compose.yml` file.
 ```console
-docker-compose -f docker-compose-main.yml up -d payment-rabbitmq
+docker-compose -f docker-compose.yml up -d payment-rabbitmq
 ```
 
 ## Payment notifications
