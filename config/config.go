@@ -12,9 +12,11 @@ import (
 	"time"
 )
 
+const DefaultJettonForwardTonAmount = 20_000_000
+
 var (
 	JettonTransferTonAmount = tlb.FromNanoTONU(100_000_000)
-	JettonForwardAmount     = tlb.FromNanoTONU(20_000_000) // must be < JettonTransferTonAmount
+	JettonForwardAmount     = tlb.FromNanoTONU(DefaultJettonForwardTonAmount) // must be < JettonTransferTonAmount
 
 	DefaultHotWalletHysteresis = decimal.NewFromFloat(0.95) // `hot_wallet_residual_balance` = `hot_wallet_max_balance` * `hysteresis`
 
@@ -58,6 +60,7 @@ var Config = struct {
 	WebhookEndpoint          string `env:"WEBHOOK_ENDPOINT"`
 	WebhookToken             string `env:"WEBHOOK_TOKEN"`
 	AllowableLaggingSec      int    `env:"ALLOWABLE_LAG"`
+	ForwardTonAmount         int    `env:"FORWARD_TON_AMOUNT"`
 	Jettons                  map[string]Jetton
 	Ton                      Cutoffs
 	ColdWallet               *address.Address
@@ -85,6 +88,12 @@ func GetConfig() {
 	}
 	Config.Jettons = parseJettonString(Config.JettonString)
 	Config.Ton = parseTonString(Config.TonString)
+
+	if Config.ForwardTonAmount < 0 || Config.ForwardTonAmount > DefaultJettonForwardTonAmount {
+		log.Fatalf("Forward TON amount for jetton transfer must be positive and less than %d", DefaultJettonForwardTonAmount)
+	} else if Config.ForwardTonAmount > 0 {
+		JettonForwardAmount = tlb.FromNanoTONU(uint64(Config.ForwardTonAmount))
+	}
 
 	if Config.ColdWalletString != "" {
 		coldAddr, err := address.ParseAddr(Config.ColdWalletString)
