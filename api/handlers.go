@@ -64,7 +64,13 @@ type WithdrawalResponse struct {
 }
 
 type GetBalanceResponse struct {
-	Balance string `json:"amount"`
+	Balance          string `json:"balance"`
+	ProcessingAmount string `json:"total_processing_amount,omitempty"`
+	PendingAmount    string `json:"total_pending_amount,omitempty"`
+}
+
+type ResolveResponse struct {
+	Address string `json:"address"`
 }
 
 type WithdrawalStatusResponse struct {
@@ -444,6 +450,7 @@ func (h *Handler) getBalance(resp http.ResponseWriter, req *http.Request) {
 		tonWalletAddress core.Address
 		err              error
 		balance          *big.Int
+		res              GetBalanceResponse
 	)
 
 	addr := req.URL.Query().Get("address")
@@ -455,6 +462,13 @@ func (h *Handler) getBalance(resp http.ResponseWriter, req *http.Request) {
 		}
 	} else {
 		tonWalletAddress = core.AddressMustFromTonutilsAddress(&h.hotWalletAddress)
+		amounts, err := h.storage.GetTotalWithdrawalAmounts(req.Context(), currency)
+		if err != nil {
+			writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get total withdrawal amounts err: %v", err))
+			return
+		}
+		res.PendingAmount = amounts.Pending.String()
+		res.ProcessingAmount = amounts.Processing.String()
 	}
 
 	if currency == core.TonSymbol {
@@ -478,7 +492,38 @@ func (h *Handler) getBalance(resp http.ResponseWriter, req *http.Request) {
 
 	resp.Header().Add("Content-Type", "application/json")
 	resp.WriteHeader(http.StatusOK)
-	res := GetBalanceResponse{Balance: balance.String()}
+	res.Balance = balance.String()
+	err = json.NewEncoder(resp).Encode(res)
+	if err != nil {
+		log.Errorf("json encode error: %v", err)
+	}
+
+}
+
+func (h *Handler) getResolve(resp http.ResponseWriter, req *http.Request) {
+
+	domain := req.URL.Query().Get("domain")
+	if domain == "" {
+		writeHttpError(resp, http.StatusBadRequest, "invalid domain")
+		return
+	}
+
+	addr, err := h.blockchain.DnsResolveSmc(req.Context(), domain)
+	if errors.Is(err, core.ErrNotFound) {
+		writeHttpError(resp, http.StatusNotFound, "smart contract DNS record not found")
+		return
+	}
+	if err != nil {
+		writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get DNS record err: %v", err))
+		return
+	}
+
+	addr.SetTestnetOnly(config.Config.Testnet)
+	addr.SetBounce(true)
+
+	resp.Header().Add("Content-Type", "application/json")
+	resp.WriteHeader(http.StatusOK)
+	res := ResolveResponse{Address: addr.String()}
 	err = json.NewEncoder(resp).Encode(res)
 	if err != nil {
 		log.Errorf("json encode error: %v", err)
@@ -498,6 +543,7 @@ func RegisterHandlers(mux *http.ServeMux, h *Handler) {
 	mux.HandleFunc("/v1/deposit/history", recoverMiddleware(authMiddleware(get(h.getIncomeHistory))))
 	mux.HandleFunc("/v1/deposit/income", recoverMiddleware(authMiddleware(get(h.getIncomeByTx))))
 	mux.HandleFunc("/v1/balance", recoverMiddleware(authMiddleware(get(h.getBalance))))
+	mux.HandleFunc("/v1/resolve", recoverMiddleware(authMiddleware(get(h.getResolve))))
 	mux.HandleFunc("/metrics", recoverMiddleware(get(h.getMetrics)))
 }
 
@@ -772,6 +818,7 @@ type storage interface {
 	GetIncomeHistory(ctx context.Context, userID string, currency string, limit int, offset int, ascOrder bool) ([]core.ExternalIncome, error)
 	GetOwner(address core.Address) *core.Address
 	GetIncomeByTx(ctx context.Context, txHash []byte) (*core.ExternalIncome, string, error)
+	GetTotalWithdrawalAmounts(ctx context.Context, currency string) (*core.TotalWithdrawalsAmount, error)
 }
 
 type blockchain interface {
@@ -789,4 +836,5 @@ type blockchain interface {
 	GenerateDefaultWallet(seed string, isHighload bool) (*wallet.Wallet, byte, uint32, error)
 	GetAccountCurrentState(ctx context.Context, address *address.Address) (*big.Int, tlb.AccountStatus, error)
 	GetJettonBalanceByOwner(ctx context.Context, owner *address.Address, jettonMaster *address.Address) (*big.Int, error)
+	DnsResolveSmc(ctx context.Context, domainName string) (*address.Address, error)
 }

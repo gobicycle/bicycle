@@ -386,6 +386,7 @@ Get withdrawal status. Returns `pending`, `processing`, `processed`/'failed', tr
 ## Get balance [GET /v1/balance{?currency,address}]
 
 Get balance for account by `address` and `currency`. Returns the balance of hot wallet if `address` not specified.
+For hot wallet also returns `total_processing_amount` and `total_pending_amount` for withdrawals in queue.
 
 + Parameters
 
@@ -403,7 +404,9 @@ Get balance for account by `address` and `currency`. Returns the balance of hot 
     + Body
 
             {
-                "amount": "1000000"
+                "balance": "1000000",
+                "total_processing_amount": "1000",
+                "total_pending_amount": "1000"
             }
 
 + Response 400 (application/json)
@@ -501,4 +504,52 @@ sender's address as `source_address` (if it could be determined).
 
             {
                 "error": "error text"
-            }             
+            }
+
+## Resolve domain name [GET /v1/resolve{?domain}]
+
+Resolve domain name. Returns bounceable user-friendly address for smart-contract (`dns_smc_address#9fd3` DNS record).
+
++ Parameters
+
+    + domain (string) - domain name (for example: wallet.ton)
+
++ Request
+
+    + Headers
+
+            Authorization: Bearer
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+              "address": "kQCKt2WPGX-fh0cIAz38Ljd_OKQjoZE_cqk7QrYGsNP6wfP0"
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 404 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }

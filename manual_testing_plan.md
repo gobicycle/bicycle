@@ -62,6 +62,21 @@ Template:
 - RESULT  : Service must stop. Must be invalid address format error message in log.
 - COMMENT :
 
+11. -[ ] Checked
+- TEST    : Start service with `PROOF_CHECK_ENABLED=true` and empty or invalid `NETWORK_CONFIG_URL` ENV variable.
+- RESULT  : Service must stop. Must be blockchain connection error message in log.
+- COMMENT :
+
+12. -[ ] Checked
+- TEST    : Start service with `PROOF_CHECK_ENABLED=false` ENV variable.
+- RESULT  : Service must start normally.
+- COMMENT :
+
+13. -[ ] Checked
+- TEST    : Start service with `PROOF_CHECK_ENABLED=true` and valid `NETWORK_CONFIG_URL` ENV variable.
+- RESULT  : Service must start normally. Must be `Proof checks are completed` message in log.
+- COMMENT :
+
 ### API
 
 1. -[X] Checked
@@ -277,7 +292,7 @@ Template:
 
 32. -[ ] Checked
 - TEST    : Check balance of hot wallet by `/v1/balance{?currency}` (without address parameter) method for TON and jettons.
-- RESULT  : The method should return actual balance for hot wallet.
+- RESULT  : The method should return actual balance for hot wallet and correct withdrawal amounts.
 - COMMENT :
 
 33. -[ ] Checked
@@ -293,6 +308,16 @@ Template:
 35. -[ ] Checked
 - TEST    : Check balance of custom account by `/v1/balance{?currency,address}` with invalid parameters (unknown currency, testnet address for mainnet).
 - RESULT  : The method should return bad request error.
+- COMMENT :
+
+36. -[ ] Checked
+- TEST    : Resolve address of custom account by `/v1/resolve{?domain}` with valid `dns_smc_address` record.
+- RESULT  : The method should return valid user-friendly address with bounceable flag and testnet/mainnet flag.
+- COMMENT :
+
+37. -[ ] Checked
+- TEST    : Resolve address of custom account by `/v1/resolve{?domain}` with invalid domain or without `dns_smc_address` DNS record.
+- RESULT  : The method should return not found error.
 - COMMENT :
 
 ### Internal logic

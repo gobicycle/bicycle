@@ -51,6 +51,8 @@ var Config = struct {
 	QueueURI                 string `env:"QUEUE_URI"`
 	QueueName                string `env:"QUEUE_NAME"`
 	QueueEnabled             bool   `env:"QUEUE_ENABLED" envDefault:"false"`
+	ProofCheckEnabled        bool   `env:"PROOF_CHECK_ENABLED" envDefault:"false"`
+	NetworkConfigUrl         string `env:"NETWORK_CONFIG_URL"`
 	WebhookEndpoint          string `env:"WEBHOOK_ENDPOINT"`
 	WebhookToken             string `env:"WEBHOOK_TOKEN"`
 	AllowableLaggingSec      int    `env:"ALLOWABLE_LAG"`
