@@ -373,7 +373,9 @@ func (c *Connection) saveInternalIncome(ctx context.Context, tx pgx.Tx, inc core
 }
 
 func (c *Connection) SaveWithdrawalRequest(ctx context.Context, w core.WithdrawalRequest) (int64, error) {
+
 	var queryID int64
+
 	err := c.client.QueryRow(ctx, `
 		INSERT INTO payments.withdrawal_requests (
 		user_id,
@@ -383,9 +385,10 @@ func (c *Connection) SaveWithdrawalRequest(ctx context.Context, w core.Withdrawa
 		bounceable,
 		dest_address,
 		comment,
-		is_internal
+		is_internal,
+		binary_comment
 	)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING query_id
 	`,
 		w.UserID,
@@ -396,6 +399,7 @@ func (c *Connection) SaveWithdrawalRequest(ctx context.Context, w core.Withdrawa
 		w.Destination,
 		w.Comment,
 		w.IsInternal,
+		w.BinaryComment,
 	).Scan(&queryID)
 	return queryID, err
 }
@@ -466,7 +470,8 @@ func (c *Connection) GetExternalWithdrawalTasks(ctx context.Context, limit int) 
 		                                  currency,
 		                                  bounceable,
 		                                  comment,
-		                                  amount
+		                                  amount,
+		                                  binary_comment
 		FROM   payments.withdrawal_requests
 		WHERE  processing = false
         ORDER BY dest_address, query_id
@@ -478,7 +483,7 @@ func (c *Connection) GetExternalWithdrawalTasks(ctx context.Context, limit int) 
 	defer rows.Close()
 	for rows.Next() {
 		var w core.ExternalWithdrawalTask
-		err = rows.Scan(&w.Destination, &w.QueryID, &w.Currency, &w.Bounceable, &w.Comment, &w.Amount)
+		err = rows.Scan(&w.Destination, &w.QueryID, &w.Currency, &w.Bounceable, &w.Comment, &w.Amount, &w.BinaryComment)
 		if err != nil {
 			return nil, err
 		}

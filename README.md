@@ -18,6 +18,8 @@ Service is ADNL based and interacts directly with node and do not use any third 
 - [Deployment](#Deployment)
   - [Configurable parameters](#Configurable-parameters)
   - [Service deploy](#Service-deploy)
+- [Payment notifications](#Payment-notifications)
+- [Binary comment support](#Binary-comment-support)
 - [REST API](https://gobicycle.github.io/bicycle/)
 - [Technical notes](/technical_notes.md)
 - [Threat model](/threat_model.md)
@@ -188,6 +190,23 @@ When the `payment-processor` is running, it will send a `POST` request to the we
 wait for a response with a `200` code and an empty body. If a successful delivery response is not received after 
 several attempts, the service will stop with an error. If the variable `WEBHOOK_TOKEN` is set, it will also 
 add header `Authorization: Bearer {token}`.
+
+## Binary comment support
+
+Method `/v1/withdrawal/send` also supports `binary_comment`. The comment is written in a hex form. If the bits qty is not 
+a multiple of a byte, then the record form with a flip bit is supported, for example `9fe7_`.
+A `binary_comment` is writing directly to the body of the message (for the TON transfer) and to the `forward_payload` 
+(for the Jetton transfer) with its opcode according to the following TLB scheme:
+
+`binary_comment#b3ddcf7d {n:#} data:(SnakeData ~n) = InternalMsgBody;`
+
+`crc32('binary_comment n:# data:SnakeData ~n = InternalMsgBody') = 0xb3ddcf7d`
+
+This comment will not be displayed by the explorer as text and can be useful for transmitting metadata that 
+will be read by indexers.
+
+The documentation [contains](https://docs.ton.org/develop/smart-contracts/guidelines/internal-messages#simple-message-with-comment) a standard way of writing a binary comment, but due to the fact that it is not supported 
+by services, an alternative recording method was chosen.
 
 <!-- Badges -->
 [ton-svg]: https://img.shields.io/badge/Based%20on-TON-blue

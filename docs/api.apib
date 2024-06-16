@@ -212,6 +212,8 @@ sender's address as `source_address` (if it could be determined).
 ## Send withdrawal [POST /v1/withdrawal/send]
 
 Send withdrawal request. **Amount must be in base units without decimal point (NanoTONs for TONs)**
+Instead of a `comment`, you can specify a `binary_comment` in hex notation format.
+`binary_comment` supports binary string hex representation form with flip bit (example: `9fe7_`)
 
 + Request (application/json)
 

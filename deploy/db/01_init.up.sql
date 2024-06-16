@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS payments.withdrawal_requests
     currency         text not null,
     dest_address     bytea not null,
     comment          text,
+    binary_comment   text,
     unique (user_id, user_query_id, is_internal)
 );
 

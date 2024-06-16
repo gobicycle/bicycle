@@ -8,8 +8,11 @@ import (
 	"github.com/gobicycle/bicycle/config"
 	"github.com/gofrs/uuid"
 	log "github.com/sirupsen/logrus"
+	"github.com/tonkeeper/tongo/boc"
+	tongoTlb "github.com/tonkeeper/tongo/tlb"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton/jetton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"math/big"
@@ -258,6 +261,7 @@ func WithdrawJettons(
 		forwardAmount,
 		rand.Int63(),
 		comment,
+		"",
 	)
 	return from.Send(ctx, &wallet.Message{
 		Mode: 128 + 32, // 128 + 32 send all and destroy
@@ -277,40 +281,90 @@ func MakeJettonTransferMessage(
 	forwardAmount tlb.Coins,
 	queryId int64,
 	comment string,
+	binaryComment string,
 ) *cell.Cell {
 
-	builder := cell.BeginCell().
-		MustStoreUInt(0x0f8a7ea5, 32).             // transfer#0f8a7ea5
-		MustStoreUInt(uint64(queryId), 64).        // query_id:uint64
-		MustStoreBigCoins(amount).                 // amount:(VarUInteger 16) Jettons amount.
-		MustStoreAddr(destination).                // destination:MsgAddress
-		MustStoreAddr(responseDest).               // response_destination:MsgAddress
-		MustStoreBoolBit(false).                   // custom_payload:(Maybe ^Cell)
-		MustStoreBigCoins(forwardAmount.NanoTON()) // forward_ton_amount:(VarUInteger 16)
+	forwardPayload := cell.BeginCell().EndCell()
 
-	if comment != "" {
-		return builder.
-			MustStoreBoolBit(true). // forward_payload:(Either Cell ^Cell)
-			MustStoreRef(buildComment(comment)).
-			EndCell()
-
+	if binaryComment != "" {
+		c, err := decodeBinaryComment(binaryComment)
+		if err != nil {
+			log.Fatalf("decode binary comment error : %s", err.Error())
+		}
+		forwardPayload = c
+	} else if comment != "" {
+		forwardPayload = buildComment(comment)
 	}
-	return builder.
-		MustStoreBoolBit(false). // forward_payload:(Either Cell ^Cell)
-		EndCell()
 
+	payload, err := tlb.ToCell(jetton.TransferPayload{
+		QueryID:             uint64(queryId),
+		Amount:              tlb.FromNanoTON(amount),
+		Destination:         destination,
+		ResponseDestination: responseDest,
+		CustomPayload:       nil,
+		ForwardTONAmount:    forwardAmount,
+		ForwardPayload:      forwardPayload,
+	})
+
+	if err != nil {
+		log.Fatalf("jetton transfer message serialization error: %s", err.Error())
+	}
+
+	return payload
+}
+
+// decodeBinaryComment implements decoding of hex string and put it into cell with TLB scheme:
+// `binary_comment#b3ddcf7d {n:#} data:(SnakeData ~n) = InternalMsgBody;`
+func decodeBinaryComment(comment string) (*cell.Cell, error) {
+
+	bitString, err := boc.BitStringFromFiftHex(comment)
+	if err != nil {
+		return nil, err
+	}
+
+	c := boc.NewCell()
+	err = c.WriteUint(0xb3ddcf7d, 32) // binary_comment#b3ddcf7d
+	if err != nil {
+		return nil, err
+	}
+
+	err = tongoTlb.Marshal(c, tongoTlb.SnakeData(*bitString))
+	if err != nil {
+		return nil, err
+	}
+
+	b, err := c.ToBoc()
+	if err != nil {
+		return nil, err
+	}
+
+	return cell.FromBOC(b)
 }
 
 func BuildTonWithdrawalMessage(t ExternalWithdrawalTask) *wallet.Message {
+
+	internalMessage := tlb.InternalMessage{
+		IHRDisabled: true,
+		Bounce:      t.Bounceable,
+		DstAddr:     t.Destination.ToTonutilsAddressStd(0),
+		Amount:      tlb.FromNanoTON(t.Amount.BigInt()),
+	}
+
+	if t.BinaryComment != "" {
+		c, err := decodeBinaryComment(t.BinaryComment)
+		if err != nil {
+			log.Fatalf("decode binary comment error : %s", err.Error())
+		}
+		internalMessage.Body = c
+	} else if t.Comment != "" {
+		internalMessage.Body = buildComment(t.Comment)
+	} else {
+		internalMessage.Body = cell.BeginCell().EndCell()
+	}
+
 	return &wallet.Message{
-		Mode: 3,
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      t.Bounceable,
-			DstAddr:     t.Destination.ToTonutilsAddressStd(0),
-			Amount:      tlb.FromNanoTON(t.Amount.BigInt()),
-			Body:        buildComment(t.Comment),
-		},
+		Mode:            3,
+		InternalMessage: &internalMessage,
 	}
 }
 
@@ -319,6 +373,7 @@ func BuildJettonWithdrawalMessage(
 	highloadWallet *wallet.Wallet,
 	fromJettonWallet *address.Address,
 ) *wallet.Message {
+
 	body := MakeJettonTransferMessage(
 		t.Destination.ToTonutilsAddressStd(0),
 		highloadWallet.Address(),
@@ -326,7 +381,9 @@ func BuildJettonWithdrawalMessage(
 		config.JettonForwardAmount,
 		t.QueryID,
 		t.Comment,
+		t.BinaryComment,
 	)
+
 	return &wallet.Message{
 		Mode: 3,
 		InternalMessage: &tlb.InternalMessage{
@@ -353,6 +410,7 @@ func BuildJettonProxyWithdrawalMessage(
 		forwardAmount,
 		rand.Int63(),
 		comment,
+		"",
 	)
 
 	msg, err := tlb.ToCell(proxy.BuildMessage(jettonWallet, jettonTransferPayload))

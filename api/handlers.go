@@ -13,6 +13,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	log "github.com/sirupsen/logrus"
+	"github.com/tonkeeper/tongo/boc"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -33,12 +34,13 @@ type Handler struct {
 }
 
 type WithdrawalRequest struct {
-	UserID      string     `json:"user_id"`
-	QueryID     string     `json:"query_id"`
-	Currency    string     `json:"currency"`
-	Amount      core.Coins `json:"amount"`
-	Destination string     `json:"destination"`
-	Comment     string     `json:"comment"`
+	UserID        string     `json:"user_id"`
+	QueryID       string     `json:"query_id"`
+	Currency      string     `json:"currency"`
+	Amount        core.Coins `json:"amount"`
+	Destination   string     `json:"destination"`
+	Comment       string     `json:"comment"`
+	BinaryComment string     `json:"binary_comment"`
 }
 
 type ServiceTonWithdrawalRequest struct {
@@ -648,6 +650,10 @@ func getAddresses(ctx context.Context, userID string, dbConn storage) (GetAddres
 	return res, nil
 }
 
+func isValidCommentLen(comment string) bool {
+	return len(comment) < config.MaxCommentLength
+}
+
 func isValidCurrency(cur string) bool {
 	if _, ok := config.Config.Jettons[cur]; ok || cur == core.TonSymbol {
 		return true
@@ -656,17 +662,29 @@ func isValidCurrency(cur string) bool {
 }
 
 func convertWithdrawal(w WithdrawalRequest) (core.WithdrawalRequest, error) {
+
 	if !isValidCurrency(w.Currency) {
 		return core.WithdrawalRequest{}, fmt.Errorf("invalid currency")
 	}
+
 	addr, bounceable, err := validateAddress(w.Destination)
 	if err != nil {
 		return core.WithdrawalRequest{}, fmt.Errorf("invalid destination address: %v", err)
 	}
+
 	if !(w.Amount.Cmp(decimal.New(0, 0)) == 1) {
 		return core.WithdrawalRequest{}, fmt.Errorf("amount must be > 0")
 	}
-	return core.WithdrawalRequest{
+
+	if w.Comment != "" && w.BinaryComment != "" {
+		return core.WithdrawalRequest{}, fmt.Errorf("only one type of comment can be specified (comment OR binary comment)")
+	}
+
+	if !isValidCommentLen(w.Comment) || !isValidCommentLen(w.BinaryComment) {
+		return core.WithdrawalRequest{}, fmt.Errorf("too long comment, max length allowed: %d", config.MaxCommentLength)
+	}
+
+	res := core.WithdrawalRequest{
 		UserID:      w.UserID,
 		QueryID:     w.QueryID,
 		Currency:    w.Currency,
@@ -675,7 +693,17 @@ func convertWithdrawal(w WithdrawalRequest) (core.WithdrawalRequest, error) {
 		Bounceable:  bounceable,
 		Comment:     w.Comment,
 		IsInternal:  false,
-	}, nil
+	}
+
+	if w.BinaryComment != "" {
+		_, err = boc.BitStringFromFiftHex(w.BinaryComment)
+		if err != nil {
+			return core.WithdrawalRequest{}, fmt.Errorf("decode binary comment error: %v", err)
+		}
+		res.BinaryComment = w.BinaryComment
+	}
+
+	return res, nil
 }
 
 func convertTonServiceWithdrawal(s storage, w ServiceTonWithdrawalRequest) (core.ServiceWithdrawalRequest, error) {

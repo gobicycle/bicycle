@@ -156,14 +156,15 @@ type WalletData struct {
 }
 
 type WithdrawalRequest struct {
-	QueryID     string
-	UserID      string
-	Currency    string
-	Amount      Coins
-	Bounceable  bool
-	IsInternal  bool
-	Destination Address
-	Comment     string
+	QueryID       string
+	UserID        string
+	Currency      string
+	Amount        Coins
+	Bounceable    bool
+	IsInternal    bool
+	Destination   Address
+	Comment       string
+	BinaryComment string
 }
 
 type WithdrawalData struct {
@@ -186,12 +187,13 @@ type ServiceWithdrawalTask struct {
 }
 
 type ExternalWithdrawalTask struct {
-	QueryID     int64
-	Currency    string
-	Amount      Coins
-	Destination Address
-	Bounceable  bool
-	Comment     string
+	QueryID       int64
+	Currency      string
+	Amount        Coins
+	Destination   Address
+	Bounceable    bool
+	Comment       string
+	BinaryComment string
 }
 
 type InternalWithdrawal struct {
