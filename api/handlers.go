@@ -67,6 +67,7 @@ type WithdrawalResponse struct {
 
 type GetBalanceResponse struct {
 	Balance          string `json:"balance"`
+	Status           string `json:"status,omitempty"`
 	ProcessingAmount string `json:"total_processing_amount,omitempty"`
 	PendingAmount    string `json:"total_pending_amount,omitempty"`
 }
@@ -456,6 +457,7 @@ func (h *Handler) getBalance(resp http.ResponseWriter, req *http.Request) {
 		tonWalletAddress core.Address
 		err              error
 		balance          *big.Int
+		status           tlb.AccountStatus
 		res              GetBalanceResponse
 	)
 
@@ -479,11 +481,12 @@ func (h *Handler) getBalance(resp http.ResponseWriter, req *http.Request) {
 
 	if currency == core.TonSymbol {
 
-		balance, _, err = h.blockchain.GetAccountCurrentState(req.Context(), tonWalletAddress.ToTonutilsAddressStd(0))
+		balance, status, err = h.blockchain.GetAccountCurrentState(req.Context(), tonWalletAddress.ToTonutilsAddressStd(0))
 		if err != nil {
 			writeHttpError(resp, http.StatusInternalServerError, fmt.Sprintf("get TON balance err: %v", err))
 			return
 		}
+		res.Status = strings.ToLower(string(status))
 
 	} else {
 
