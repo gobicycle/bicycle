@@ -640,9 +640,14 @@ func (s *BlockScanner) processTonHotWalletExternalInMsg(tx *tlb.Transaction) (Ev
 	}
 
 	addrMapOut := make(map[Address]struct{})
-	outList, err := tx.IO.Out.ToSlice()
-	if err != nil {
-		return Events{}, err
+
+	var outList []tlb.Message
+
+	if tx.OutMsgCount > 0 {
+		outList, err = tx.IO.Out.ToSlice()
+		if err != nil {
+			return Events{}, err
+		}
 	}
 
 	for _, m := range outList {
@@ -819,9 +824,13 @@ func (s *BlockScanner) processTonDepositWalletExternalInMsg(tx *tlb.Transaction)
 		return Events{}, err
 	}
 
-	outList, err := tx.IO.Out.ToSlice()
-	if err != nil {
-		return Events{}, err
+	var outList []tlb.Message
+
+	if tx.OutMsgCount > 0 {
+		outList, err = tx.IO.Out.ToSlice()
+		if err != nil {
+			return Events{}, err
+		}
 	}
 
 	for _, o := range outList {
@@ -898,9 +907,16 @@ func (s *BlockScanner) processJettonDepositOutMsgs(tx *tlb.Transaction) (Events,
 	knownIncomeAmount := big.NewInt(0)
 	unknownMsgFound := false
 
-	outList, err := tx.IO.Out.ToSlice()
-	if err != nil {
-		return Events{}, nil, false, err
+	var (
+		outList []tlb.Message
+		err     error
+	)
+
+	if tx.OutMsgCount > 0 {
+		outList, err = tx.IO.Out.ToSlice()
+		if err != nil {
+			return Events{}, nil, false, err
+		}
 	}
 
 	for _, m := range outList { // checks for JettonTransferNotification
