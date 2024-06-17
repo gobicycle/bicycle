@@ -530,13 +530,17 @@ func (p *PayerProcessor) loadTXs(ctx context.Context, lastTxID TxID, addr *addre
 
 func parseTX(tx *tlb.Transaction) ([]withdrawal, []uuid.UUID, error) {
 	var (
-		ww    []withdrawal
-		uuids []uuid.UUID
+		ww      []withdrawal
+		uuids   []uuid.UUID
+		msgList []tlb.Message
+		err     error
 	)
 
-	msgList, err := tx.IO.Out.ToSlice()
-	if err != nil {
-		return nil, nil, err
+	if tx.OutMsgCount > 0 {
+		msgList, err = tx.IO.Out.ToSlice()
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	for _, m := range msgList {
