@@ -189,7 +189,7 @@ func (c *Connection) SaveJettonWallet(
 		// only jetton deposit owners tracked by address book
 		// hot TON wallet also owner of jetton hot wallets
 		// cold wallets excluded from address book
-		c.addressBook.put(ownerAddress, core.AddressInfo{Type: core.JettonOwner, Owner: nil})
+		c.addressBook.put(ownerAddress, core.AddressInfo{Type: core.JettonOwner, Owner: nil, UserID: walletData.UserID})
 	}
 	c.addressBook.put(walletData.Address, core.AddressInfo{Type: walletData.Type, Owner: &ownerAddress, UserID: walletData.UserID})
 	return nil
@@ -316,8 +316,9 @@ func saveExternalIncome(ctx context.Context, tx pgx.Tx, inc core.ExternalIncome)
 		payer_address,
 		amount,
 		comment,
-		payer_workchain)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)                                               
+		payer_workchain,
+		tx_hash)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)                                               
 	`,
 		inc.Lt,
 		time.Unix(int64(inc.Utime), 0),
@@ -326,6 +327,7 @@ func saveExternalIncome(ctx context.Context, tx pgx.Tx, inc core.ExternalIncome)
 		inc.Amount,
 		inc.Comment,
 		inc.FromWorkchain,
+		inc.TxHash,
 	)
 	return err
 }
@@ -371,7 +373,9 @@ func (c *Connection) saveInternalIncome(ctx context.Context, tx pgx.Tx, inc core
 }
 
 func (c *Connection) SaveWithdrawalRequest(ctx context.Context, w core.WithdrawalRequest) (int64, error) {
+
 	var queryID int64
+
 	err := c.client.QueryRow(ctx, `
 		INSERT INTO payments.withdrawal_requests (
 		user_id,
@@ -381,9 +385,10 @@ func (c *Connection) SaveWithdrawalRequest(ctx context.Context, w core.Withdrawa
 		bounceable,
 		dest_address,
 		comment,
-		is_internal
+		is_internal,
+		binary_comment
 	)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING query_id
 	`,
 		w.UserID,
@@ -394,6 +399,7 @@ func (c *Connection) SaveWithdrawalRequest(ctx context.Context, w core.Withdrawa
 		w.Destination,
 		w.Comment,
 		w.IsInternal,
+		w.BinaryComment,
 	).Scan(&queryID)
 	return queryID, err
 }
@@ -464,7 +470,8 @@ func (c *Connection) GetExternalWithdrawalTasks(ctx context.Context, limit int) 
 		                                  currency,
 		                                  bounceable,
 		                                  comment,
-		                                  amount
+		                                  amount,
+		                                  binary_comment
 		FROM   payments.withdrawal_requests
 		WHERE  processing = false
         ORDER BY dest_address, query_id
@@ -476,7 +483,7 @@ func (c *Connection) GetExternalWithdrawalTasks(ctx context.Context, limit int) 
 	defer rows.Close()
 	for rows.Next() {
 		var w core.ExternalWithdrawalTask
-		err = rows.Scan(&w.Destination, &w.QueryID, &w.Currency, &w.Bounceable, &w.Comment, &w.Amount)
+		err = rows.Scan(&w.Destination, &w.QueryID, &w.Currency, &w.Bounceable, &w.Comment, &w.Amount, &w.BinaryComment)
 		if err != nil {
 			return nil, err
 		}
@@ -799,14 +806,17 @@ func updateExternalWithdrawal(ctx context.Context, tx pgx.Tx, w core.ExternalWit
 		return fmt.Errorf("invalid behavior of the expiration processor")
 	}
 
+	// if there was a transaction on the hot wallet but the message was not sent
+	// set processed = true to prevent burn balance
 	if w.IsFailed {
 		err := tx.QueryRow(ctx, `
 			UPDATE payments.external_withdrawals
 			SET
-		    	failed = true
-			WHERE  msg_uuid = $1 AND address = $2
+		    	failed = true,
+		    	tx_hash = $1
+			WHERE  msg_uuid = $2 AND address = $3
 			RETURNING query_id
-		`, w.ExtMsgUuid, w.To).Scan(&queryID)
+		`, w.TxHash, w.ExtMsgUuid, w.To).Scan(&queryID)
 		if err != nil {
 			return err
 		}
@@ -814,7 +824,7 @@ func updateExternalWithdrawal(ctx context.Context, tx pgx.Tx, w core.ExternalWit
 		_, err = tx.Exec(ctx, `
 			UPDATE payments.withdrawal_requests
 			SET
-		    	processing = false
+		    	processed = true
 			WHERE  query_id = $1
 		`, queryID)
 		return err
@@ -824,10 +834,11 @@ func updateExternalWithdrawal(ctx context.Context, tx pgx.Tx, w core.ExternalWit
 			UPDATE payments.external_withdrawals
 			SET
 		    	processed_lt = $1,
-		    	processed_at = $2
-			WHERE  msg_uuid = $3 AND address = $4
+		    	processed_at = $2,
+		    	tx_hash = $3
+			WHERE  msg_uuid = $4 AND address = $5
 			RETURNING query_id
-		`, w.Lt, time.Unix(int64(w.Utime), 0), w.ExtMsgUuid, w.To).Scan(&queryID)
+		`, w.Lt, time.Unix(int64(w.Utime), 0), w.TxHash, w.ExtMsgUuid, w.To).Scan(&queryID)
 	if err != nil {
 		return err
 	}
@@ -961,6 +972,7 @@ func (c *Connection) SetExpired(ctx context.Context) error {
 	}
 	defer tx.Rollback(ctx)
 
+	// processed_lt IS NULL AND failed = false - for lost external messages
 	rows, err := tx.Query(ctx, `
 			UPDATE payments.external_withdrawals
 			SET
@@ -999,7 +1011,7 @@ func (c *Connection) SetExpired(ctx context.Context) error {
 	return tx.Commit(ctx)
 }
 
-func (c *Connection) IsActualBlockData(ctx context.Context) (bool, error) {
+func (c *Connection) IsActualBlockData(ctx context.Context) (bool, int64, error) {
 	var lastBlockTime time.Time
 	err := c.client.QueryRow(ctx, `
 		SELECT 
@@ -1009,12 +1021,12 @@ func (c *Connection) IsActualBlockData(ctx context.Context) (bool, error) {
 		LIMIT 1
 	`).Scan(&lastBlockTime)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return false, nil
+		return false, 0, nil
 	}
 	if err != nil {
-		return false, err
+		return false, 0, err
 	}
-	return time.Since(lastBlockTime) < config.AllowableBlockchainLagging, nil
+	return time.Since(lastBlockTime) < config.AllowableBlockchainLagging, lastBlockTime.Unix(), nil
 }
 
 func (c *Connection) IsInProgressInternalWithdrawalRequest(
@@ -1047,6 +1059,7 @@ func (c *Connection) IsInProgressInternalWithdrawalRequest(
 	return true, nil
 }
 
+// GetExternalWithdrawalStatus returns status and hash of transaction for external withdrawal
 func (c *Connection) GetExternalWithdrawalStatus(ctx context.Context, id int64) (core.WithdrawalData, error) {
 	var (
 		processing, processed bool
@@ -1065,7 +1078,28 @@ func (c *Connection) GetExternalWithdrawalStatus(ctx context.Context, id int64) 
 		return core.WithdrawalData{}, err
 	}
 	if processing && processed {
+		var (
+			txHash   []byte
+			isFailed bool
+		)
+		// must be only one record
+		// OR processed_lt IS NOT NULL for DB up to 0.5.0 version
+		err = c.client.QueryRow(ctx, `
+		SELECT tx_hash, failed
+		FROM payments.external_withdrawals
+		WHERE query_id = $1 AND (tx_hash IS NOT NULL OR processed_lt IS NOT NULL)
+		LIMIT 1
+	`, id).Scan(&txHash, &isFailed)
+		if err != nil {
+			return core.WithdrawalData{}, err
+		}
+		if isFailed {
+			data.Status = core.FailedStatus
+			data.TxHash = txHash
+			return data, nil
+		}
 		data.Status = core.ProcessedStatus
+		data.TxHash = txHash
 		return data, nil
 	} else if processing && !processed {
 		data.Status = core.ProcessingStatus
@@ -1138,6 +1172,7 @@ func (c *Connection) GetIncomeHistory(
 	currency string,
 	limit int,
 	offset int,
+	ascOrder bool,
 ) (
 	[]core.ExternalIncome,
 	error,
@@ -1148,27 +1183,32 @@ func (c *Connection) GetIncomeHistory(
 		walletType   core.WalletType
 	)
 
+	order := "DESC"
+	if ascOrder {
+		order = "ASC"
+	}
+
 	if currency == core.TonSymbol {
-		sqlStatement = `
-			SELECT utime, lt, payer_address, deposit_address, amount, comment, payer_workchain
+		sqlStatement = fmt.Sprintf(`
+			SELECT utime, lt, payer_address, deposit_address, amount, comment, payer_workchain, tx_hash
 			FROM payments.external_incomes i
 				LEFT JOIN payments.ton_wallets tw ON i.deposit_address = tw.address
 			WHERE tw.type = $1 AND tw.user_id = $2 AND $3 = $3
-			ORDER BY lt DESC
+			ORDER BY lt %s
 			LIMIT $4
 			OFFSET $5
-		`
+		`, order)
 		walletType = core.TonDepositWallet
 	} else {
-		sqlStatement = `
-			SELECT utime, lt, payer_address, deposit_address, amount, comment, payer_workchain
+		sqlStatement = fmt.Sprintf(`
+			SELECT utime, lt, payer_address, deposit_address, amount, comment, payer_workchain, tx_hash
 			FROM payments.external_incomes i
 			    LEFT JOIN payments.jetton_wallets jw ON i.deposit_address = jw.address
 			WHERE jw.type = $1 AND jw.user_id = $2 AND jw.currency = $3
-			ORDER BY lt DESC
+			ORDER BY lt %s
 			LIMIT $4
 			OFFSET $5
-		`
+		`, order)
 		walletType = core.JettonDepositWallet
 	}
 
@@ -1182,7 +1222,7 @@ func (c *Connection) GetIncomeHistory(
 			income core.ExternalIncome
 			t      time.Time
 		)
-		err = rows.Scan(&t, &income.Lt, &income.From, &income.To, &income.Amount, &income.Comment, &income.FromWorkchain)
+		err = rows.Scan(&t, &income.Lt, &income.From, &income.To, &income.Amount, &income.Comment, &income.FromWorkchain, &income.TxHash)
 		if err != nil {
 			return nil, err
 		}
@@ -1190,4 +1230,97 @@ func (c *Connection) GetIncomeHistory(
 		res = append(res, income)
 	}
 	return res, nil
+}
+
+// GetIncomeByTx returns external income and currency for deposit side by transaction hash
+func (c *Connection) GetIncomeByTx(
+	ctx context.Context,
+	txHash []byte,
+) (
+	*core.ExternalIncome,
+	string,
+	error,
+) {
+
+	var (
+		income core.ExternalIncome
+		t      time.Time
+	)
+
+	err := c.client.QueryRow(ctx, `
+		SELECT utime, lt, payer_address, deposit_address, amount, comment, payer_workchain
+		FROM payments.external_incomes i
+		LEFT JOIN payments.ton_wallets tw ON i.deposit_address = tw.address
+		WHERE tw.type = $1 AND i.tx_hash = $2
+		LIMIT 1
+	`, core.TonDepositWallet, txHash).Scan(&t, &income.Lt, &income.From, &income.To, &income.Amount, &income.Comment, &income.FromWorkchain)
+	if errors.Is(err, pgx.ErrNoRows) {
+		var currency string
+		// amount > 0 means receiving an aggregated transaction for an unidentified jetton replenishment
+		err = c.client.QueryRow(ctx, `
+			SELECT utime, lt, payer_address, deposit_address, amount, comment, payer_workchain, jw.currency
+			FROM payments.external_incomes i
+			LEFT JOIN payments.jetton_wallets jw ON i.deposit_address = jw.address
+			WHERE jw.type = $1 AND i.tx_hash = $2 AND i.amount > 0
+			LIMIT 1
+		`, core.JettonDepositWallet, txHash).Scan(&t, &income.Lt, &income.From, &income.To, &income.Amount, &income.Comment, &income.FromWorkchain, &currency)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, "", core.ErrNotFound // not found
+		}
+		if err != nil {
+			return nil, "", err
+		}
+		income.Utime = uint32(t.Unix())
+		income.TxHash = txHash
+		return &income, currency, nil
+	}
+	if err != nil {
+		return nil, "", err
+	}
+	income.Utime = uint32(t.Unix())
+	income.TxHash = txHash
+	return &income, core.TonSymbol, nil
+}
+
+func (c *Connection) GetTotalWithdrawalAmounts(ctx context.Context, currency string) (*core.TotalWithdrawalsAmount, error) {
+
+	tx, err := c.client.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	var totalAmounts core.TotalWithdrawalsAmount
+
+	err = tx.QueryRow(ctx, `
+		SELECT 
+		    COALESCE(SUM(amount), 0 ) as total_processing_amount
+		FROM payments.withdrawal_requests
+		WHERE currency = $1 AND processed = false AND processing = true 
+	`, currency).Scan(
+		&totalAmounts.Processing,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.QueryRow(ctx, `
+		SELECT 
+		    COALESCE(SUM(amount), 0 ) as total_pending_amount
+		FROM payments.withdrawal_requests
+		WHERE currency = $1 AND processed = false AND processing = false 
+	`, currency).Scan(
+		&totalAmounts.Pending,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &totalAmounts, nil
+
 }

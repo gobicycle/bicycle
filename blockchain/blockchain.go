@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/gobicycle/bicycle/config"
 	"github.com/gobicycle/bicycle/core"
@@ -14,6 +15,8 @@ import (
 	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/ton/dns"
+	"github.com/xssnick/tonutils-go/ton/jetton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"math"
 	"math/big"
@@ -23,7 +26,8 @@ import (
 )
 
 type Connection struct {
-	client ton.APIClientWrapped
+	client   ton.APIClientWrapped
+	resolver *dns.Client
 }
 
 func (c *Connection) WaitForBlock(seqno uint32) ton.APIClientWrapped {
@@ -50,17 +54,79 @@ type contract struct {
 func NewConnection(addr, key string) (*Connection, error) {
 
 	client := liteclient.NewConnectionPool()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 	defer cancel()
 
 	err := client.AddConnection(ctx, addr, key)
 	if err != nil {
 		return nil, fmt.Errorf("connection err: %v", err.Error())
 	}
+
+	var wrappedClient ton.APIClientWrapped
+
+	if config.Config.ProofCheckEnabled {
+
+		if config.Config.NetworkConfigUrl == "" {
+			return nil, fmt.Errorf("empty network config URL")
+		}
+
+		cfg, err := liteclient.GetConfigFromUrl(ctx, config.Config.NetworkConfigUrl)
+		if err != nil {
+			return nil, fmt.Errorf("get network config from url err: %s", err.Error())
+		}
+
+		wrappedClient = ton.NewAPIClient(client, ton.ProofCheckPolicySecure).WithRetry()
+		wrappedClient.SetTrustedBlockFromConfig(cfg)
+
+		log.Infof("Fetching and checking proofs since config init block ...")
+		_, err = wrappedClient.CurrentMasterchainInfo(ctx) // we fetch block just to trigger chain proof check
+		if err != nil {
+			return nil, fmt.Errorf("get masterchain info err: %s", err.Error())
+		}
+		log.Infof("Proof checks are completed")
+
+	} else {
+		wrappedClient = ton.NewAPIClient(client, ton.ProofCheckPolicyUnsafe).WithRetry()
+	}
+
+	// TODO: replace after tonutils fix
+	root, err := getRootContractAddr(ctx, wrappedClient)
+	if err != nil {
+		return nil, fmt.Errorf("get DNS root contract err: %s", err.Error())
+	}
+
+	resolver := dns.NewDNSClient(wrappedClient, root)
+
 	return &Connection{
-		client: ton.NewAPIClient(client, ton.ProofCheckPolicyUnsafe).WithRetry(),
-		// TODO: set secure
+		client:   wrappedClient,
+		resolver: resolver,
 	}, nil
+}
+
+func getRootContractAddr(ctx context.Context, api ton.APIClientWrapped) (*address.Address, error) {
+
+	// TODO: remove after tonutils fix
+	b, err := api.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get masterchain info: %w", err)
+	}
+
+	cfg, err := api.GetBlockchainConfig(ctx, b, 4)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get root address from network config: %w", err)
+	}
+
+	data := cfg.Get(4)
+	if data == nil {
+		return nil, fmt.Errorf("failed to get root address from network config")
+	}
+
+	hash, err := data.BeginParse().LoadSlice(256)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get root address from network config 4, failed to load hash: %w", err)
+	}
+
+	return address.NewAddress(0, 255, hash), nil
 }
 
 // GenerateDefaultWallet generates HighloadV2R2 or V3R2 TON wallet with
@@ -127,6 +193,77 @@ func (c *Connection) GetJettonWalletAddress(
 	res := addr.ToTonutilsAddressStd(0)
 	res.SetTestnetOnly(config.Config.Testnet)
 	return res, nil
+}
+
+func (c *Connection) GetJettonBalanceByOwner(
+	ctx context.Context,
+	owner *address.Address,
+	jettonMaster *address.Address,
+) (*big.Int, error) {
+
+	jettonMasterClient := jetton.NewJettonMasterClient(c.client, jettonMaster)
+
+	jettonWalletClient, err := jettonMasterClient.GetJettonWallet(ctx, owner)
+	if err != nil {
+		return nil, err
+	}
+
+	return jettonWalletClient.GetBalance(ctx)
+}
+
+func (c *Connection) DnsResolveSmc(
+	ctx context.Context,
+	domainName string,
+) (*address.Address, error) {
+
+	// TODO: it is necessary to distinguish network errors from the impossibility of resolving
+	domain, err := c.resolver.Resolve(ctx, domainName)
+	if errors.Is(err, dns.ErrNoSuchRecord) {
+		return nil, core.ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	// TODO: replace after tonutils fix
+	smcAddr := getWalletRecord(domain)
+
+	if smcAddr == nil {
+		// not wallet
+		return nil, core.ErrNotFound
+	}
+
+	return smcAddr, nil
+}
+
+func getWalletRecord(d *dns.Domain) *address.Address {
+
+	// TODO: remove after tonutils fix
+	rec := d.GetRecord("wallet")
+	if rec == nil {
+		return nil
+	}
+	p := rec.BeginParse()
+
+	p, err := p.LoadRef()
+	if err != nil {
+		return nil
+	}
+
+	category, err := p.LoadUInt(16)
+	if err != nil {
+		return nil
+	}
+
+	if category != 0x9fd3 { // const _CategoryContractAddr = 0x9fd3
+		return nil
+	}
+
+	addr, err := p.LoadAddr()
+	if err != nil {
+		return nil
+	}
+
+	return addr
 }
 
 // GenerateDepositJettonWalletForProxy
@@ -248,10 +385,6 @@ func newEmulator(code, data *boc.Cell) (*tvm.Emulator, error) {
 		return nil, err
 	}
 	// TODO: try tvm.WithLazyC7Optimization()
-	err = emulator.SetVerbosityLevel(1)
-	if err != nil {
-		return nil, err
-	}
 	return emulator, nil
 }
 
@@ -307,7 +440,7 @@ func (c *Connection) GetAccountCurrentState(ctx context.Context, address *addres
 	if !account.IsActive {
 		return big.NewInt(0), tlb.AccountStatusNonExist, nil
 	}
-	return account.State.Balance.NanoTON(), account.State.Status, nil
+	return account.State.Balance.Nano(), account.State.Status, nil
 }
 
 // DeployTonWallet

@@ -104,7 +104,7 @@ services:
     ports:
       - '9090:9090'
     volumes:
-      - ./deploy/prometheus:/etc/prometheus
+      - ./deploy/prometheus/test:/etc/prometheus
     user: "$UID:$GID"
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'

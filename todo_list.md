@@ -52,13 +52,30 @@
 - [x] Add hysteresis to cold wallet withdrawal
 - [x] Add user id to notifications
 - [x] Add transaction hash to notifications
+- [x] Save tx hash to DB for incomes
+- [x] Add `failed` status for withdrawals and do not retry failed (at hot wallet) withdrawals
+- [x] Save tx hash to DB for withdrawals
+- [x] Get incoming by tx hash method
+- [x] Add asc-desc flag for get history method
+- [x] Add error counter as prometheus metrics
+- [x] Send events after saving to the database (there is a possibility of losing events instead of duplicating them)
+- [x] Use stable branch for emulator
+- [x] Get balance method
+- [x] Add meta to get withdrawals status method
+- [x] DNS resolver
+- [x] Check proofs
+- [x] Total withdrawals amount for get balance method
+- [x] Add last block time to /v1/system/sync method
+- [x] Forward ton amount customization
+- [x] Binary comment support for withdrawals
+- [ ] Get withdrawal by tx hash method
+- [ ] Add incorrect processing of some TON deposit replenishments for failed transaction to threat model
+- [ ] Duplicates of external withdrawals for DB backup problem
 - [ ] Avoid blocking withdrawals to an address if there is a very large amount in the queue for withdrawals to this address
-- [ ] Save tx hash to DB
-- [ ] Support DNS names in recipient address
+- [ ] Withdrawal cancellation mechanism
 - [ ] Jetton threat model
 - [ ] TNX compatibility test
 - [ ] Installation video manual
-- [ ] Use stable branch for emulator
 - [ ] Download blockchain config at start
 - [ ] Add reconnect to node when timeout expires
 - [ ] Node deploy
@@ -70,5 +87,7 @@
 - [ ] Separate .env files for services
 - [ ] Automatic migrations
 - [ ] SDK
-- [ ] migration from blueprint to openapi
-- [ ] refactor config and cutoff parameters
+- [ ] Migration from blueprint to openapi
+- [ ] Refactor config and cutoff parameters
+- [ ] Get balances via states and check proof (not via get method)
+- [ ] Remove scam jettons from examples

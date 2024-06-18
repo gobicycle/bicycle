@@ -143,3 +143,11 @@ If TONs arrive at the wallet address at this time, the message will be applied a
 - S: it is necessary to set some delta between the amount of triggering the withdrawal to the cold wallet and the 
      amount that will remain after the withdrawal
 - D: one more parameter has been added to the cutoffs - `hot_wallet_residual_balance`
+
+#### Message queue overflow in highload v2 hot wallet contract
+- P: When messages with a long expiration time are sent frequently, the queue inside the wallet contract can grow to large sizes. 
+     At a certain queue size, transactions on the contract will begin to fail with the out of gas error, which will lead to the contract not working and burning funds on fees.
+     Some details here: [highload-wallet-v2-code.fc](https://github.com/ton-blockchain/ton/blob/cf83bd18933143da31a37c1e0d1d67f999d5f9ec/crypto/smartcont/highload-wallet-v2-code.fc)
+- T: The hot wallet contract will stop processing external messages correctly and will burn funds on fees. 
+- S: reducing the valid_until time for message, combining messages into batches, increasing the interval between withdrawals
+- D: small valid_until time for message, use of batches, large interval between withdrawals

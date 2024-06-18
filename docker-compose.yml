@@ -7,6 +7,7 @@ services:
     container_name: payment_processor_db
     volumes:
     - ./deploy/db/01_init.up.sql:/docker-entrypoint-initdb.d/init.sql
+    - bicycle-postgres:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     restart: always
@@ -69,6 +70,25 @@ services:
     networks:
       - p-network
 
+  payment-prometheus:
+    image: prom/prometheus:latest
+    container_name: payment_prometheus
+    restart: always
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./deploy/prometheus/main:/etc/prometheus
+    user: "$UID:$GID"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.external-url=http://localhost:9090'
+    networks:
+      - p-network
+
 networks:
   p-network:
     driver: bridge
+
+volumes:
+  bicycle-postgres:
+    external: false

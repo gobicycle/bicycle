@@ -2,6 +2,7 @@ package audit
 
 import (
 	"fmt"
+	"github.com/gobicycle/bicycle/metrics"
 	log "github.com/sirupsen/logrus"
 	"time"
 )
@@ -23,10 +24,13 @@ func pushLog(m message) {
 	switch m.Severity {
 	case Error:
 		log.Printf("AUDIT|%v|%v|%s", m.Severity, time.Now().Format(time.RFC1123), m.Text)
+		metrics.Errors.Inc()
 	case Warning:
 		log.Printf("AUDIT|%v|%v|%s", m.Severity, time.Now().Format(time.RFC1123), m.Text)
+		metrics.Warnings.Inc()
 	case Info:
 		log.Printf("AUDIT|%v|%v|%s", m.Severity, time.Now().Format(time.RFC1123), m.Text)
+		metrics.Info.Inc()
 	}
 }
 

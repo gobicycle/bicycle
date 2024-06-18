@@ -53,6 +53,7 @@ const (
 	PendingStatus    WithdrawalStatus = "pending"
 	ProcessingStatus WithdrawalStatus = "processing"
 	ProcessedStatus  WithdrawalStatus = "processed"
+	FailedStatus     WithdrawalStatus = "failed"
 )
 
 var (
@@ -155,20 +156,22 @@ type WalletData struct {
 }
 
 type WithdrawalRequest struct {
-	QueryID     string
-	UserID      string
-	Currency    string
-	Amount      Coins
-	Bounceable  bool
-	IsInternal  bool
-	Destination Address
-	Comment     string
+	QueryID       string
+	UserID        string
+	Currency      string
+	Amount        Coins
+	Bounceable    bool
+	IsInternal    bool
+	Destination   Address
+	Comment       string
+	BinaryComment string
 }
 
 type WithdrawalData struct {
 	QueryID string
 	UserID  string
 	Status  WithdrawalStatus
+	TxHash  []byte
 }
 
 type ServiceWithdrawalRequest struct {
@@ -184,12 +187,13 @@ type ServiceWithdrawalTask struct {
 }
 
 type ExternalWithdrawalTask struct {
-	QueryID     int64
-	Currency    string
-	Amount      Coins
-	Destination Address
-	Bounceable  bool
-	Comment     string
+	QueryID       int64
+	Currency      string
+	Amount        Coins
+	Destination   Address
+	Bounceable    bool
+	Comment       string
+	BinaryComment string
 }
 
 type InternalWithdrawal struct {
@@ -215,6 +219,7 @@ type ExternalWithdrawal struct {
 	Amount     Coins
 	Comment    string
 	IsFailed   bool
+	TxHash     []byte
 }
 
 type JettonWithdrawalConfirmation struct {
@@ -279,6 +284,11 @@ type TotalIncome struct {
 	Currency string
 }
 
+type TotalWithdrawalsAmount struct {
+	Pending    Coins
+	Processing Coins
+}
+
 type Coins = decimal.Decimal
 
 func NewCoins(int *big.Int) Coins {
@@ -315,7 +325,7 @@ type storage interface {
 	GetTonHotWalletAddress(ctx context.Context) (Address, error)
 	SetExpired(ctx context.Context) error
 	SaveInternalWithdrawalTask(ctx context.Context, task InternalWithdrawalTask, expiredAt time.Time, memo uuid.UUID) error
-	IsActualBlockData(ctx context.Context) (bool, error)
+	IsActualBlockData(ctx context.Context) (bool, int64, error)
 	SaveWithdrawalRequest(ctx context.Context, w WithdrawalRequest) (int64, error)
 	IsInProgressInternalWithdrawalRequest(ctx context.Context, dest Address, currency string) (bool, error)
 	GetServiceHotWithdrawalTasks(ctx context.Context, limit int) ([]ServiceWithdrawalTask, error)

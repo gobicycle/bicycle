@@ -18,6 +18,8 @@ Service is ADNL based and interacts directly with node and do not use any third 
 - [Deployment](#Deployment)
   - [Configurable parameters](#Configurable-parameters)
   - [Service deploy](#Service-deploy)
+- [Payment notifications](#Payment-notifications)
+- [Binary comment support](#Binary-comment-support)
 - [REST API](https://gobicycle.github.io/bicycle/)
 - [Technical notes](/technical_notes.md)
 - [Threat model](/threat_model.md)
@@ -89,6 +91,7 @@ For more information on Jettons compatibility, see [Jettons compatibility](/jett
 | `WEBHOOK_ENDPOINT`     | endpoint to send webhooks, example: `http://hostname:3333/webhook`. If the value is not set, then webhooks are not sent.                                                                                                                                                                                                                                                      |
 | `WEBHOOK_TOKEN`        | Bearer token for webhook request. If not set then not used.                                                                                                                                                                                                                                                                                                                   |
 | `ALLOWABLE_LAG`        | allowable time lag between service time and last block time in seconds, default: 15                                                                                                                                                                                                                                                                                           |
+| `FORWARD_TON_AMOUNT`   | forward ton amount for jetton withdrawals, default: 20000000 nanoton                                                                                                                                                                                                                                                                                                          |
 
 **! Be careful with `IS_TESTNET` variable.** This does not guarantee that a testnet node is being used. It is only for address checking purposes.
 
@@ -115,27 +118,31 @@ If the `hot_wallet_residual_balance` is not set, then it is calculated using the
 ```console
 make -f Makefile
 ```
-2. Prepare `.env` file for `payment-postgres` service or fill environment variables in `docker-compose-main.yml` file.
+2. Prepare `.env` file for `payment-postgres` service or fill environment variables in `docker-compose.yml` file.
 Database scheme automatically init.
 ```console
-docker-compose -f docker-compose-main.yml up -d payment-postgres
+docker-compose -f docker-compose.yml up -d payment-postgres
 ```
-3. Prepare `.env` file for `payment-processor` service or fill environment variables in `docker-compose-main.yml` file.
+3. Prepare `.env` file for `payment-processor` service or fill environment variables in `docker-compose.yml` file.
 ```console
-docker-compose -f docker-compose-main.yml up -d payment-processor
+docker-compose -f docker-compose.yml up -d payment-processor
 ```
 4. Optionally you can start Grafana for service monitoring. Prepare `.env` file for `payment-grafana` service or 
-fill environment variables in `docker-compose-main.yml` file.
+fill environment variables in `docker-compose.yml` file.
 ```console
-docker-compose -f docker-compose-main.yml up -d payment-grafana
+docker-compose -f docker-compose.yml up -d payment-grafana
 ```
 5. Optionally you can start RabbitMQ to collect payment notifications (if `QUEUE_ENABLED` env var is `true` for payment-processor). 
-Prepare `.env` file for `payment-rabbitmq` service or fill environment variables in `docker-compose-main.yml` file.
+Prepare `.env` file for `payment-rabbitmq` service or fill environment variables in `docker-compose.yml` file.
 ```console
-docker-compose -f docker-compose-main.yml up -d payment-rabbitmq
+docker-compose -f docker-compose.yml up -d payment-rabbitmq
 ```
 
 ## Payment notifications
+
+ATTENTION! Sending notifications does not guarantee that all notifications will be sent. 
+If the service is restarted after the data is saved to the database and before the notification data is sent, 
+these notifications will not be sent after restart.
 
 The service has several mechanisms for notification of payments. These are webhooks and a AMQP (to RabbitMQ). 
 Depending on the `DEPOSIT_SIDE_BALANCE` setting, a notification is received either about the payment to the 
@@ -181,6 +188,23 @@ When the `payment-processor` is running, it will send a `POST` request to the we
 wait for a response with a `200` code and an empty body. If a successful delivery response is not received after 
 several attempts, the service will stop with an error. If the variable `WEBHOOK_TOKEN` is set, it will also 
 add header `Authorization: Bearer {token}`.
+
+## Binary comment support
+
+Method `/v1/withdrawal/send` also supports `binary_comment`. The comment is written in a hex form. If the bits qty is not 
+a multiple of a byte, then the record form with a flip bit is supported, for example `9fe7_`.
+A `binary_comment` is writing directly to the body of the message (for the TON transfer) and to the `forward_payload` 
+(for the Jetton transfer) with its opcode according to the following TLB scheme:
+
+`binary_comment#b3ddcf7d {n:#} data:(SnakeData ~n) = InternalMsgBody;`
+
+`crc32('binary_comment n:# data:SnakeData ~n = InternalMsgBody') = 0xb3ddcf7d`
+
+This comment will not be displayed by the explorer as text and can be useful for transmitting metadata that 
+will be read by indexers.
+
+The documentation [contains](https://docs.ton.org/develop/smart-contracts/guidelines/internal-messages#simple-message-with-comment) a standard way of writing a binary comment, but due to the fact that it is not supported 
+by services, an alternative recording method was chosen.
 
 <!-- Badges -->
 [ton-svg]: https://img.shields.io/badge/Based%20on-TON-blue

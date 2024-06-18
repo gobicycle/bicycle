@@ -16,6 +16,7 @@
 - [Highload wallet message deduplication](#Highload-wallet-message-deduplication)
 - [Audit log](#Audit-log)
 - [Sharding](#Sharding)
+- [Notification](#Notifications)
 - [Running the test util for payment processor](#Running-the-test-util-for-payment-processor)
 
 ## Glossary
@@ -281,6 +282,18 @@ The default `SHARD` value is taken from the hot wallet address. Hot wallet addre
 ##### Not suitable block shard prefixes (for these addresses):
 * `0010 100000000000000000000000000000000000000000000000000000000000`  - invalid prefix
 * `01100000 0 100000000000000000000000000000000000000000000000000000`  - more than 256 shards. No guarantees that the address will be in the right shard.
+
+## Notifications
+The system state is saved to the database in a single transaction, 
+which allows you to restore the full state in the event of an abnormal restart and avoid data loss or duplication.
+However, sending notifications to channels (webhook or queue) is a separate operation that can be performed 
+before or after saving the state to the database.
+If notifications are sent before being saved to the database, and the service is restarted between these events, 
+then after the restart the notification will be sent again, which will lead to duplication.
+If notifications are sent after saving to the database, and the service is restarted between these events, 
+then after the restart the notification will not be sent, which will lead to the loss of the notification.
+Because the service stores all data about operations in the database and, if necessary, you can make clarifying queries, 
+then the second scenario was chosen. The first scenario requires the high-tier service to have notification deduplication logic.
 
 ## Running the test util for payment processor
 **It is strictly recommended to run the test utility with the processor configured for the testnet.**

@@ -94,7 +94,7 @@ func (p *WithdrawalsProcessor) startWithdrawalsProcessor() {
 			cancel()
 			continue
 		}
-		extMsg, err := p.wallets.TonHotWallet.BuildMessageForMany(ctx, w.Messages)
+		extMsg, err := p.wallets.TonHotWallet.BuildExternalMessageForMany(ctx, w.Messages)
 		if err != nil {
 			log.Fatalf("build hotwallet external msg error: %v\n", err)
 		}
@@ -142,7 +142,7 @@ func (p *WithdrawalsProcessor) buildWithdrawalMessages(ctx context.Context) (wit
 		return withdrawals{}, err
 	}
 	for _, t := range serviceTasks {
-		if decreaseBalances(balances, TonSymbol, config.JettonTransferTonAmount.NanoTON()) {
+		if decreaseBalances(balances, TonSymbol, config.JettonTransferTonAmount.Nano()) {
 			continue
 		}
 		msg, w, err := p.buildServiceWithdrawalMessage(ctx, t)
@@ -177,7 +177,7 @@ func (p *WithdrawalsProcessor) buildWithdrawalMessages(ctx context.Context) (wit
 		if len(res.Messages) > 250 {
 			break
 		}
-		if decreaseBalances(balances, TonSymbol, config.JettonTransferTonAmount.NanoTON()) {
+		if decreaseBalances(balances, TonSymbol, config.JettonTransferTonAmount.Nano()) {
 			continue
 		}
 		msg, memo, err := p.buildJettonInternalWithdrawalMessage(ctx, t)
@@ -245,11 +245,11 @@ func decreaseBalances(balances map[string]*big.Int, currency string, amount *big
 		return false
 	}
 	if balances[currency].Cmp(amount) == -1 || // balance < amount
-		balances[TonSymbol].Cmp(config.JettonTransferTonAmount.NanoTON()) == -1 { // balance < JettonTransferTonAmount
+		balances[TonSymbol].Cmp(config.JettonTransferTonAmount.Nano()) == -1 { // balance < JettonTransferTonAmount
 		return true
 	}
 	balances[currency].Sub(balances[currency], amount)
-	balances[TonSymbol].Sub(balances[TonSymbol], config.JettonTransferTonAmount.NanoTON())
+	balances[TonSymbol].Sub(balances[TonSymbol], config.JettonTransferTonAmount.Nano())
 	return false
 }
 
@@ -587,7 +587,7 @@ func (p *WithdrawalsProcessor) waitSync() {
 			break
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-		isSynced, err := p.db.IsActualBlockData(ctx)
+		isSynced, _, err := p.db.IsActualBlockData(ctx)
 		if err != nil {
 			log.Fatalf("check sync error: %v", err)
 		}
@@ -632,7 +632,7 @@ func (p *WithdrawalsProcessor) makeColdWalletWithdrawals(ctx context.Context) er
 			return err
 		}
 		jettonAmount.Sub(jettonBalance, config.Config.Jettons[cur].HotWalletResidual)
-		tonBalance.Sub(tonBalance, config.JettonTransferTonAmount.NanoTON())
+		tonBalance.Sub(tonBalance, config.JettonTransferTonAmount.Nano())
 		req := WithdrawalRequest{
 			Currency:    jw.Currency,
 			Amount:      NewCoins(jettonAmount),

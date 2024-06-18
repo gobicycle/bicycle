@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS payments.external_withdrawals
     confirmed        bool not null default false,
     failed           bool not null default false,
     address          bytea not null,
+    tx_hash          bytea,
     unique (msg_uuid, address)
 );
 
@@ -87,6 +88,7 @@ CREATE TABLE IF NOT EXISTS payments.withdrawal_requests
     currency         text not null,
     dest_address     bytea not null,
     comment          text,
+    binary_comment   text,
     unique (user_id, user_query_id, is_internal)
 );
 
@@ -107,7 +109,8 @@ CREATE TABLE IF NOT EXISTS payments.external_incomes
     deposit_address  bytea not null,
     payer_address    bytea,
     amount           numeric not null,
-    comment          text not null
+    comment          text not null,
+    tx_hash          bytea
 );
 
 CREATE INDEX IF NOT EXISTS external_incomes_deposit_address_index

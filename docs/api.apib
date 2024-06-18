@@ -147,7 +147,7 @@ Counting side field options: "hot_wallet", "deposit".
                 "error": "error text"
             } 
 
-## Get history [GET /v1/deposit/history{?user_id,currency,limit,offset}]
+## Get history [GET /v1/deposit/history{?user_id,currency,limit,offset,sort_order}]
 
 Get history for deposits by `user_id` and `currency`. Returns the history of all deposits replenishments with the
 sender's address as `source_address` (if it could be determined).
@@ -158,6 +158,7 @@ sender's address as `source_address` (if it could be determined).
     + currency (string) - the text identifier of the currency specified in the processor configuration. `TON` for TON coin.
     + limit (number) - the maximum value of returned records
     + offset (number) - offset for returned records
+    + sort_order (string) - asc or desc. desc by default if the parameter is not specified.
 
 + Request
 
@@ -176,14 +177,16 @@ sender's address as `source_address` (if it could be determined).
                   "time": 1680604643,
                   "source_address": "0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP",
                   "amount": "1000000",
-                  "comment": "hello"
+                  "comment": "hello",
+                  "tx_hash": "9d0fb69b1ca9371bc9e5260a248cda12a1c42916f9051fe9fc21b4abdd41d744"
                 },
                 {
                   "deposit_address": "0QCdyiS-fIV9UVfI9Phswo4l2MA-hm8YseHynZ_YiH9Y1oSe",
                   "time": 1680604648,
                   "source_address": "0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP",
                   "amount": "1000000",
-                  "comment": "hello"
+                  "comment": "hello",
+                  "tx_hash": "7d0fb69b1ca9371bc9e5260a248cda12a1c42916f9051fe9fc21b4abdd41d744"
                 }
               ]
             }
@@ -209,6 +212,8 @@ sender's address as `source_address` (if it could be determined).
 ## Send withdrawal [POST /v1/withdrawal/send]
 
 Send withdrawal request. **Amount must be in base units without decimal point (NanoTONs for TONs)**
+Instead of a `comment`, you can specify a `binary_comment` in hex notation format.
+`binary_comment` supports binary string hex representation form with flip bit (example: `9fe7_`)
 
 + Request (application/json)
 
@@ -339,7 +344,7 @@ Returns `memo` as comment for transfer message.
 
 ## Get withdrawal status [GET /v1/withdrawal/status{?id}]
 
-Get withdrawal status. Returns `pending`, `processing`, `processed` and request meta (user_id and query_id).
+Get withdrawal status. Returns `pending`, `processing`, `processed`/'failed', transaction hash for processed withdrawal and request meta (user_id and query_id).
 
 + Parameters
 
@@ -358,7 +363,8 @@ Get withdrawal status. Returns `pending`, `processing`, `processed` and request 
             {
               "user_id": "123",
               "query_id": "321",
-              "status": "pending"
+              "status": "processed",
+              "tx_hash": "9d0fb69b1ca9371bc9e5260a248cda12a1c42916f9051fe9fc21b4abdd41d744"
             }
 
 + Response 400 (application/json)
@@ -379,17 +385,65 @@ Get withdrawal status. Returns `pending`, `processing`, `processed` and request 
                 "error": "error text"
             } 
 
-## Get sync flag [GET /v1/system/sync]
+## Get balance [GET /v1/balance{?currency,address}]
 
-Get blockchain sync flag. Returns `true` if the service has up-to-date data from the blockchain.
-As long as the flag is equal to `false`, no withdrawals are made.
+Get balance for account by `address` and `currency`. Returns the balance of hot wallet if `address` not specified.
+For hot wallet also returns `total_processing_amount` and `total_pending_amount` for withdrawals in queue.
+For TON also returns account status: "active", "uninit", "frozen", "non_exist".
+
++ Parameters
+
+    + currency (string) - the text identifier of the currency specified in the processor configuration. `TON` for TON coin.
+    + address (string) - address in URL-safe, user-friendly Base64 form. Hot wallet address by default if the parameter is not specified.
+
++ Request
+
+    + Headers
+
+            Authorization: Bearer
 
 + Response 200 (application/json)
 
     + Body
 
             {
-              "is_synced": false
+                "balance": "1000000",
+                "status": "active",
+                "total_processing_amount": "1000",
+                "total_pending_amount": "1000"
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
+## Get sync flag [GET /v1/system/sync]
+
+Get blockchain sync flag. Returns `true` if the service has up-to-date data from the blockchain.
+As long as the flag is equal to `false`, no withdrawals are made.
+Also returns last scanned workchain block `gen_utime` (unix time) to evaluate the processor's lag from the blockchain.
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+              "is_synced": false,
+              "last_block_gen_utime": 1718490850,
             }
 
 + Response 500 (application/json)
@@ -398,4 +452,110 @@ As long as the flag is equal to `false`, no withdrawals are made.
 
             {
                 "error": "error text"
-            }             
+            }
+
+## Get income by transaction hash [GET /v1/deposit/income{?tx_hash}]
+
+Find income for deposit by `tx_hash`. Returns the currency and the deposit replenishment with the
+sender's address as `source_address` (if it could be determined).
+
++ Parameters
+
+    + tx_hash (string) - an unique hash of replenishment transaction
+
++ Request
+
+    + Headers
+
+            Authorization: Bearer
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+              "currency": "TON",
+              "income":
+                {
+                  "deposit_address": "0QB7BSerVyP9xAKnxp3QpqR8JO2HKwZhl10zsfwg7aJ281ZR",
+                  "time": 1680604643,
+                  "source_address": "0QAUuul9LdYcyJuBHernHo3JkbWTduH_FuEb2H8jCDdGesOP",
+                  "amount": "1000000",
+                  "comment": "hello",
+                  "tx_hash": "9d0fb69b1ca9371bc9e5260a248cda12a1c42916f9051fe9fc21b4abdd41d744"
+                }
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 404 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
+## Resolve domain name [GET /v1/resolve{?domain}]
+
+Resolve domain name. Returns bounceable user-friendly address for smart-contract (`dns_smc_address#9fd3` DNS record).
+
++ Parameters
+
+    + domain (string) - domain name (for example: wallet.ton)
+
++ Request
+
+    + Headers
+
+            Authorization: Bearer
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+              "address": "kQCKt2WPGX-fh0cIAz38Ljd_OKQjoZE_cqk7QrYGsNP6wfP0"
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 401
+
++ Response 404 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
+
++ Response 500 (application/json)
+
+    + Body
+
+            {
+                "error": "error text"
+            }
