@@ -450,7 +450,7 @@ Template:
 
 ### Stability test
 
-1. -[ ] Checked
+1. -[X] Checked
 - TEST    : Start `payment-test` service using technical_notes.md instructions
             with `CIRCULATION=true` env variable for long time (with enough amount of test TONs on wallet). 
             Periodically check availability and functionality of service by Grafana dashboard and docker logs.
