@@ -51,9 +51,14 @@ jobs:
           sudo apt-get -y install openssl ca-certificates libsecp256k1-0 libsodium23
 
       - name: Install libs
-        uses: wei/wget@v1
-        with:
-          args: -O /lib/libemulator.so https://github.com/ton-blockchain/ton/releases/download/v2024.02/libemulator-linux-x86-64.so
+        run: |
+          wget -O /lib/libemulator.so https://github.com/ton-blockchain/ton/releases/download/v2024.02/libemulator-linux-x86-64.so
+
+      - name: Update Library Cache
+        run: sudo ldconfig
+
+      - name: Verify Library Presence
+        run: ls /lib | grep libemulator.so
 
       - name: Run Test
         env:
