@@ -48,12 +48,11 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get -y install git zlib1g-dev libssl-dev
+          sudo apt-get -y install openssl ca-certificates libsecp256k1-0 libsodium23 wget
 
       - name: Install libs
         run: |
-          git clone https://github.com/tonkeeper/tongo /tmp/tongo
-          sudo cp /tmp/tongo/lib/linux/libemulator.so /lib
+          wget -O /lib/libemulator.so https://github.com/ton-blockchain/ton/releases/download/v2024.02/libemulator-linux-x86-64.so
 
       - name: Run Test
         env:
