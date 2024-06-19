@@ -14,6 +14,7 @@ import (
 
 var (
 	onlyMonitoring = true
+	Version        = "dev"
 )
 
 const (
@@ -24,6 +25,8 @@ const (
 )
 
 func main() {
+
+	log.Printf("App version: %s", Version)
 
 	config.GetConfig()
 	if circulation := os.Getenv("CIRCULATION"); circulation == "true" {

@@ -68,6 +68,7 @@
 - [x] Add last block time to /v1/system/sync method
 - [x] Forward ton amount customization
 - [x] Binary comment support for withdrawals
+- [x] Show app ver at start
 - [ ] Get withdrawal by tx hash method
 - [ ] Add incorrect processing of some TON deposit replenishments for failed transaction to threat model
 - [ ] Duplicates of external withdrawals for DB backup problem
