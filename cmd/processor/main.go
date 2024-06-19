@@ -19,7 +19,12 @@ import (
 	"time"
 )
 
+var Version = "dev"
+
 func main() {
+
+	log.Infof("App version: %s", Version)
+
 	config.GetConfig()
 
 	sigChannel := make(chan os.Signal, 1)

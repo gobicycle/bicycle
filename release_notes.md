@@ -15,3 +15,6 @@
 13. Add `last_block_gen_utime` field to `/v1/system/sync` method to get unix time of the last scanned block
 14. Add `FORWARD_TON_AMOUNT` env variable to customize `forward_ton_amount` for Jetton withdrawals
 15. Binary comment support
+
+# v0.6.0 release notes
+1. Displaying the application version at startup
