@@ -476,7 +476,7 @@ func (p *WithdrawalsProcessor) startInternalTonWithdrawalsProcessor() {
 			log.Infof("Internal TON withdrawal processor stopped")
 			break
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*25) // must be < InternalWithdrawalPeriod
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*120) // TODO: split context
 		serviceTasks, err := p.db.GetServiceDepositWithdrawalTasks(ctx, 5)
 		if err != nil {
 			log.Fatalf("get service withdrawal tasks error: %v", err)
