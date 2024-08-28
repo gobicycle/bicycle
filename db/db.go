@@ -14,6 +14,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"strings"
 	"sync"
 	"time"
 )
@@ -308,6 +309,7 @@ func (c *Connection) LoadAddressBook(ctx context.Context) error {
 }
 
 func saveExternalIncome(ctx context.Context, tx pgx.Tx, inc core.ExternalIncome) error {
+	inc.Comment = strings.Replace(inc.Comment, "\x00", "", -1) // PostgreSQL doesn't support storing NULL (\0x00) characters in text fields
 	_, err := tx.Exec(ctx, `
 		INSERT INTO payments.external_incomes (
 		lt,
