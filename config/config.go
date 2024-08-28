@@ -23,7 +23,7 @@ var (
 	ExternalMessageLifetime = 50 * time.Second
 
 	ExternalWithdrawalPeriod  = 80 * time.Second // must be ExternalWithdrawalPeriod > ExternalMessageLifetime and some time for balance update
-	InternalWithdrawalPeriod  = 30 * time.Second
+	InternalWithdrawalPeriod  = 80 * time.Second
 	ExpirationProcessorPeriod = 5 * time.Second
 
 	AllowableBlockchainLagging     = 40 * time.Second // TODO: use env var
