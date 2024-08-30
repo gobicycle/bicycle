@@ -154,6 +154,9 @@ CREATE INDEX IF NOT EXISTS internal_withdrawals_since_lt_index
 CREATE INDEX IF NOT EXISTS internal_withdrawals_expired_at_index
     ON payments.internal_withdrawals (expired_at);
 
+CREATE INDEX IF NOT EXISTS internal_withdrawals_failed_from_address_index
+    ON payments.internal_withdrawals (failed, from_address);
+
 CREATE TABLE IF NOT EXISTS payments.service_withdrawal_requests
 (
     memo uuid not null default gen_random_uuid() unique,
