@@ -15,3 +15,4 @@ Note that this query creates a new nullable column in the `external_withdrawals`
 
 ## v0.5.x -> v0.6.3
 1. Apply [DB migration](/deploy/manual_migrations/0.5.x-0.6.3.sql)
+2. Build new docker image and recreate container for `payment-processor` as described in `Service deploy` chapter in [Readme](/README.md)
