@@ -610,3 +610,7 @@ func (c *Connection) CurrentMasterchainInfo(ctx context.Context) (*ton.BlockIDEx
 func (c *Connection) GetMasterchainInfo(ctx context.Context) (*ton.BlockIDExt, error) {
 	return c.client.GetMasterchainInfo(ctx)
 }
+
+func (c *Connection) SendExternalMessageWaitTransaction(ctx context.Context, ext *tlb.ExternalMessage) (*tlb.Transaction, *ton.BlockIDExt, []byte, error) {
+	return c.client.SendExternalMessageWaitTransaction(ctx, ext)
+}
