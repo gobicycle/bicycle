@@ -310,7 +310,7 @@ func (c *Connection) getContract(ctx context.Context, addr *address.Address) (co
 	if err != nil {
 		return contract{}, err
 	}
-	account, err := c.GetAccount(ctx, block, addr)
+	account, err := c.WaitForBlock(block.SeqNo).GetAccount(ctx, block, addr)
 	if err != nil {
 		return contract{}, err
 	}
@@ -433,7 +433,7 @@ func (c *Connection) GetAccountCurrentState(ctx context.Context, address *addres
 	if err != nil {
 		return nil, "", err
 	}
-	account, err := c.GetAccount(ctx, masterID, address)
+	account, err := c.WaitForBlock(masterID.SeqNo).GetAccount(ctx, masterID, address)
 	if err != nil {
 		return nil, "", err
 	}
@@ -609,4 +609,8 @@ func (c *Connection) CurrentMasterchainInfo(ctx context.Context) (*ton.BlockIDEx
 
 func (c *Connection) GetMasterchainInfo(ctx context.Context) (*ton.BlockIDExt, error) {
 	return c.client.GetMasterchainInfo(ctx)
+}
+
+func (c *Connection) SendExternalMessageWaitTransaction(ctx context.Context, ext *tlb.ExternalMessage) (*tlb.Transaction, *ton.BlockIDExt, []byte, error) {
+	return c.client.SendExternalMessageWaitTransaction(ctx, ext)
 }

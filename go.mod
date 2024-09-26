@@ -10,8 +10,8 @@ require (
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/tonkeeper/tongo v1.8.3
-	github.com/xssnick/tonutils-go v1.9.7
+	github.com/tonkeeper/tongo v1.9.9
+	github.com/xssnick/tonutils-go v1.10.2
 )
 
 require (
@@ -31,9 +31,9 @@ require (
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/sigurn/crc16 v0.0.0-20211026045750-20ab5afb07e3 // indirect
 	github.com/snksoft/crc v1.1.0 // indirect
-	golang.org/x/crypto v0.21.0 // indirect
+	golang.org/x/crypto v0.23.0 // indirect
 	golang.org/x/exp v0.0.0-20230116083435-1de6713980de // indirect
-	golang.org/x/sys v0.18.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/text v0.15.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 )

@@ -59,7 +59,7 @@ The service provides the following functionality:
 
 ## Prerequisites
 - Need minimum (configured) amount of TONs at HighloadV2 wallet address correlated with seed phrase or already deployed HighloadV2 wallet. 
-- To ensure the reliability and security of the service, you need to provide your own TON node (with lite server) on the same machine as the service.
+- To ensure the reliability and security of the service, you need to provide your own TON node (with lite server) on the same machine as the service. If you want to use an untrusted node (such as a rented node), you need to set `PROOF_CHECK_ENABLED=true` and specify `NETWORK_CONFIG_URL`.
 - Jettons used must meet certain criteria
 
 ### Criteria for valid Jettons
@@ -92,6 +92,8 @@ For more information on Jettons compatibility, see [Jettons compatibility](/jett
 | `WEBHOOK_TOKEN`        | Bearer token for webhook request. If not set then not used.                                                                                                                                                                                                                                                                                                                   |
 | `ALLOWABLE_LAG`        | allowable time lag between service time and last block time in seconds, default: 15                                                                                                                                                                                                                                                                                           |
 | `FORWARD_TON_AMOUNT`   | forward ton amount for jetton withdrawals, default: 20000000 nanoton                                                                                                                                                                                                                                                                                                          |
+| `PROOF_CHECK_ENABLED`  | enable verification of all proofs to securely connect to an untrusted node, default: `false`. Also you need to define `NETWORK_CONFIG_URL`.                                                                                                                                                                                                                                   |
+| `NETWORK_CONFIG_URL`   | the path to load the network configuration to get the trusted key block from it. This is necessary for proof verification, example: `https://ton.org/global.config.json`                                                                                                                                                                                                      |
 
 **! Be careful with `IS_TESTNET` variable.** This does not guarantee that a testnet node is being used. It is only for address checking purposes.
 
