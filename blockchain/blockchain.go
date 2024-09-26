@@ -310,7 +310,7 @@ func (c *Connection) getContract(ctx context.Context, addr *address.Address) (co
 	if err != nil {
 		return contract{}, err
 	}
-	account, err := c.GetAccount(ctx, block, addr)
+	account, err := c.WaitForBlock(block.SeqNo).GetAccount(ctx, block, addr)
 	if err != nil {
 		return contract{}, err
 	}
@@ -433,7 +433,7 @@ func (c *Connection) GetAccountCurrentState(ctx context.Context, address *addres
 	if err != nil {
 		return nil, "", err
 	}
-	account, err := c.GetAccount(ctx, masterID, address)
+	account, err := c.WaitForBlock(masterID.SeqNo).GetAccount(ctx, masterID, address)
 	if err != nil {
 		return nil, "", err
 	}
