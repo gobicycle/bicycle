@@ -24,4 +24,5 @@
 2. Total proof check available
 
 # v0.8.0 release notes
-1. Allow to set `FORWARD_TON_AMOUNT = 0` env variable to disable transfer notification message for external jetton transfer  
+1. Allow to set `FORWARD_TON_AMOUNT = 0` env variable to disable transfer notification message for external jetton transfer
+2. Download last blockchain config at start
