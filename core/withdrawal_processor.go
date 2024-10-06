@@ -279,7 +279,7 @@ func (p *WithdrawalsProcessor) buildJettonInternalWithdrawalMessage(
 			*proxy,
 			jettonWalletAddress,
 			p.wallets.TonHotWallet.Address(),
-			config.JettonForwardAmount,
+			config.JettonInternalForwardAmount,
 			balance,
 			memo.String(),
 		)

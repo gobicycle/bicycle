@@ -370,13 +370,23 @@ Template:
 - COMMENT :
 
 4. -[X] Checked
-- TEST    : Set invalid `FORWARD_TON_AMOUNT` env (negative, > default value)
+- TEST    : Set invalid `FORWARD_TON_AMOUNT` env (negative, > max value)
 - RESULT  : Service failed with load config error.
 - COMMENT :
 
 5. -[X] Checked
 - TEST    : Set `FORWARD_TON_AMOUNT` env to 1 nanoton. And check external withdrawals and internal withdrawals.
 - RESULT  : All withdrawals must be successful and confirmed.
+- COMMENT :
+
+6. -[X] Checked
+- TEST    : Not set `FORWARD_TON_AMOUNT` env. And check external withdrawals and internal withdrawals.
+- RESULT  : All withdrawals must be successful and confirmed. Forward ton amount must be 1 nanoton.
+- COMMENT :
+
+7. -[X] Checked
+- TEST    : Set `FORWARD_TON_AMOUNT` env to 0 nanoton. And check external withdrawals and internal withdrawals.
+- RESULT  : All withdrawals must be successful and confirmed and there is no transfer notification message for external withdrawals and 1 nanoton forward amount for internal transfer.
 - COMMENT :
 
 ### Deploy
