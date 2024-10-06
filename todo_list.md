@@ -69,6 +69,8 @@
 - [x] Forward ton amount customization
 - [x] Binary comment support for withdrawals
 - [x] Show app ver at start
+- [x] Download blockchain config at start
+- [x] Add reconnect to node when timeout expires
 - [ ] Get withdrawal by tx hash method
 - [ ] Add incorrect processing of some TON deposit replenishments for failed transaction to threat model
 - [ ] Duplicates of external withdrawals for DB backup problem
@@ -77,8 +79,6 @@
 - [ ] Jetton threat model
 - [ ] TNX compatibility test
 - [ ] Installation video manual
-- [ ] Download blockchain config at start
-- [ ] Add reconnect to node when timeout expires
 - [ ] Node deploy
 - [ ] Performance optimization
 - [ ] Fix base64 public key format in .env file

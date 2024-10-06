@@ -52,7 +52,7 @@ jobs:
 
       - name: Install libs
         run: |
-          wget -O libemulator.so https://github.com/ton-blockchain/ton/releases/download/v2024.02/libemulator-linux-x86-64.so
+          wget -O libemulator.so https://github.com/ton-blockchain/ton/releases/download/v2024.09/libemulator-linux-x86_64.so
           sudo cp libemulator.so /lib
 
       - name: Update Library Cache

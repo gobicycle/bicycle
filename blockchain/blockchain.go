@@ -13,11 +13,13 @@ import (
 	"github.com/tonkeeper/tongo/tvm"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/liteclient"
+	"github.com/xssnick/tonutils-go/tl"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/dns"
 	"github.com/xssnick/tonutils-go/ton/jetton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 	"math"
 	"math/big"
 	"sort"
@@ -90,12 +92,13 @@ func NewConnection(addr, key string) (*Connection, error) {
 	}
 
 	// TODO: replace after tonutils fix
-	root, err := getRootContractAddr(ctx, wrappedClient)
+	rootDNS, bcConfig, err := getConfigData(ctx, wrappedClient)
 	if err != nil {
-		return nil, fmt.Errorf("get DNS root contract err: %s", err.Error())
+		return nil, fmt.Errorf("get config data err: %s", err.Error())
 	}
 
-	resolver := dns.NewDNSClient(wrappedClient, root)
+	config.Config.BlockchainConfig = bcConfig
+	resolver := dns.NewDNSClient(wrappedClient, rootDNS)
 
 	return &Connection{
 		client:   wrappedClient,
@@ -103,30 +106,45 @@ func NewConnection(addr, key string) (*Connection, error) {
 	}, nil
 }
 
-func getRootContractAddr(ctx context.Context, api ton.APIClientWrapped) (*address.Address, error) {
+func getConfigData(ctx context.Context, api ton.APIClientWrapped) (*address.Address, *boc.Cell, error) {
 
-	// TODO: remove after tonutils fix
 	b, err := api.CurrentMasterchainInfo(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get masterchain info: %w", err)
+		return nil, nil, fmt.Errorf("failed to get masterchain info: %w", err)
 	}
 
 	cfg, err := api.GetBlockchainConfig(ctx, b, 4)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get root address from network config: %w", err)
+		return nil, nil, fmt.Errorf("failed to get blockchain config: %w", err)
+	}
+
+	cfgDict, err := getBlockchainConfig(ctx, api.Client(), b)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get config dict: %w", err)
+	}
+	cfgCell, err := tlb.ToCell(cfgDict)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to serialize blockchain config: %w", err)
+	}
+	configCell, err := boc.DeserializeBoc(cfgCell.ToBOC())
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to deserialize blockchain config: %w", err)
+	}
+	if len(configCell) != 1 {
+		return nil, nil, fmt.Errorf("blockchain config must conatins only one cell")
 	}
 
 	data := cfg.Get(4)
 	if data == nil {
-		return nil, fmt.Errorf("failed to get root address from network config")
+		return nil, nil, fmt.Errorf("failed to get root address from blockchain config")
 	}
 
 	hash, err := data.BeginParse().LoadSlice(256)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get root address from network config 4, failed to load hash: %w", err)
+		return nil, nil, fmt.Errorf("failed to get root address from blockchain config 4, failed to load hash: %w", err)
 	}
 
-	return address.NewAddress(0, 255, hash), nil
+	return address.NewAddress(0, 255, hash), configCell[0], nil
 }
 
 // GenerateDefaultWallet generates HighloadV2R2 or V3R2 TON wallet with
@@ -613,4 +631,29 @@ func (c *Connection) GetMasterchainInfo(ctx context.Context) (*ton.BlockIDExt, e
 
 func (c *Connection) SendExternalMessageWaitTransaction(ctx context.Context, ext *tlb.ExternalMessage) (*tlb.Transaction, *ton.BlockIDExt, []byte, error) {
 	return c.client.SendExternalMessageWaitTransaction(ctx, ext)
+}
+
+func getBlockchainConfig(ctx context.Context, client ton.LiteClient, block *ton.BlockIDExt) (*cell.Dictionary, error) {
+	var resp tl.Serializable
+	var err error
+	err = client.QueryLiteserver(ctx, ton.GetConfigAll{
+		Mode:    0b1111111111,
+		BlockID: block,
+	}, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	switch t := resp.(type) {
+	case ton.ConfigAll:
+		stateExtra, err := ton.CheckShardMcStateExtraProof(block, []*cell.Cell{t.StateProof, t.ConfigProof})
+		if err != nil {
+			return nil, fmt.Errorf("incorrect proof: %w", err)
+		}
+
+		return stateExtra.ConfigParams.Config.Params, nil
+	case ton.LSError:
+		return nil, t
+	}
+	return nil, fmt.Errorf("unexpected response from node")
 }
