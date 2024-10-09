@@ -221,6 +221,9 @@ func Test_SetExpired(t *testing.T) {
 		extRes[i] = r
 		i++
 	}
+	if rows.Err() != nil {
+		t.Fatal("rows err: ", rows.Err())
+	}
 	if externalResult != extRes {
 		t.Fatalf("invalid external result pattern: %v", extRes)
 	}
@@ -245,6 +248,9 @@ func Test_SetExpired(t *testing.T) {
 		}
 		intRes[i] = r
 		i++
+	}
+	if rows.Err() != nil {
+		t.Fatal("rows err: ", rows.Err())
 	}
 	if internalResult != intRes {
 		t.Fatalf("invalid internal result pattern: %v", intRes)
