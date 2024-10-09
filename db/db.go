@@ -225,6 +225,9 @@ func (c *Connection) GetTonWalletsAddresses(
 		}
 		res = append(res, a)
 	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
 	return res, nil
 }
 
@@ -258,6 +261,9 @@ func (c *Connection) GetJettonOwnersAddresses(
 		}
 		res = append(res, ow)
 	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
 	return res, nil
 }
 
@@ -284,7 +290,9 @@ func (c *Connection) LoadAddressBook(ctx context.Context) error {
 		}
 		res[addr] = core.AddressInfo{Type: t, Owner: nil, UserID: userID}
 	}
-
+	if rows.Err() != nil {
+		return rows.Err()
+	}
 	rows, err = c.client.Query(ctx, `
 		SELECT jw.address, jw.type, tw.address, jw.user_id
 		FROM payments.jetton_wallets jw
@@ -301,6 +309,9 @@ func (c *Connection) LoadAddressBook(ctx context.Context) error {
 			return err
 		}
 		res[addr] = core.AddressInfo{Type: t, Owner: &owner, UserID: userID}
+	}
+	if rows.Err() != nil {
+		return rows.Err()
 	}
 
 	c.addressBook.addresses = res
@@ -491,6 +502,9 @@ func (c *Connection) GetExternalWithdrawalTasks(ctx context.Context, limit int) 
 		}
 		res = append(res, w)
 	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
 	return res, nil
 }
 
@@ -519,6 +533,9 @@ func (c *Connection) GetServiceHotWithdrawalTasks(ctx context.Context, limit int
 			return nil, err
 		}
 		tasks = append(tasks, w)
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
 	}
 	return tasks, nil
 }
@@ -549,6 +566,9 @@ func (c *Connection) GetServiceDepositWithdrawalTasks(ctx context.Context, limit
 			return nil, err
 		}
 		tasks = append(tasks, w)
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
 	}
 	return tasks, nil
 }
@@ -729,6 +749,9 @@ func (c *Connection) GetTonInternalWithdrawalTasks(ctx context.Context, limit in
 		task.Currency = core.TonSymbol
 		tasks = append(tasks, task)
 	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
 	return tasks, nil
 }
 
@@ -775,6 +798,9 @@ func (c *Connection) GetJettonInternalWithdrawalTasks(
 			return nil, err
 		}
 		tasks = append(tasks, task)
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
 	}
 	return tasks, nil
 }
@@ -997,6 +1023,9 @@ func (c *Connection) SetExpired(ctx context.Context) error {
 		}
 		ids = append(ids, queryID)
 	}
+	if rows.Err() != nil {
+		return rows.Err()
+	}
 
 	for _, id := range ids {
 		_, err = tx.Exec(ctx, `
@@ -1164,6 +1193,9 @@ func (c *Connection) GetIncome(
 		}
 		res = append(res, deposit)
 	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
 	return res, nil
 }
 
@@ -1230,6 +1262,9 @@ func (c *Connection) GetIncomeHistory(
 		}
 		income.Utime = uint32(t.Unix())
 		res = append(res, income)
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
 	}
 	return res, nil
 }
