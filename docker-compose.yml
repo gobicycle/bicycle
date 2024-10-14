@@ -6,17 +6,15 @@ services:
     image: postgres:14
     container_name: payment_processor_db
     volumes:
-    - ./deploy/db/01_init.up.sql:/docker-entrypoint-initdb.d/init.sql
+    - ./deploy/db/01_init.up.sql:/docker-entrypoint-initdb.d/01_init.up.sql
+    - ./deploy/db/02_create_readonly_user.sh:/docker-entrypoint-initdb.d/02_create_readonly_user.sh
     - bicycle-postgres:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     restart: always
-    env_file:
-      - .env
     environment:
-      POSTGRES_DB: "payment_processor"
-      POSTGRES_USER: "pp_user"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_READONLY_PASSWORD: ${POSTGRES_READONLY_PASSWORD} # For grafana
     networks:
       - p-network
 
@@ -24,12 +22,11 @@ services:
     image: payment-processor
     container_name: payment_processor
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:${API_PORT}"
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
-      DB_URI: "postgres://pp_user:${POSTGRES_PASSWORD}@payment_processor_db:5432/payment_processor"
+      DB_URI: ${DB_URI} # example: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@payment_processor_db:5432/${POSTGRES_DB}"
+      API_PORT: ${API_PORT}
       API_TOKEN: ${API_TOKEN}
       COLD_WALLET: ${COLD_WALLET}
       JETTONS: ${JETTONS}
@@ -46,17 +43,16 @@ services:
     container_name: payment_grafana
     restart: always
     ports:
-      - '3001:3000'
+      - '127.0.0.1:3001:3000'
     volumes:
       - ./deploy/grafana/main/provisioning/datasources:/etc/grafana/provisioning/datasources
       - ./deploy/grafana/main/provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./deploy/grafana/main/dashboards:/etc/dashboards
-    env_file:
-      - .env
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      GF_SECURITY_ADMIN_USER: admin # TODO: change
+      GF_SECURITY_ADMIN_PASSWORD: admin # TODO: change
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_READONLY_PASSWORD: ${POSTGRES_READONLY_PASSWORD}
     networks:
       - p-network
 
@@ -65,8 +61,7 @@ services:
     container_name: payment_rabbitmq
     restart: always
     ports:
-      - '15672:15672'
-      - '5672:5672'
+      - '127.0.0.1:5672:5672'
     networks:
       - p-network
 
@@ -74,14 +69,11 @@ services:
     image: prom/prometheus:latest
     container_name: payment_prometheus
     restart: always
-    ports:
-      - '9090:9090'
     volumes:
       - ./deploy/prometheus/main:/etc/prometheus
     user: "$UID:$GID"
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--web.external-url=http://localhost:9090'
     networks:
       - p-network
 

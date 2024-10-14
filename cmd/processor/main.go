@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/gobicycle/bicycle/api"
 	"github.com/gobicycle/bicycle/blockchain"
 	"github.com/gobicycle/bicycle/config"
@@ -100,7 +101,7 @@ func main() {
 	h := api.NewHandler(dbClient, bcClient, config.Config.APIToken, wallets.Shard, *wallets.TonHotWallet.Address())
 	api.RegisterHandlers(apiMux, h)
 	go func() {
-		err := http.ListenAndServe(config.Config.APIHost, apiMux)
+		err := http.ListenAndServe(fmt.Sprintf(":%d", config.Config.APIPort), apiMux)
 		if err != nil {
 			log.Fatalf("api error: %v", err)
 		}

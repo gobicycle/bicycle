@@ -12,10 +12,10 @@ datasources:
     uid: DS_POSTGRES
     type: postgres
     url: payment_processor_db:5432
-    database: payment_processor
-    user: pp_user
+    database: $POSTGRES_DB
+    user: pp_readonly
     secureJsonData:
-      password: $POSTGRES_PASSWORD
+      password: $POSTGRES_READONLY_PASSWORD
     isDefault: true
     jsonData:
       sslmode: disable # disable/require/verify-ca/verify-full

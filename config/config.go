@@ -41,7 +41,7 @@ var Config = struct {
 	LiteServerKey            string `env:"LITESERVER_KEY,required"`
 	Seed                     string `env:"SEED,required"`
 	DatabaseURI              string `env:"DB_URI,required"`
-	APIHost                  string `env:"API_HOST" envDefault:"0.0.0.0:8081"`
+	APIPort                  int    `env:"API_PORT,required"`
 	APIToken                 string `env:"API_TOKEN,required"`
 	Testnet                  bool   `env:"IS_TESTNET" envDefault:"true"`
 	ColdWalletString         string `env:"COLD_WALLET"`
