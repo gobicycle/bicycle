@@ -54,7 +54,7 @@ The service provides the following functionality:
 - `query_id` - unique text value to identify withdrawal request for a specific user to prevent double spending.
 - `basic unit` - minimum indivisible unit for TON (e.g. for TON `basic unit` = nanoTONs) or Jetton.
 - `hot_wallet_minimum_balance` - minimum TON balance in nanoTONs at hot wallet to start service.
-- `hot_wallet_maximum_balance` - minimum balance (of TONs or Jettons) in basic units at hot wallet. Anything more than this amount will be withdrawn to a cold wallet.
+- `hot_wallet_maximum_balance` - maximum balance (of TONs or Jettons) in basic units at hot wallet. Anything more than this amount will be withdrawn to a cold wallet.
 - `minimum_withdrawal_amount` - minimum balance (of TONs or Jettons) in basic units at deposit account to make withdrawal to hot wallet. It is necessary to prevent the case when the withdrawal fee will be close to the balance on the deposit.
 
 ## Prerequisites
