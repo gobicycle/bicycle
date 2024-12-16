@@ -80,7 +80,7 @@ type Cutoffs struct {
 func GetConfig() {
 	err := env.Parse(&Config)
 	if err != nil {
-		log.Fatalf("Can not load config")
+		log.Fatalf("Can not load config: %v", err)
 	}
 	Config.Jettons = parseJettonString(Config.JettonString)
 	Config.Ton = parseTonString(Config.TonString)

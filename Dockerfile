@@ -1,4 +1,4 @@
-FROM docker.io/library/golang:1.22-bullseye AS builder
+FROM docker.io/library/golang:1.22.1-bullseye AS builder
 WORKDIR /build-dir
 COPY go.mod .
 COPY go.sum .
