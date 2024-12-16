@@ -451,14 +451,25 @@ func (c *Connection) GetAccountCurrentState(ctx context.Context, address *addres
 	if err != nil {
 		return nil, "", err
 	}
-	account, err := c.WaitForBlock(masterID.SeqNo).GetAccount(ctx, masterID, address)
-	if err != nil {
-		return nil, "", err
+	// TODO: fix waitForBlock and 651 error
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, "", core.ErrTimeoutExceeded
+		default:
+			account, err := c.client.GetAccount(ctx, masterID, address)
+			if err != nil && isNotReadyError(err) {
+				time.Sleep(time.Millisecond * 200)
+				continue
+			} else if err != nil {
+				return nil, "", err
+			}
+			if !account.IsActive {
+				return big.NewInt(0), tlb.AccountStatusNonExist, nil
+			}
+			return account.State.Balance.Nano(), account.State.Status, nil
+		}
 	}
-	if !account.IsActive {
-		return big.NewInt(0), tlb.AccountStatusNonExist, nil
-	}
-	return account.State.Balance.Nano(), account.State.Status, nil
 }
 
 // DeployTonWallet
