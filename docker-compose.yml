@@ -77,6 +77,25 @@ services:
     networks:
       - p-network
 
+  separate-api:
+    image: payment-api
+    container_name: payment_api
+    ports:
+      - "127.0.0.1:8082:${API_PORT}"
+    restart: unless-stopped
+    environment:
+      DB_URI: ${DB_URI} # example: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@payment_processor_db:5432/${POSTGRES_DB}"
+      API_PORT: ${API_PORT}
+      API_TOKEN: ${API_TOKEN}
+      JETTONS: ${JETTONS}
+      LITESERVER: ${LITESERVER}
+      LITESERVER_KEY: ${LITESERVER_KEY}
+      SEED: ${SEED}
+      TON_CUTOFFS: ${TON_CUTOFFS}
+      IS_TESTNET: ${IS_TESTNET}
+    networks:
+      - p-network
+
 networks:
   p-network:
     driver: bridge
