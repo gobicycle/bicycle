@@ -889,8 +889,8 @@ func (s *BlockScanner) processTonDepositWalletInternalInMsg(tx *tlb.Transaction)
 	}
 	if !isKnownSender { // income TONs from payer. exclude internal (hot->deposit, deposit->deposit) transfers.
 		events.ExternalIncomes = append(events.ExternalIncomes, ExternalIncome{
-			Lt:            inMsg.CreatedLT,
-			Utime:         inMsg.CreatedAt,
+			Lt:            tx.LT,
+			Utime:         tx.Now,
 			From:          from.ToBytes(),
 			FromWorkchain: fromWorkchain,
 			To:            dstAddr,
