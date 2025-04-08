@@ -14,6 +14,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
@@ -329,7 +330,7 @@ func stripInvalidUTF8(s string) string {
 		}
 		b = b[size:]
 	}
-	return string(out)
+	return strings.Replace(string(out), "\x00", "", -1) // PostgreSQL doesn't support storing NULL (\0x00) characters in text fields
 }
 
 func saveExternalIncome(ctx context.Context, tx pgx.Tx, inc core.ExternalIncome) error {
