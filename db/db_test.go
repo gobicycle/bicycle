@@ -256,3 +256,38 @@ func Test_SetExpired(t *testing.T) {
 		t.Fatalf("invalid internal result pattern: %v", intRes)
 	}
 }
+
+func TestStripInvalidUTF8(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{
+			input:    "hello world",
+			expected: "hello world",
+		},
+		{
+			input:    "привет мир",
+			expected: "привет мир",
+		},
+		{
+			input:    string([]byte{'h', 'e', 'l', 'l', 0xb3, 'o'}),
+			expected: "hello",
+		},
+		{
+			input:    string([]byte{0xff, 0xfe, 0xfd}),
+			expected: "",
+		},
+		{
+			input:    "valid \xf0\x9f\x98\x81 invalid \xff text",
+			expected: "valid 😁 invalid  text",
+		},
+	}
+
+	for i, tt := range tests {
+		result := stripInvalidUTF8(tt.input)
+		if result != tt.expected {
+			t.Errorf("test %d failed: expected %q, got %q", i, tt.expected, result)
+		}
+	}
+}
