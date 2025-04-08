@@ -14,9 +14,9 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
-	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 type Connection struct {
@@ -319,8 +319,21 @@ func (c *Connection) LoadAddressBook(ctx context.Context) error {
 	return nil
 }
 
+func stripInvalidUTF8(s string) string {
+	b := []byte(s)
+	out := b[:0]
+	for len(b) > 0 {
+		r, size := utf8.DecodeRune(b)
+		if r != utf8.RuneError || size > 1 {
+			out = append(out, b[:size]...)
+		}
+		b = b[size:]
+	}
+	return string(out)
+}
+
 func saveExternalIncome(ctx context.Context, tx pgx.Tx, inc core.ExternalIncome) error {
-	inc.Comment = strings.Replace(inc.Comment, "\x00", "", -1) // PostgreSQL doesn't support storing NULL (\0x00) characters in text fields
+	inc.Comment = stripInvalidUTF8(inc.Comment) // PostgreSQL doesn't support storing invalid utf-8 characters
 	_, err := tx.Exec(ctx, `
 		INSERT INTO payments.external_incomes (
 		lt,
