@@ -223,7 +223,7 @@ type ExternalWithdrawal struct {
 }
 
 type JettonWithdrawalConfirmation struct {
-	QueryId uint64
+	QueryId int64
 }
 
 type InternalIncome struct {

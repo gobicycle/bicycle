@@ -3,6 +3,10 @@ package core
 import (
 	"context"
 	"fmt"
+	"math/big"
+	"sync"
+	"time"
+
 	"github.com/gobicycle/bicycle/audit"
 	"github.com/gobicycle/bicycle/config"
 	"github.com/gofrs/uuid"
@@ -14,9 +18,6 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-	"math/big"
-	"sync"
-	"time"
 )
 
 type BlockScanner struct {
@@ -517,7 +518,7 @@ func DecodeJettonTransfer(msg *tlb.InternalMessage) (JettonTransferMsg, error) {
 	}, nil
 }
 
-func decodeJettonExcesses(msg *tlb.InternalMessage) (uint64, error) {
+func decodeJettonExcesses(msg *tlb.InternalMessage) (int64, error) {
 	if msg == nil {
 		return 0, fmt.Errorf("nil msg")
 	}
@@ -533,7 +534,7 @@ func decodeJettonExcesses(msg *tlb.InternalMessage) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return excesses.QueryID, nil
+	return int64(excesses.QueryID), nil
 }
 
 func parseExternalMessage(msg *tlb.ExternalMessage) (
