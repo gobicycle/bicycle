@@ -53,7 +53,7 @@ type contract struct {
 }
 
 // NewConnection creates new Blockchain connection
-func NewConnection(addr, key string) (*Connection, error) {
+func NewConnection(addr, key string, rateLimit int) (*Connection, error) {
 
 	client := liteclient.NewConnectionPool()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
@@ -63,6 +63,8 @@ func NewConnection(addr, key string) (*Connection, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connection err: %v", err.Error())
 	}
+
+	limitedClient := newLimitedClient(client, rateLimit)
 
 	var wrappedClient ton.APIClientWrapped
 
@@ -77,7 +79,7 @@ func NewConnection(addr, key string) (*Connection, error) {
 			return nil, fmt.Errorf("get network config from url err: %s", err.Error())
 		}
 
-		wrappedClient = ton.NewAPIClient(client, ton.ProofCheckPolicySecure).WithRetry()
+		wrappedClient = ton.NewAPIClient(limitedClient, ton.ProofCheckPolicySecure).WithRetry()
 		wrappedClient.SetTrustedBlockFromConfig(cfg)
 
 		log.Infof("Fetching and checking proofs since config init block ...")
@@ -88,7 +90,7 @@ func NewConnection(addr, key string) (*Connection, error) {
 		log.Infof("Proof checks are completed")
 
 	} else {
-		wrappedClient = ton.NewAPIClient(client, ton.ProofCheckPolicyUnsafe).WithRetry()
+		wrappedClient = ton.NewAPIClient(limitedClient, ton.ProofCheckPolicyUnsafe).WithRetry()
 	}
 
 	// TODO: replace after tonutils fix
