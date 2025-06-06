@@ -1,15 +1,16 @@
 package config
 
 import (
+	"log"
+	"math/big"
+	"strings"
+	"time"
+
 	"github.com/caarlos0/env/v6"
 	"github.com/shopspring/decimal"
 	"github.com/tonkeeper/tongo/boc"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"log"
-	"math/big"
-	"strings"
-	"time"
 )
 
 const MaxJettonForwardTonAmount = 20_000_000
@@ -39,6 +40,7 @@ const MaxCommentLength = 1000 // qty in chars
 var Config = struct {
 	LiteServer               string `env:"LITESERVER,required"`
 	LiteServerKey            string `env:"LITESERVER_KEY,required"`
+	LiteServerRateLimit      int    `env:"LITESERVER_RATE_LIMIT" envDefault:"100"`
 	Seed                     string `env:"SEED,required"`
 	DatabaseURI              string `env:"DB_URI,required"`
 	APIPort                  int    `env:"API_PORT,required"`

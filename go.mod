@@ -12,6 +12,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/tonkeeper/tongo v1.9.9
 	github.com/xssnick/tonutils-go v1.10.2
+	golang.org/x/time v0.10.0
 )
 
 require (

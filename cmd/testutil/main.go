@@ -51,7 +51,7 @@ func main() {
 		log.Fatalf("invalid HOT_WALLET_B env var")
 	}
 
-	bcClient, err := blockchain.NewConnection(config.Config.LiteServer, config.Config.LiteServerKey)
+	bcClient, err := blockchain.NewConnection(config.Config.LiteServer, config.Config.LiteServerKey, config.Config.LiteServerRateLimit)
 	if err != nil {
 		log.Fatalf("blockchain connection error: %v", err)
 	}
