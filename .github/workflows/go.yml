@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     environment: TESTS
     services:
       postgres:
@@ -33,7 +33,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.22.1
+          go-version: 1.23.0
 
       - name: Build
         run: go build -v ./...
@@ -48,11 +48,11 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get -y install openssl ca-certificates libsecp256k1-0 libsodium23
+          sudo apt-get -y install openssl ca-certificates libsodium23
 
       - name: Install libs
         run: |
-          wget -O libemulator.so https://github.com/ton-blockchain/ton/releases/download/v2024.09/libemulator-linux-x86_64.so
+          wget -O libemulator.so https://github.com/ton-blockchain/ton/releases/download/v2025.06/libemulator-linux-x86_64.so
           sudo cp libemulator.so /lib
 
       - name: Update Library Cache
