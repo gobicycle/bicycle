@@ -1,4 +1,4 @@
-FROM docker.io/library/golang:1.23-bullseye AS builder
+FROM docker.io/library/golang:1.23-bookworm AS builder
 WORKDIR /build-dir
 COPY go.mod .
 COPY go.sum .
@@ -21,7 +21,7 @@ RUN go build -ldflags "-X main.Version=$GIT_TAG" -o /tmp/testutil github.com/gob
 FROM docker.io/library/ubuntu:24.04 AS payment-processor
 RUN apt-get update && apt-get install -y openssl ca-certificates libsodium23 wget && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /app/lib
-RUN wget -O /app/lib/libemulator.so https://github.com/ton-blockchain/ton/releases/download/v2024.09/libemulator-linux-x86_64.so
+COPY --from=builder /go/pkg/mod/github.com/tonkeeper/tongo*/lib/linux /app/lib/
 ENV LD_LIBRARY_PATH=/app/lib
 COPY --from=builder /tmp/processor /app/processor
 CMD ["/app/processor", "-v"]
@@ -29,7 +29,7 @@ CMD ["/app/processor", "-v"]
 FROM docker.io/library/ubuntu:24.04 AS payment-test
 RUN apt-get update && apt-get install -y openssl ca-certificates libsodium23 wget && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /app/lib
-RUN wget -O /app/lib/libemulator.so https://github.com/ton-blockchain/ton/releases/download/v2024.09/libemulator-linux-x86_64.so
+COPY --from=builder /go/pkg/mod/github.com/tonkeeper/tongo*/lib/linux /app/lib/
 ENV LD_LIBRARY_PATH=/app/lib
 COPY --from=builder /tmp/testutil /app/testutil
 CMD ["/app/testutil", "-v"]

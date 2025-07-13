@@ -12,8 +12,8 @@ require (
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/tonkeeper/tongo v1.9.9
-	github.com/xssnick/tonutils-go v1.13.0
+	github.com/tonkeeper/tongo v1.16.12
+	github.com/xssnick/tonutils-go v1.13.1
 	golang.org/x/time v0.10.0
 )
 
