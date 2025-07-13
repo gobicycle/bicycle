@@ -132,10 +132,10 @@ github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKsk=
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
-github.com/tonkeeper/tongo v1.9.9 h1:U5SeHrEts38zcTNPsD+QtpKwnne0u0SvRuwx+YRQcxQ=
-github.com/tonkeeper/tongo v1.9.9/go.mod h1:MjgIgAytFarjCoVjMLjYEtpZNN1f2G/pnZhKjr28cWs=
-github.com/xssnick/tonutils-go v1.13.0 h1:LV2JzB+CuuWaLQiYNolK+YI3NRQOpS0W+T+N+ctF6VQ=
-github.com/xssnick/tonutils-go v1.13.0/go.mod h1:EDe/9D/HZpAenbR+WPMQHICOF0BZWAe01TU5+Vpg08k=
+github.com/tonkeeper/tongo v1.16.12 h1:oAS9z0Kj7okTwVUV7QKAq3E6XjYmx+6DXfYaP8gg4S4=
+github.com/tonkeeper/tongo v1.16.12/go.mod h1:MjgIgAytFarjCoVjMLjYEtpZNN1f2G/pnZhKjr28cWs=
+github.com/xssnick/tonutils-go v1.13.1 h1:eWMD3KoRDX29gjAQIcLJU2Lnnzojr97xpzaMOEFjOeE=
+github.com/xssnick/tonutils-go v1.13.1/go.mod h1:EDe/9D/HZpAenbR+WPMQHICOF0BZWAe01TU5+Vpg08k=
 github.com/zenazn/goji v0.9.0/go.mod h1:7S9M489iMyHBNxwZnk9/EHS098H4/F6TATF2mIxtB1Q=
 go.uber.org/atomic v1.3.2/go.mod h1:gD2HeocX3+yG+ygLZcrzQJaqmWj9AIm7n08wl/qW/PE=
 go.uber.org/atomic v1.4.0/go.mod h1:gD2HeocX3+yG+ygLZcrzQJaqmWj9AIm7n08wl/qW/PE=
