@@ -2,13 +2,14 @@ package blockchain
 
 import (
 	"context"
+	"math/bits"
+	"strings"
+	"time"
+
 	"github.com/gobicycle/bicycle/core"
 	log "github.com/sirupsen/logrus"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
-	"math/bits"
-	"strings"
-	"time"
 )
 
 const ErrBlockNotApplied = "block is not applied"
@@ -83,7 +84,7 @@ func (s *ShardTracker) getNext() *core.ShardBlockHeader {
 
 func (s *ShardTracker) getNextMasterBlockID(ctx context.Context) (*ton.BlockIDExt, error) {
 	for {
-		masterBlockID, err := s.connection.client.GetMasterchainInfo(ctx)
+		masterBlockID, err := s.connection.GetMasterchainInfo(ctx)
 		if err != nil {
 			// exit by context timeout
 			return nil, err
@@ -109,7 +110,9 @@ func (s *ShardTracker) loadShardBlocksBatch(masterBlockID *ton.BlockIDExt) (bool
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
 	for {
-		shards, err = s.connection.client.GetBlockShardsInfo(ctx, masterBlockID)
+		shards, err = retry(func() ([]*ton.BlockIDExt, error) {
+			return s.connection.client.GetBlockShardsInfo(ctx, masterBlockID)
+		})
 		if err != nil && isNotReadyError(err) { // TODO: clarify error type
 			time.Sleep(time.Second)
 			continue
@@ -224,7 +227,9 @@ func (c *Connection) getShardBlocksHeader(ctx context.Context, shardBlockID *ton
 		block *tlb.Block
 	)
 	for {
-		block, err = c.client.GetBlockData(ctx, shardBlockID)
+		block, err = retry(func() (*tlb.Block, error) {
+			return c.client.GetBlockData(ctx, shardBlockID)
+		})
 		if err != nil && isNotReadyError(err) {
 			time.Sleep(time.Millisecond * 500)
 			continue
