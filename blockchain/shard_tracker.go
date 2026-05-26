@@ -202,7 +202,7 @@ func filterByShard(headers []*ton.BlockIDExt, shard byte) *ton.BlockIDExt {
 }
 
 func convertBlockToShardHeader(block *tlb.Block, info *ton.BlockIDExt, shard byte) (core.ShardBlockHeader, error) {
-	parents, err := block.BlockInfo.GetParentBlocks()
+	parents, err := ton.GetParentBlocks(&block.BlockInfo)
 	if err != nil {
 		return core.ShardBlockHeader{}, err
 	}

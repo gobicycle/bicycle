@@ -208,7 +208,10 @@ func LoadComment(cell *cell.Cell) string {
 	if cell == nil {
 		return ""
 	}
-	l := cell.BeginParse()
+	l, err := cell.BeginParse()
+	if err != nil {
+		return ""
+	}
 	if val, err := l.LoadUInt(32); err == nil && val == 0 {
 		str, err := l.LoadStringSnake()
 		if err != nil {

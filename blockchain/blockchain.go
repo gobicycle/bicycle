@@ -140,8 +140,11 @@ func getConfigData(ctx context.Context, api ton.APIClientWrapped) (*address.Addr
 	if data == nil {
 		return nil, nil, fmt.Errorf("failed to get root address from blockchain config")
 	}
-
-	hash, err := data.BeginParse().LoadSlice(256)
+	slice, err := data.BeginParse()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get root address from blockchain config 2: %w", err)
+	}
+	hash, err := slice.LoadSlice(256)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get root address from blockchain config 4, failed to load hash: %w", err)
 	}
@@ -262,9 +265,12 @@ func getWalletRecord(d *dns.Domain) *address.Address {
 	if rec == nil {
 		return nil
 	}
-	p := rec.BeginParse()
+	p, err := rec.BeginParse()
+	if err != nil {
+		return nil
+	}
 
-	p, err := p.LoadRef()
+	p, err = p.LoadRef()
 	if err != nil {
 		return nil
 	}
@@ -659,7 +665,15 @@ func getBlockchainConfig(ctx context.Context, client ton.LiteClient, block *ton.
 
 	switch t := resp.(type) {
 	case ton.ConfigAll:
-		stateExtra, err := ton.CheckShardMcStateExtraProof(block, []*cell.Cell{t.StateProof, t.ConfigProof})
+		stateProof, err := cell.FromBOC(t.StateProof)
+		if err != nil {
+			return nil, err
+		}
+		configProof, err := cell.FromBOC(t.ConfigProof)
+		if err != nil {
+			return nil, err
+		}
+		stateExtra, err := ton.CheckShardMcStateExtraProof(block, []*cell.Cell{stateProof, configProof})
 		if err != nil {
 			return nil, fmt.Errorf("incorrect proof: %w", err)
 		}
