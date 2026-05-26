@@ -4,6 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
+	"math/big"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/gobicycle/bicycle/config"
 	"github.com/gobicycle/bicycle/core"
 	log "github.com/sirupsen/logrus"
@@ -20,11 +26,6 @@ import (
 	"github.com/xssnick/tonutils-go/ton/jetton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-	"math"
-	"math/big"
-	"sort"
-	"strings"
-	"time"
 )
 
 type Connection struct {
@@ -50,6 +51,33 @@ type contract struct {
 	Address tongo.AccountID
 	Code    *boc.Cell
 	Data    *boc.Cell
+}
+
+func retry[T any](f func() (T, error)) (T, error) {
+	var result T
+	var err error
+	for i := 1; i <= config.Config.LiteServerMaxRetries; i++ {
+		result, err = f()
+		if err == nil {
+			return result, nil
+		}
+		time.Sleep(time.Duration(config.Config.LiteServerRetryDelay*i) * time.Millisecond)
+	}
+	return result, err
+}
+
+func retry2[T1 any, T2 any](fn func() (T1, T2, error)) (T1, T2, error) {
+	var res1 T1
+	var res2 T2
+	var err error
+	for i := 1; i <= config.Config.LiteServerMaxRetries; i++ {
+		res1, res2, err = fn()
+		if err == nil {
+			return res1, res2, nil
+		}
+		time.Sleep(time.Duration(config.Config.LiteServerRetryDelay*i) * time.Millisecond)
+	}
+	return res1, res2, err
 }
 
 // NewConnection creates new Blockchain connection
@@ -79,7 +107,7 @@ func NewConnection(addr, key string, rateLimit int) (*Connection, error) {
 			return nil, fmt.Errorf("get network config from url err: %s", err.Error())
 		}
 
-		wrappedClient = ton.NewAPIClient(limitedClient, ton.ProofCheckPolicySecure).WithRetry()
+		wrappedClient = ton.NewAPIClient(limitedClient, ton.ProofCheckPolicySecure)
 		wrappedClient.SetTrustedBlockFromConfig(cfg)
 
 		log.Infof("Fetching and checking proofs since config init block ...")
@@ -90,7 +118,7 @@ func NewConnection(addr, key string, rateLimit int) (*Connection, error) {
 		log.Infof("Proof checks are completed")
 
 	} else {
-		wrappedClient = ton.NewAPIClient(limitedClient, ton.ProofCheckPolicyUnsafe).WithRetry()
+		wrappedClient = ton.NewAPIClient(limitedClient, ton.ProofCheckPolicyUnsafe)
 	}
 
 	// TODO: replace after tonutils fix
@@ -332,7 +360,7 @@ func (c *Connection) GenerateDepositJettonWalletForProxy(
 }
 
 func (c *Connection) getContract(ctx context.Context, addr *address.Address) (contract, error) {
-	block, err := c.client.CurrentMasterchainInfo(ctx)
+	block, err := c.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return contract{}, err
 	}
@@ -441,7 +469,7 @@ func (c *Connection) GetJettonBalance(ctx context.Context, address core.Address,
 // GetLastJettonBalance
 // Returns jetton balance for last block in basic units
 func (c *Connection) GetLastJettonBalance(ctx context.Context, address *address.Address) (*big.Int, error) {
-	masterID, err := c.client.CurrentMasterchainInfo(ctx)
+	masterID, err := c.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -455,7 +483,7 @@ func (c *Connection) GetLastJettonBalance(ctx context.Context, address *address.
 // GetAccountCurrentState
 // Returns TON balance in nanoTONs and account status
 func (c *Connection) GetAccountCurrentState(ctx context.Context, address *address.Address) (*big.Int, tlb.AccountStatus, error) {
-	masterID, err := c.client.CurrentMasterchainInfo(ctx)
+	masterID, err := c.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return nil, "", err
 	}
@@ -465,7 +493,7 @@ func (c *Connection) GetAccountCurrentState(ctx context.Context, address *addres
 		case <-ctx.Done():
 			return nil, "", core.ErrTimeoutExceeded
 		default:
-			account, err := c.client.GetAccount(ctx, masterID, address)
+			account, err := c.GetAccount(ctx, masterID, address)
 			if err != nil && isNotReadyError(err) {
 				time.Sleep(time.Millisecond * 200)
 				continue
@@ -510,7 +538,9 @@ func (c *Connection) GetTransactionIDsFromBlock(ctx context.Context, blockID *to
 		next     = true
 	)
 	for next {
-		fetchedIDs, more, err := c.client.GetBlockTransactionsV2(ctx, blockID, 256, after)
+		fetchedIDs, more, err := retry2(func() ([]ton.TransactionShortInfo, bool, error) {
+			return c.client.GetBlockTransactionsV2(ctx, blockID, 256, after)
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -531,7 +561,9 @@ func (c *Connection) GetTransactionIDsFromBlock(ctx context.Context, blockID *to
 // GetTransactionFromBlock
 // Gets transaction from block
 func (c *Connection) GetTransactionFromBlock(ctx context.Context, blockID *ton.BlockIDExt, txID ton.TransactionShortInfo) (*tlb.Transaction, error) {
-	tx, err := c.client.GetTransaction(ctx, blockID, address.NewAddress(0, byte(blockID.Workchain), txID.Account), txID.LT)
+	tx, err := retry(func() (*tlb.Transaction, error) {
+		return c.client.GetTransaction(ctx, blockID, address.NewAddress(0, byte(blockID.Workchain), txID.Account), txID.LT)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -543,7 +575,9 @@ func inShard(addr core.Address, shard byte) bool {
 }
 
 func (c *Connection) getCurrentNodeTime(ctx context.Context) (time.Time, error) {
-	t, err := c.client.GetTime(ctx)
+	t, err := retry(func() (uint32, error) {
+		return c.client.GetTime(ctx)
+	})
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -596,16 +630,11 @@ func (c *Connection) WaitStatus(ctx context.Context, addr *address.Address, stat
 
 // GetAccount
 // The method is being redefined for more stable operation.
-// Gets account from prev block if impossible to get it from current block. Be careful with diff calculation between blocks.
 func (c *Connection) GetAccount(ctx context.Context, block *ton.BlockIDExt, addr *address.Address) (*tlb.Account, error) {
-	res, err := c.client.GetAccount(ctx, block, addr)
-	if err != nil && isNotReadyError(err) {
-		prevBlock, err := c.client.LookupBlock(ctx, block.Workchain, block.Shard, block.SeqNo-1)
-		if err != nil {
-			return nil, err
-		}
-		return c.client.GetAccount(ctx, prevBlock, addr)
-	}
+	res, err := retry(func() (*tlb.Account, error) {
+		return c.client.GetAccount(ctx, block, addr)
+	})
+
 	return res, err
 }
 
@@ -622,30 +651,29 @@ func (c *Connection) RunGetMethod(ctx context.Context, block *ton.BlockIDExt, ad
 		case <-ctx.Done():
 			return nil, core.ErrTimeoutExceeded
 		default:
-			res, err := c.client.RunGetMethod(ctx, block, addr, method, params...)
-			if err != nil && isNotReadyError(err) {
-				time.Sleep(time.Millisecond * 200)
-				continue
-			}
-			return res, err
+			return retry(func() (*ton.ExecutionResult, error) {
+				return c.client.RunGetMethod(ctx, block, addr, method, params...)
+			})
 		}
 	}
 }
 
 func (c *Connection) ListTransactions(ctx context.Context, addr *address.Address, num uint32, lt uint64, txHash []byte) ([]*tlb.Transaction, error) {
-	return c.client.ListTransactions(ctx, addr, num, lt, txHash)
-}
-
-func (c *Connection) Client() ton.LiteClient {
-	return c.client.Client()
+	return retry(func() ([]*tlb.Transaction, error) {
+		return c.client.ListTransactions(ctx, addr, num, lt, txHash)
+	})
 }
 
 func (c *Connection) CurrentMasterchainInfo(ctx context.Context) (*ton.BlockIDExt, error) {
-	return c.client.CurrentMasterchainInfo(ctx)
+	return retry(func() (*ton.BlockIDExt, error) {
+		return c.client.CurrentMasterchainInfo(ctx)
+	})
 }
 
 func (c *Connection) GetMasterchainInfo(ctx context.Context) (*ton.BlockIDExt, error) {
-	return c.client.GetMasterchainInfo(ctx)
+	return retry(func() (*ton.BlockIDExt, error) {
+		return c.client.GetMasterchainInfo(ctx)
+	})
 }
 
 func (c *Connection) SendExternalMessageWaitTransaction(ctx context.Context, ext *tlb.ExternalMessage) (*tlb.Transaction, *ton.BlockIDExt, []byte, error) {
