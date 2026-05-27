@@ -478,7 +478,11 @@ func decodeJettonTransferNotification(msg *tlb.InternalMessage) (jettonTransferN
 		Sender         *address.Address `tlb:"addr"`
 		ForwardPayload *cell.Cell       `tlb:"either . ^"`
 	}
-	err := tlb.LoadFromCell(&notification, payload.BeginParse())
+	slice, err := payload.BeginParse()
+	if err != nil {
+		return jettonTransferNotificationMsg{}, err
+	}
+	err = tlb.LoadFromCell(&notification, slice)
 	if err != nil {
 		return jettonTransferNotificationMsg{}, err
 	}
@@ -507,7 +511,11 @@ func DecodeJettonTransfer(msg *tlb.InternalMessage) (JettonTransferMsg, error) {
 		ForwardTonAmount    tlb.Coins        `tlb:"."`
 		ForwardPayload      *cell.Cell       `tlb:"either . ^"`
 	}
-	err := tlb.LoadFromCell(&transfer, payload.BeginParse())
+	slice, err := payload.BeginParse()
+	if err != nil {
+		return JettonTransferMsg{}, err
+	}
+	err = tlb.LoadFromCell(&transfer, slice)
 	if err != nil {
 		return JettonTransferMsg{}, err
 	}
@@ -530,7 +538,11 @@ func decodeJettonExcesses(msg *tlb.InternalMessage) (int64, error) {
 		_       tlb.Magic `tlb:"#d53276db"`
 		QueryID uint64    `tlb:"## 64"`
 	}
-	err := tlb.LoadFromCell(&excesses, payload.BeginParse())
+	slice, err := payload.BeginParse()
+	if err != nil {
+		return 0, err
+	}
+	err = tlb.LoadFromCell(&excesses, slice)
 	if err != nil {
 		return 0, err
 	}
@@ -552,13 +564,16 @@ func parseExternalMessage(msg *tlb.ExternalMessage) (
 	if err != nil {
 		return uuid.UUID{}, nil, false, err
 	}
-
-	for _, m := range info.Messages.All() {
+	messages, err := info.Messages.LoadAll()
+	if err != nil {
+		return uuid.UUID{}, nil, false, err
+	}
+	for _, m := range messages {
 		var (
 			intMsg tlb.InternalMessage
 			addr   Address
 		)
-		msgCell, err := m.Value.BeginParse().LoadRef()
+		msgCell, err := m.Value.LoadRef()
 		if err != nil {
 			return uuid.UUID{}, nil, false, err
 		}
@@ -619,7 +634,11 @@ func getHighLoadWalletExtMsgInfo(extMsg *tlb.ExternalMessage) (HighLoadWalletExt
 		BoundedID   uint64           `tlb:"## 64"`
 		Messages    *cell.Dictionary `tlb:"dict 16"`
 	}
-	err = tlb.LoadFromCell(&data, body.BeginParse())
+	slice, err := body.BeginParse()
+	if err != nil {
+		return HighLoadWalletExtMsgInfo{}, err
+	}
+	err = tlb.LoadFromCell(&data, slice)
 	if err != nil {
 		return HighLoadWalletExtMsgInfo{}, err
 	}
@@ -719,7 +738,11 @@ func (s *BlockScanner) processTonHotWalletExternalInMsg(tx *tlb.Transaction) (Ev
 func (s *BlockScanner) processTonHotWalletProxyMsg(msg *tlb.InternalMessage) (Events, error) {
 	var events Events
 	body := msg.Payload()
-	internalPayload, err := body.BeginParse().LoadRef()
+	slice, err := body.BeginParse()
+	if err != nil {
+		return Events{}, err
+	}
+	internalPayload, err := slice.LoadRef()
 	if err != nil {
 		return Events{}, fmt.Errorf("no internal payload to proxy contract: %v", err)
 	}

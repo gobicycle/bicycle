@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
-	"github.com/gobicycle/bicycle/blockchain"
-	"github.com/gobicycle/bicycle/config"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/xssnick/tonutils-go/address"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/gobicycle/bicycle/blockchain"
+	"github.com/gobicycle/bicycle/config"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/xssnick/tonutils-go/address"
 )
 
 var (
@@ -41,7 +42,8 @@ func main() {
 	if urlB == "" {
 		log.Fatalf("empty HOST_B env var")
 	}
-
+	config.Config.LiteServerMaxRetries = 10
+	config.Config.LiteServerRetryDelay = 100
 	hotWalletA, err := address.ParseAddr(os.Getenv("HOT_WALLET_A"))
 	if err != nil {
 		log.Fatalf("invalid HOT_WALLET_A env var")
