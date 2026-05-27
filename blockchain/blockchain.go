@@ -54,6 +54,9 @@ type contract struct {
 }
 
 func retry[T any](f func() (T, error)) (T, error) {
+	if config.Config.LiteServerMaxRetries == 0 {
+		return f()
+	}
 	var result T
 	var err error
 	for i := 1; i <= config.Config.LiteServerMaxRetries; i++ {
@@ -67,6 +70,9 @@ func retry[T any](f func() (T, error)) (T, error) {
 }
 
 func retry2[T1 any, T2 any](fn func() (T1, T2, error)) (T1, T2, error) {
+	if config.Config.LiteServerMaxRetries == 0 {
+		return fn()
+	}
 	var res1 T1
 	var res2 T2
 	var err error
