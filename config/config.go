@@ -41,6 +41,8 @@ var Config = struct {
 	LiteServer               string `env:"LITESERVER,required"`
 	LiteServerKey            string `env:"LITESERVER_KEY,required"`
 	LiteServerRateLimit      int    `env:"LITESERVER_RATE_LIMIT" envDefault:"100"`
+	LiteServerMaxRetries     int    `env:"LITESERVER_MAX_RETRIES" envDefault:"10"`
+	LiteServerRetryDelay     int    `env:"LITESERVER_BASE_RETRY_DELAY" envDefault:"100"` // ms
 	Seed                     string `env:"SEED,required"`
 	DatabaseURI              string `env:"DB_URI,required"`
 	APIPort                  int    `env:"API_PORT,required"`
