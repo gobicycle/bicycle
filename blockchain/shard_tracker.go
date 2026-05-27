@@ -123,7 +123,7 @@ func (s *ShardTracker) loadShardBlocksBatch(masterBlockID *ton.BlockIDExt) (bool
 		break
 	}
 	s.infoCounter = 0
-	batch, exit, err := s.getShardBlocksRecursively(filterByShard(shards, s.shard), nil)
+	batch, exit, err := s.getShardBlocks(filterByShard(shards, s.shard))
 	if err != nil {
 		return false, err
 	}
@@ -139,46 +139,49 @@ func (s *ShardTracker) loadShardBlocksBatch(masterBlockID *ton.BlockIDExt) (bool
 	return false, nil
 }
 
-func (s *ShardTracker) getShardBlocksRecursively(i *ton.BlockIDExt, batch []core.ShardBlockHeader) ([]core.ShardBlockHeader, bool, error) {
-	if s.gracefulShutdown {
-		return nil, true, nil
-	}
-	if s.lastKnownShardBlock == nil {
-		s.lastKnownShardBlock = i
-	}
-	isKnown := (s.lastKnownShardBlock.Shard == i.Shard) && (s.lastKnownShardBlock.SeqNo == i.SeqNo)
-	if isKnown {
-		return batch, false, nil
-	}
-
-	// compare seqno with filtered shard block
-	// handle the case when a node may reference an old block
-	if s.lastKnownShardBlock.SeqNo > i.SeqNo {
-		return []core.ShardBlockHeader{}, false, nil
-	}
-
-	seqnoDiff := int(i.SeqNo - s.lastKnownShardBlock.SeqNo)
-	if seqnoDiff > s.infoStep {
-		if s.infoCounter%s.infoStep == 0 {
-			estimatedTime := time.Duration(seqnoDiff/s.infoStep) * time.Since(s.infoLastTime)
-			s.infoLastTime = time.Now()
-			if s.infoCounter == 0 {
-				log.Printf("Shard tracker syncing... Seqno diff: %v Estimated time: unknown\n", seqnoDiff)
-			} else {
-				log.Printf("Shard tracker syncing... Seqno diff: %v Estimated time: %v\n", seqnoDiff, estimatedTime)
-			}
+func (s *ShardTracker) getShardBlocks(i *ton.BlockIDExt) ([]core.ShardBlockHeader, bool, error) {
+	var batch []core.ShardBlockHeader
+	for {
+		if s.gracefulShutdown {
+			return nil, true, nil
 		}
-		s.infoCounter++
-	}
+		if s.lastKnownShardBlock == nil {
+			s.lastKnownShardBlock = i
+		}
+		isKnown := (s.lastKnownShardBlock.Shard == i.Shard) && (s.lastKnownShardBlock.SeqNo == i.SeqNo)
+		if isKnown {
+			return batch, false, nil
+		}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
-	defer cancel()
-	h, err := s.connection.getShardBlocksHeader(ctx, i, s.shard)
-	if err != nil {
-		return nil, false, err
+		// compare seqno with filtered shard block
+		// handle the case when a node may reference an old block
+		if s.lastKnownShardBlock.SeqNo > i.SeqNo {
+			return []core.ShardBlockHeader{}, false, nil
+		}
+
+		seqnoDiff := int(i.SeqNo - s.lastKnownShardBlock.SeqNo)
+		if seqnoDiff > s.infoStep {
+			if s.infoCounter%s.infoStep == 0 {
+				estimatedTime := time.Duration(seqnoDiff/s.infoStep) * time.Since(s.infoLastTime)
+				s.infoLastTime = time.Now()
+				if s.infoCounter == 0 {
+					log.Printf("Shard tracker syncing... Seqno diff: %v Estimated time: unknown\n", seqnoDiff)
+				} else {
+					log.Printf("Shard tracker syncing... Seqno diff: %v Estimated time: %v\n", seqnoDiff, estimatedTime)
+				}
+			}
+			s.infoCounter++
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+		h, err := s.connection.getShardBlocksHeader(ctx, i, s.shard)
+		cancel()
+		if err != nil {
+			return nil, false, err
+		}
+		batch = append(batch, h)
+		i = h.Parent
 	}
-	batch = append(batch, h)
-	return s.getShardBlocksRecursively(h.Parent, batch)
 }
 
 func isInShard(blockShardPrefix uint64, shard byte) bool {
