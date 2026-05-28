@@ -87,7 +87,7 @@ func retry2[T1 any, T2 any](fn func() (T1, T2, error)) (T1, T2, error) {
 }
 
 // NewConnection creates new Blockchain connection
-func NewConnection(addr, key string, rateLimit int) (*Connection, error) {
+func NewConnection(addr, key string, rateLimit int, blockStorage provenBlocksStorage) (*Connection, error) {
 
 	client := liteclient.NewConnectionPool()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
@@ -103,18 +103,22 @@ func NewConnection(addr, key string, rateLimit int) (*Connection, error) {
 	var wrappedClient ton.APIClientWrapped
 
 	if config.Config.ProofCheckEnabled {
-
-		if config.Config.NetworkConfigUrl == "" {
-			return nil, fmt.Errorf("empty network config URL")
-		}
-
-		cfg, err := liteclient.GetConfigFromUrl(ctx, config.Config.NetworkConfigUrl)
-		if err != nil {
-			return nil, fmt.Errorf("get network config from url err: %s", err.Error())
-		}
-
 		wrappedClient = ton.NewAPIClient(limitedClient, ton.ProofCheckPolicySecure)
-		wrappedClient.SetTrustedBlockFromConfig(cfg)
+
+		lastBlock, err := blockStorage.GetLastMasterchainProvenBlock(ctx)
+		if err == nil {
+			wrappedClient.SetTrustedBlock(lastBlock)
+		} else {
+			if config.Config.NetworkConfigUrl == "" {
+				return nil, fmt.Errorf("empty network config URL")
+			}
+
+			cfg, err := liteclient.GetConfigFromUrl(ctx, config.Config.NetworkConfigUrl)
+			if err != nil {
+				return nil, fmt.Errorf("get network config from url err: %s", err.Error())
+			}
+			wrappedClient.SetTrustedBlockFromConfig(cfg)
+		}
 
 		log.Infof("Fetching and checking proofs since config init block ...")
 		_, err = wrappedClient.CurrentMasterchainInfo(ctx) // we fetch block just to trigger chain proof check
@@ -122,7 +126,7 @@ func NewConnection(addr, key string, rateLimit int) (*Connection, error) {
 			return nil, fmt.Errorf("get masterchain info err: %s", err.Error())
 		}
 		log.Infof("Proof checks are completed")
-
+		go updateLastBlocks(wrappedClient, blockStorage)
 	} else {
 		wrappedClient = ton.NewAPIClient(limitedClient, ton.ProofCheckPolicyUnsafe)
 	}
