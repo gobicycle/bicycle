@@ -4,6 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
+
 	"github.com/gobicycle/bicycle/api"
 	"github.com/gobicycle/bicycle/blockchain"
 	"github.com/gobicycle/bicycle/config"
@@ -12,12 +19,6 @@ import (
 	"github.com/gobicycle/bicycle/queue"
 	"github.com/gobicycle/bicycle/webhook"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"os"
-	"os/signal"
-	"sync"
-	"syscall"
-	"time"
 )
 
 var Version = "dev"
@@ -32,14 +33,14 @@ func main() {
 	signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
 	wg := new(sync.WaitGroup)
 
-	bcClient, err := blockchain.NewConnection(config.Config.LiteServer, config.Config.LiteServerKey, config.Config.LiteServerRateLimit)
-	if err != nil {
-		log.Fatalf("blockchain connection error: %v", err)
-	}
-
 	dbClient, err := db.NewConnection(config.Config.DatabaseURI)
 	if err != nil {
 		log.Fatalf("DB connection error: %v", err)
+	}
+
+	bcClient, err := blockchain.NewConnection(config.Config.LiteServer, config.Config.LiteServerKey, config.Config.LiteServerRateLimit, dbClient)
+	if err != nil {
+		log.Fatalf("blockchain connection error: %v", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
