@@ -3,16 +3,18 @@ package blockchain
 import (
 	"bytes"
 	"context"
-	"github.com/gobicycle/bicycle/core"
-	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton/jetton"
-	"github.com/xssnick/tonutils-go/ton/wallet"
 	"math/big"
 	"math/rand"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/gobicycle/bicycle/core"
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/ton/jetton"
+	"github.com/xssnick/tonutils-go/ton/wallet"
 )
 
 var (
@@ -20,6 +22,22 @@ var (
 	activeAccount, _       = address.ParseAddr("kQCOSEttz9aEGXkjd1h_NJsQqOca3T-Pld5zSIPHcYZIxsyf")
 	notActiveAccount, _    = address.ParseAddr("kQAkRRJ1RiViVHY2UmUhWCFjdiZBeEYnhkhxI1JTJFNUNG9v")
 )
+
+type mockBlockStorage struct{}
+
+func (m mockBlockStorage) SaveLastMasterchainProvenBlock(ctx context.Context, block ton.BlockIDExt) error {
+	return nil
+}
+
+func (m mockBlockStorage) GetLastMasterchainProvenBlock(ctx context.Context) (*ton.BlockIDExt, error) {
+	return &ton.BlockIDExt{
+		Workchain: -1,
+		Shard:     -8000000000000000,
+		SeqNo:     69722697,
+		RootHash:  []byte{0x4b, 0x7e, 0x27, 0xd3, 0xcc, 0x60, 0xbf, 0x16, 0xc7, 0x1b, 0xe0, 0x2d, 0xe8, 0xee, 0xb1, 0xb8, 0x74, 0xc9, 0x1d, 0xe6, 0x49, 0xe6, 0x2f, 0x3a, 0xd0, 0x88, 0xd5, 0xeb, 0x7a, 0x6a, 0x8d, 0x30},
+		FileHash:  []byte{0x41, 0x89, 0x69, 0xd0, 0x94, 0x1d, 0x94, 0x63, 0xa1, 0x58, 0xbf, 0xfe, 0x27, 0x38, 0x52, 0xe3, 0x4b, 0x35, 0x13, 0x4a, 0x38, 0xde, 0xf0, 0x26, 0x90, 0xec, 0xc8, 0x95, 0xb5, 0x10, 0xba, 0xa8},
+	}, nil
+}
 
 func connect(t *testing.T) *Connection {
 	server := os.Getenv("SERVER")
@@ -30,7 +48,7 @@ func connect(t *testing.T) *Connection {
 	if key == "" {
 		t.Fatal("empty key var")
 	}
-	c, err := NewConnection(server, key, 100)
+	c, err := NewConnection(server, key, 100, mockBlockStorage{})
 	if err != nil {
 		t.Fatal("connections err: ", err)
 	}

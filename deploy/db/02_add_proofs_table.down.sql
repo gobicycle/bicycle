@@ -1,1 +1,0 @@
-DROP TABLE IF EXISTS payments.last_proven_block;
