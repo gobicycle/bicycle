@@ -9,6 +9,7 @@ DROP TABLE IF EXISTS payments.external_incomes;
 DROP TABLE IF EXISTS payments.block_data;
 DROP TABLE IF EXISTS payments.internal_withdrawals;
 DROP TABLE IF EXISTS payments.service_withdrawal_requests;
+DROP TABLE IF EXISTS payments.last_proven_block;
 
 DROP SCHEMA IF EXISTS payments;
 
