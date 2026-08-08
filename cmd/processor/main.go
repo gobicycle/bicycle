@@ -16,12 +16,18 @@ import (
 	"github.com/gobicycle/bicycle/config"
 	"github.com/gobicycle/bicycle/core"
 	"github.com/gobicycle/bicycle/db"
+	"github.com/gobicycle/bicycle/pkg/trust"
+	"github.com/gobicycle/bicycle/pkg/trust/orbs"
+	"github.com/gobicycle/bicycle/pkg/trust/tonapi"
+	"github.com/gobicycle/bicycle/pkg/trust/toncenter"
+	"github.com/gobicycle/bicycle/pkg/trust/tonhub"
 	"github.com/gobicycle/bicycle/queue"
 	"github.com/gobicycle/bicycle/webhook"
 	log "github.com/sirupsen/logrus"
 )
 
 var Version = "dev"
+var trustSources = []trust.Trust{tonapi.Tonapi{}, tonhub.Tonhub{}, toncenter.Toncenter{}, orbs.Orbs{}}
 
 func main() {
 
@@ -38,7 +44,7 @@ func main() {
 		log.Fatalf("DB connection error: %v", err)
 	}
 
-	bcClient, err := blockchain.NewConnection(config.Config.LiteServer, config.Config.LiteServerKey, config.Config.LiteServerRateLimit, dbClient)
+	bcClient, err := blockchain.NewConnection(config.Config.LiteServer, config.Config.LiteServerKey, config.Config.LiteServerRateLimit, dbClient, trustSources)
 	if err != nil {
 		log.Fatalf("blockchain connection error: %v", err)
 	}

@@ -12,6 +12,7 @@ import (
 
 	"github.com/gobicycle/bicycle/config"
 	"github.com/gobicycle/bicycle/core"
+	"github.com/gobicycle/bicycle/pkg/trust"
 	log "github.com/sirupsen/logrus"
 	"github.com/tonkeeper/tongo"
 	"github.com/tonkeeper/tongo/boc"
@@ -87,7 +88,7 @@ func retry2[T1 any, T2 any](fn func() (T1, T2, error)) (T1, T2, error) {
 }
 
 // NewConnection creates new Blockchain connection
-func NewConnection(addr, key string, rateLimit int, blockStorage provenBlocksStorage) (*Connection, error) {
+func NewConnection(addr, key string, rateLimit int, blockStorage provenBlocksStorage, sourcesOfTrust []trust.Trust) (*Connection, error) {
 
 	client := liteclient.NewConnectionPool()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
@@ -110,14 +111,19 @@ func NewConnection(addr, key string, rateLimit int, blockStorage provenBlocksSto
 			wrappedClient.SetTrustedBlock(lastBlock)
 		} else {
 			if config.Config.NetworkConfigUrl == "" {
-				return nil, fmt.Errorf("empty network config URL")
+				block, err := getTrustBlockFromDifferentSources(ctx, wrappedClient, sourcesOfTrust)
+				if err != nil {
+					return nil, err
+				}
+				wrappedClient.SetTrustedBlock(block)
+				blockStorage.SaveLastMasterchainProvenBlock(ctx, *block)
+			} else {
+				cfg, err := liteclient.GetConfigFromUrl(ctx, config.Config.NetworkConfigUrl)
+				if err != nil {
+					return nil, fmt.Errorf("get network config from url err: %s", err.Error())
+				}
+				wrappedClient.SetTrustedBlockFromConfig(cfg)
 			}
-
-			cfg, err := liteclient.GetConfigFromUrl(ctx, config.Config.NetworkConfigUrl)
-			if err != nil {
-				return nil, fmt.Errorf("get network config from url err: %s", err.Error())
-			}
-			wrappedClient.SetTrustedBlockFromConfig(cfg)
 		}
 
 		log.Infof("Fetching and checking proofs since config init block ...")
@@ -144,6 +150,34 @@ func NewConnection(addr, key string, rateLimit int, blockStorage provenBlocksSto
 		client:   wrappedClient,
 		resolver: resolver,
 	}, nil
+}
+
+func getTrustBlockFromDifferentSources(ctx context.Context, client ton.APIClientWrapped, sourcesOfTrust []trust.Trust) (*ton.BlockIDExt, error) {
+	mcInfo, err := client.GetMasterchainInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+	success, require := 0, len(sourcesOfTrust)-1
+	if require < 1 {
+		require = 1
+	}
+	time.Sleep(time.Second * 10)
+	for i, t := range sourcesOfTrust {
+		err = t.CheckBlock(*mcInfo)
+		if errors.Is(err, trust.MismatchHead) {
+			fmt.Println(i)
+			return nil, err
+		}
+		if err != nil {
+			fmt.Printf("Error checking block err: %s", err.Error())
+			continue
+		}
+		success++
+		if success >= require {
+			return mcInfo, nil
+		}
+	}
+	return nil, fmt.Errorf("failed to find trusted block. try set NETWORK_CONFIG_URL")
 }
 
 func getConfigData(ctx context.Context, api ton.APIClientWrapped) (*address.Address, *boc.Cell, error) {
