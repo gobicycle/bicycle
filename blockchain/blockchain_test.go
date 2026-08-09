@@ -48,7 +48,7 @@ func connect(t *testing.T) *Connection {
 	if key == "" {
 		t.Fatal("empty key var")
 	}
-	c, err := NewConnection(server, key, 100, mockBlockStorage{})
+	c, err := NewConnection(server, key, 100, mockBlockStorage{}, nil)
 	if err != nil {
 		t.Fatal("connections err: ", err)
 	}
